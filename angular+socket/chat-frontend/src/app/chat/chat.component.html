@@ -1,0 +1,19 @@
+<h2>SOCKET TEST</h2>
+
+<p>Status: 
+  <span [style.color]="connected ? 'green' : 'red'">
+    {{ connected ? 'Connected ✅' : 'Disconnected ❌' }}
+  </span>
+</p>
+
+<input [(ngModel)]="message" placeholder="Type a message..." />
+
+<button type="button" (click)="send()" [disabled]="!connected">Send</button>
+<button type="button" (click)="disconnect()">Disconnect</button>
+<button type="button" (click)="reconnect()">Reconnect</button>
+
+<p>Message model: {{ message }}</p>
+
+<ul>
+  <li *ngFor="let msg of messages">{{ msg }}</li>
+</ul>
