@@ -1,6 +1,7 @@
 import { Project } from "../models/project.model";
 import{ Gmail } from "../models/Gmail.model"  //ye bilal kere ga lol 
 
+import {ToDoLst,scheduled_task} from "./screen_elements.model"
 import dayjs from 'dayjs'; //for calender ki class 
 // (does require doing npm install dayjs)
 
@@ -57,9 +58,13 @@ class contact
 export class calender
 {
     //scheduled tasks ki list chahiye is mei woh jub woh element banay ga tub deikhein gei
-    constructor()
+    scheduled_tasks: scheduled_task[]=[]
+
+    constructor(ToDoLst:ToDoLst)
     {
-       
+       ToDoLst.scheduled_tasks.forEach(element => {
+        this.scheduled_tasks.push(element);
+       });
     }
 
     get_current_date(): string

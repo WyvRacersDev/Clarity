@@ -3,6 +3,8 @@
 
 <h2>Hi! frontend speaking, please complete me, mr hamza iqbal</h2>
 
+<h2>MAJOR TODO: network ka backend </h2>
+
 <h1> check the logs to see if objects have been created </h1>
 
 <p>The objects created should be:
@@ -11,7 +13,30 @@
     <li>Project</li>
     <li>Grid</li>
     <li>Text Object (screen element)</li>
-    <li>Date</li>
+    <li>Image Object (screen element) x2</li>
+    <li>Video Object (screen element) x2</li>
+    <li>To Do List (screen element)</li>
+    <li>Date (calender)</li>
   </ul> 
   
+<div *ngFor="let img of images">
+  <p><b>{{ img.name }}</b> — {{ img.imageDescription }}</p>
+  <img
+    *ngIf="!img.imageFile"
+    [src]="img.imagepath"
+    width="200"
+  >
+  <img
+    *ngIf="img.imageFile"
+    [src]="'data:image/png;base64,' + img.imageFile"
+    width="200"
+  >
+</div>
 
+<div *ngFor="let video of videos">
+  <h3>{{ video.name }}</h3>
+  <video width="320" height="240" controls>
+    <source [src]="video.VideoPath" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
