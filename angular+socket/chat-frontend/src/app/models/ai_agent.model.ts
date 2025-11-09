@@ -1,12 +1,21 @@
 //pls bilal complete
-import { Analytics } from "../models/analytics.model"  
+import { AI_Tools } from "../models/analytics.model"  
+
 
 export class AI_agent
 {
-    prompt:string; 
-
-    constructor(prompt:string)
+    api_key:string
+    prompt?:string; //can be empty (needs to be hardcoded)
+    tools: AI_Tools[]=[] 
+    chat_history: string[]=[]
+    
+    constructor(api_key:string)
     {
-        this.prompt=prompt; 
+        this.api_key=api_key
+    }
+
+    chat(user_input:string)
+    {
+
     }
 }
