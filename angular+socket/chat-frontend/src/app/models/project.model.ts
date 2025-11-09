@@ -14,6 +14,19 @@ export class Grid{
     {
         this.Screen_elements.push(element);
     }
+
+    remove_element(element_index:number):boolean
+    {
+        if(element_index>=0 && element_index<this.Screen_elements.length)
+        {
+            this.Screen_elements.splice(element_index,1)
+            return true
+        }
+        else
+        {
+            return false
+        }
+    }
 }
 
 export class Project{
@@ -31,6 +44,19 @@ export class Project{
     create_grid(name:string)  //takes grid name and adds to the list of the grids in the project
     {
        this.grid.push(new Grid(name)); 
+    }
+
+    remove_grid(grid_index:number):boolean
+    {
+        if(grid_index>=0 && grid_index<this.grid.length)
+        {
+            this.grid.splice(grid_index,1)
+            return true
+        }
+        else
+        {
+            return false
+        }
     }
 }
 

@@ -16,6 +16,25 @@ export abstract class Screen_Element
     this.y_pos=y_pos;
   }
 
+  get_xpos():number
+  {
+    return this.x_pos
+  }
+
+  get_ypos():number
+  {
+    return this.y_pos
+  }
+
+  set_xpos(xpos:number)
+  {
+    this.x_pos=xpos
+  }
+
+  set_ypos(ypos:number)
+  {
+    this.y_pos=ypos
+  }
 }
 
 export class Text_document extends Screen_Element
@@ -27,6 +46,16 @@ export class Text_document extends Screen_Element
     super(name,x_pos,y_pos);
     this.Text_field=text_field;
     console.log("Text object created")
+  }
+
+  set_field(text:string)
+  {
+    this.Text_field=text
+  }
+
+  get_field():string
+  {
+    return this.Text_field
   }
 }
 
@@ -101,6 +130,31 @@ export class scheduled_task
     this.time=time;
     this.is_done=false;
   }
+  
+  edit_priority(new_pr:number)
+  {
+    this.priority=new_pr
+  }
+
+  get_priority():number
+  {
+    return this.priority
+  }
+
+  set_time(time:string)
+  {
+    this.time=time
+  }
+
+  get_time():string
+  {
+    return this.time
+  }
+
+  get_status():boolean
+  {
+    return this.is_done
+  }
 
   toggle_done_status()
   {
@@ -115,5 +169,18 @@ export class ToDoLst extends Screen_Element
   add_task(task:scheduled_task)
   {
     this.scheduled_tasks.push(task);
+  }
+
+  delete_task(task_index:number):boolean
+  {
+     if(task_index>=0 && task_index<this.scheduled_tasks.length)
+        {
+            this.scheduled_tasks.splice(task_index,1)
+            return true
+        }
+        else
+        {
+            return false
+        }
   }
 }
