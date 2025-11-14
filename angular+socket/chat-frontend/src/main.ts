@@ -3,5 +3,5 @@ import { ChatComponent } from './app/chat(depreciated)/chat.component';
 import { AppComponent } from './app/app';
 import 'zone.js'; 
 
-bootstrapApplication(ChatComponent)
+bootstrapApplication(AppComponent)
   .catch(err => console.error(err));
