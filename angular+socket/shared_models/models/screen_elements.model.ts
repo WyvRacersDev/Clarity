@@ -35,6 +35,16 @@ export abstract class Screen_Element
   {
     this.y_pos=ypos
   }
+
+   toJSON() //need to send json objects over the network
+   {
+    return {
+      type: this.constructor.name, 
+      name: this.name,
+      x_pos: this.x_pos,
+      y_pos: this.y_pos
+    };
+  }
 }
 
 export class Text_document extends Screen_Element
@@ -57,6 +67,15 @@ export class Text_document extends Screen_Element
   {
     return this.Text_field
   }
+
+  override toJSON() 
+  {
+    return {
+      ...super.toJSON(),
+      Text_field: this.Text_field
+    };
+  }
+
 }
 
 //TODO need to put all other screen element classes here as well
@@ -76,9 +95,10 @@ export class Image extends Screen_Element
     console.log("Image object created")
   }
 
-  toJSON() 
+  override toJSON() 
   {
-    return {  //ye agli line per nahi ja rha :sob:
+    return {  
+       ...super.toJSON(),
       name: this.name,
       x_pos: this.x_pos,
       y_pos: this.y_pos,
@@ -104,9 +124,10 @@ export class Video extends Screen_Element
     console.log("Video object created")
   }
 
-  toJSON() 
+  override toJSON() 
   {
-    return {  //ye agli line per nahi ja rha :sob:
+    return {  
+       ...super.toJSON(),
       name: this.name,
       x_pos: this.x_pos,
       y_pos: this.y_pos,
@@ -160,6 +181,18 @@ export class scheduled_task
   {
     this.is_done=!this.is_done;
   }
+
+  toJSON() 
+  {
+    return {
+      type: this.constructor.name,
+      taskname: this.taskname,
+      priority: this.priority,
+      is_done: this.is_done,
+      time: this.time
+    };
+  }
+
 }
 
 export class ToDoLst extends Screen_Element
@@ -182,5 +215,60 @@ export class ToDoLst extends Screen_Element
         {
             return false
         }
+  }
+
+  override toJSON() 
+  {
+    return {
+      ...super.toJSON(),
+      scheduled_tasks: this.scheduled_tasks.map(t => t.toJSON()) 
+    };
+  }
+}
+
+export class objects_builder 
+{
+
+  static rebuild(obj: any): Screen_Element | scheduled_task | any 
+  {
+    if (!obj || !obj.type) return obj;
+
+    switch(obj.__type) {
+      case 'Text_document':
+        return new Text_document(obj.name, obj.x_pos, obj.y_pos, obj.Text_field);
+
+      case 'Image': 
+      {
+        const img = new Image(obj.imagepath, obj.x_pos, obj.y_pos, obj.name, obj.imageDescription);
+        if (obj.ImageBase64) img.imageFile = Buffer.from(obj.ImageBase64, 'base64');
+        return img;
+      }
+
+      case 'Video': 
+      {
+        const vid = new Video(obj.VideoPath, obj.x_pos, obj.y_pos, obj.name, obj.VideoDescription);
+        if (obj.videoBase64) vid.VideoFile = obj.videoBase64;
+        return vid;
+      }
+
+      case 'scheduled_task': //not really an element but needs to be rebuilt too lol
+      {
+        const t = new scheduled_task(obj.taskname, obj.priority, obj.time);
+        t.is_done = obj.is_done;
+        return t;
+      }
+
+      case 'ToDoLst': 
+      {
+        const list = new ToDoLst(obj.name, obj.x_pos, obj.y_pos);
+        list.scheduled_tasks = obj.scheduled_tasks.map((t: any) =>
+          objects_builder.rebuild(t)
+        );
+        return list;
+      }
+
+      default:
+        return obj;
+    }
   }
 }

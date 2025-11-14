@@ -1,9 +1,20 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const fs = require("fs");
-const path = require("path");
-const { google } = require("googleapis");
+// const express = require('express');
+// const http = require('http');
+// const { Server } = require('socket.io');
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+
+
+// const fs = require("fs");
+// const path = require("path");
+// const { google } = require("googleapis");
+import fs from "fs";
+import path from "path";
+import { google } from "googleapis";
+
+import { Socket } from "socket.io";
+import {objects_builder} from '../shared_models/models/screen_elements.model.ts'; // incredible location ngl 
 
 const app = express();
 const PORT = 3000;
@@ -16,22 +27,37 @@ const io = new Server(server, {
   }
 });
 
-const messages = []; // In-memory history
+//   // Send history immediately
+//   socket.emit("chatHistory", messages);
 
-io.on("connection", (socket) => {
+//   socket.on("chatMessage", (msg) => {
+//     console.log("💬 Message:", msg);
+
+//     // Save message to history
+//     messages.push(msg);
+
+//     // Broadcast new message
+//     io.emit("chatMessage", msg);
+//   });
+
+//   socket.on("disconnect", () => {
+//     console.log("❌ User disconnected:", socket.id);
+//   });
+// });
+
+
+io.on("connection", (socket:Socket) => {
   console.log("✅ User connected:", socket.id);
 
-  // Send history immediately
-  socket.emit("chatHistory", messages);
+  // Receiving method
+  socket.on("screenElement", (raw) => { 
+    console.log("📦 Received element from client:", raw);
 
-  socket.on("chatMessage", (msg) => {
-    console.log("💬 Message:", msg);
-
-    // Save message to history
-    messages.push(msg);
-
-    // Broadcast new message
-    io.emit("chatMessage", msg);
+    // Optional: rebuild for server use
+    const element = objects_builder.rebuild(raw); //will be used to store later on (abhi kerna hai)
+    
+    // Do something locally (save, log, process)
+    // ❌ No broadcasting back
   });
 
   socket.on("disconnect", () => {
@@ -39,12 +65,17 @@ io.on("connection", (socket) => {
   });
 });
 
+
 server.listen(3000, () => {
   console.log("🚀 Server running on http://localhost:3000");
 });
 
 
 // === Paths ===
+
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const CREDENTIALS_PATH = path.join(__dirname, "credentials.json");
 const TOKEN_PATH = path.join(__dirname, "tokens.json");
 
@@ -59,7 +90,7 @@ const oAuth2Client = new google.auth.OAuth2(
 );
 
 // === Generate auth URL ===
-app.get("/auth", (req, res) => {
+app.get("/auth", (req:any, res:any) => {
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent", // ensures refresh token is returned
@@ -72,8 +103,13 @@ app.get("/auth", (req, res) => {
   res.redirect(authUrl);
 });
 
+interface TokenStore 
+{  //used to avoid TS from throwing a fit
+  [email: string]: any; // or a more specific type for tokens
+}
+
 // === Handle OAuth callback ===
-app.get("/oauth2callback", async (req, res) => {
+app.get("/oauth2callback", async (req:any, res:any) => {
   const code = req.query.code;
 
   try {
@@ -85,13 +121,19 @@ app.get("/oauth2callback", async (req, res) => {
     const userInfo = await oauth2.userinfo.get();
 
     // === Read existing tokens ===
-    let tokenStore = {};
+    let tokenStore:TokenStore = {};
+
     if (fs.existsSync(TOKEN_PATH)) {
       tokenStore = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
     }
 
     // === Save credentials for this user ===
     const email = userInfo.data.email;
+    
+    if (!email)   //ye hamza iqbal ko kisi din mei poochon ga
+    {
+        throw new Error("User email is missing");
+    }
     tokenStore[email] = tokens;
 
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenStore, null, 2));
@@ -103,7 +145,7 @@ app.get("/oauth2callback", async (req, res) => {
 });
 
 // === Example protected route ===
-app.get("/profile", async (req, res) => {
+app.get("/profile", async (req:any, res:any) => {
   if (!fs.existsSync(TOKEN_PATH)) {
     return res.send("No tokens found. Please /auth first.");
   }
@@ -116,7 +158,9 @@ app.get("/profile", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-app.get("/test", async (req, res) => {
+
+import { calendar_v3 } from "googleapis"; //needed because typescript hates me
+app.get("/test", async (req:any, res:any) => {
   try {
     const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
 
@@ -146,7 +190,7 @@ app.get("/test", async (req, res) => {
       orderBy: "startTime",
     });
 
-    const upcoming = events.data.items || [];
+    const upcoming: calendar_v3.Schema$Event[] = events.data.items || [];
     if (upcoming.length === 0) {
       res.send(`✅ Successfully reused tokens for ${testEmail}, but no upcoming events found.`);
     } else {
@@ -155,7 +199,7 @@ app.get("/test", async (req, res) => {
         events: upcoming.map(e => e.summary || "No Title"),
       });
     }
-  } catch (error) {
+  } catch (error:any) {
     console.error("Error reusing tokens:", error);
     res.status(500).send("❌ Failed to reuse tokens. Check console for details.");
   }
