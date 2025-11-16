@@ -1,0 +1,138 @@
+<div class="tasks-container">
+  <div class="tasks-header">
+    <h1>Tasks & Calendar</h1>
+    <button class="btn-primary" (click)="openAddTaskModal()">+ New Task</button>
+  </div>
+
+  <div class="tasks-layout">
+    <!-- Calendar View -->
+    <div class="calendar-section">
+      <div class="calendar-header">
+        <button class="nav-btn" (click)="previousDay()">‹</button>
+        <h2>{{ getFormattedDate('MMMM D, YYYY') }}</h2>
+        <button class="nav-btn" (click)="nextDay()">›</button>
+        <button class="today-btn" (click)="goToToday()">Today</button>
+      </div>
+
+      <div class="tasks-for-date">
+        <h3>Tasks for {{ getFormattedDate('MMMM D') }}</h3>
+        <div class="task-list">
+          <div
+            *ngFor="let task of getTasksForDate(selectedDate)"
+            class="task-item"
+            [style.border-left-color]="getPriorityColor(task.get_priority())">
+            <input
+              type="checkbox"
+              [checked]="task.get_status()"
+              (change)="toggleTaskStatus(task)">
+            <div class="task-content">
+              <div class="task-name" [class.completed]="task.get_status()">
+                {{ task.taskname }}
+              </div>
+              <div class="task-meta">
+                <span class="task-time">{{ formatTime(task.get_time()) }}</span>
+                <span
+                  class="task-priority"
+                  [style.color]="getPriorityColor(task.get_priority())">
+                  {{ getPriorityLabel(task.get_priority()) }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="getTasksForDate(selectedDate).length === 0" class="empty-tasks">
+            No tasks scheduled for this date
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="tasks-sidebar">
+      <div class="sidebar-section">
+        <h3>Upcoming Tasks</h3>
+        <div class="task-list">
+          <div
+            *ngFor="let task of getUpcomingTasks()"
+            class="task-item-small">
+            <input
+              type="checkbox"
+              [checked]="task.get_status()"
+              (change)="toggleTaskStatus(task)">
+            <div class="task-content-small">
+              <div class="task-name-small">{{ task.taskname }}</div>
+              <div class="task-time-small">{{ formatDateTime(task.get_time()) }}</div>
+            </div>
+          </div>
+          <div *ngIf="getUpcomingTasks().length === 0" class="empty-tasks">
+            No upcoming tasks
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Overdue Tasks</h3>
+        <div class="task-list">
+          <div
+            *ngFor="let task of getOverdueTasks()"
+            class="task-item-small overdue">
+            <input
+              type="checkbox"
+              [checked]="task.get_status()"
+              (change)="toggleTaskStatus(task)">
+            <div class="task-content-small">
+              <div class="task-name-small">{{ task.taskname }}</div>
+              <div class="task-time-small">{{ formatDateTime(task.get_time()) }}</div>
+            </div>
+          </div>
+          <div *ngIf="getOverdueTasks().length === 0" class="empty-tasks">
+            No overdue tasks
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal-overlay" *ngIf="showAddTaskModal" (click)="showAddTaskModal = false">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <h2>Add New Task</h2>
+    <div class="form-group">
+      <label>Task Name</label>
+      <input
+        type="text"
+        [(ngModel)]="newTaskName"
+        placeholder="Enter task name"
+        class="modal-input">
+    </div>
+    <div class="form-group">
+      <label>Priority</label>
+      <select [(ngModel)]="newTaskPriority" class="modal-input">
+        <option [value]="1">Low</option>
+        <option [value]="2">Medium</option>
+        <option [value]="3">High</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Date & Time</label>
+      <input
+        type="datetime-local"
+        [(ngModel)]="newTaskTime"
+        class="modal-input">
+    </div>
+    <div class="form-group" *ngIf="currentUser && currentUser.projects.length > 0">
+      <label>Project</label>
+      <select [(ngModel)]="selectedProjectIndex" class="modal-input">
+        <option
+          *ngFor="let project of currentUser.projects; let i = index"
+          [value]="i">
+          {{ project.name }}
+        </option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" (click)="showAddTaskModal = false">Cancel</button>
+      <button class="btn-primary" (click)="addTask()">Add Task</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,108 @@
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1>Welcome back, {{ currentUser?.name || 'User' }}!</h1>
+    <p class="subtitle">Here's your productivity overview</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📁</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ totalProjects }}</div>
+        <div class="stat-label">Active Projects</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ totalTasks }}</div>
+        <div class="stat-label">Total Tasks</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">🎯</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ getCompletionPercentage() }}%</div>
+        <div class="stat-label">Completion Rate</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ productivityScore }}</div>
+        <div class="stat-label">Productivity Score</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h2>Upcoming Tasks</h2>
+        <a routerLink="/tasks" class="view-all">View All →</a>
+      </div>
+      <div class="tasks-list">
+        <div *ngIf="upcomingTasks.length === 0" class="empty-state">
+          <p>No upcoming tasks. Great job! 🎉</p>
+        </div>
+        <div *ngFor="let task of upcomingTasks" class="task-item">
+          <div class="task-checkbox">
+            <input type="checkbox" [checked]="task.is_done" disabled>
+          </div>
+          <div class="task-info">
+            <div class="task-name">{{ task.taskname }}</div>
+            <div class="task-time">{{ task.time | date:'short' }}</div>
+          </div>
+          <div class="task-priority priority-{{ task.priority }}">
+            {{ task.priority === 1 ? 'High' : task.priority === 2 ? 'Medium' : 'Low' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h2>Recent Projects</h2>
+        <a routerLink="/projects" class="view-all">View All →</a>
+      </div>
+      <div class="projects-list">
+        <div *ngIf="recentProjects.length === 0" class="empty-state">
+          <p>No projects yet. <a routerLink="/projects">Create your first project</a></p>
+        </div>
+        <div *ngFor="let project of recentProjects; let i = index" class="project-item" [routerLink]="['/projects', getProjectIndex(project)]">
+          <div class="project-icon">📁</div>
+          <div class="project-info">
+            <div class="project-name">{{ project.name }}</div>
+            <div class="project-meta">{{ project.grid.length }} grid{{ project.grid.length !== 1 ? 's' : '' }}</div>
+          </div>
+          <div class="project-arrow">→</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <h2>Quick Actions</h2>
+    <div class="actions-grid">
+      <a routerLink="/projects" class="action-card">
+        <div class="action-icon">➕</div>
+        <div class="action-text">New Project</div>
+      </a>
+      <a routerLink="/tasks" class="action-card">
+        <div class="action-icon">📅</div>
+        <div class="action-text">Schedule Task</div>
+      </a>
+      <a routerLink="/ai-insights" class="action-card">
+        <div class="action-icon">🤖</div>
+        <div class="action-text">AI Assistant</div>
+      </a>
+      <a routerLink="/analytics" class="action-card">
+        <div class="action-icon">📊</div>
+        <div class="action-text">View Analytics</div>
+      </a>
+    </div>
+  </div>
+</div>

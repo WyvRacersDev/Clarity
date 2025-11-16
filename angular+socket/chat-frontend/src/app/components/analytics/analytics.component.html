@@ -1,0 +1,73 @@
+<div class="analytics-container">
+  <div class="analytics-header">
+    <h1>Analytics & Insights</h1>
+    <p class="subtitle">Track your productivity and identify areas for improvement</p>
+  </div>
+
+  <div class="stats-overview">
+    <div class="stat-card">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ productivityScore }}</div>
+        <div class="stat-label">Productivity Score</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ completedTasks }}/{{ totalTasks }}</div>
+        <div class="stat-label">Tasks Completed</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ getCompletionRate() }}%</div>
+        <div class="stat-label">Completion Rate</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-wrapper">
+        <p class="chart-placeholder">Productivity Trends Chart</p>
+        <p class="chart-note">Chart.js integration coming soon</p>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-wrapper">
+        <p class="chart-placeholder">Task Distribution Chart</p>
+        <p class="chart-note">Chart.js integration coming soon</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card full-width">
+    <div class="chart-wrapper">
+      <p class="chart-placeholder">Project Completion Chart</p>
+      <p class="chart-note">Chart.js integration coming soon</p>
+    </div>
+  </div>
+
+  <div class="bottlenecks-section" *ngIf="bottlenecks.length > 0">
+    <h2>⚠️ Productivity Bottlenecks</h2>
+    <div class="bottlenecks-list">
+      <div *ngFor="let bottleneck of bottlenecks" class="bottleneck-item">
+        <span class="bottleneck-icon">⚠️</span>
+        <span class="bottleneck-text">{{ bottleneck }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="insights-section" *ngIf="bottlenecks.length === 0">
+    <div class="insight-card positive">
+      <div class="insight-icon">🎉</div>
+      <div class="insight-content">
+        <h3>Great Job!</h3>
+        <p>No major bottlenecks detected. Keep up the excellent work!</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,153 @@
+<div class="settings-container">
+  <div class="settings-header">
+    <h1>Settings</h1>
+    <p class="subtitle">Manage your preferences and integrations</p>
+  </div>
+
+  <div class="settings-sections">
+    <!-- Notification Settings -->
+    <div class="settings-section">
+      <h2>Notifications</h2>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Receive Notifications</div>
+          <div class="setting-description">Get notified about task deadlines and project updates</div>
+        </div>
+        <label class="toggle-switch">
+          <input 
+            type="checkbox" 
+            [checked]="userSettings?.recieve_notifications"
+            (change)="toggleNotifications()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Collaboration Settings -->
+    <div class="settings-section">
+      <h2>Collaboration</h2>
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Allow Invites</div>
+          <div class="setting-description">Allow others to invite you to projects</div>
+        </div>
+        <label class="toggle-switch">
+          <input 
+            type="checkbox" 
+            [checked]="userSettings?.allow_invite"
+            (change)="toggleInvites()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Google Integrations -->
+    <div class="settings-section">
+      <h2>Google Integrations</h2>
+      <p class="section-description">Connect your Google services to sync calendars, contacts, and emails</p>
+
+      <!-- Google Calendar -->
+      <div class="integration-item">
+        <div class="integration-info">
+          <div class="integration-icon">📅</div>
+          <div class="integration-details">
+            <div class="integration-name">Google Calendar</div>
+            <div class="integration-description">Sync your calendar events and schedule tasks</div>
+          </div>
+        </div>
+        <div class="integration-actions">
+          <span *ngIf="isGoogleCalendarConnected()" class="status-badge connected">Connected</span>
+          <span *ngIf="!isGoogleCalendarConnected()" class="status-badge disconnected">Not Connected</span>
+          <button 
+            *ngIf="!isGoogleCalendarConnected()"
+            class="connect-btn"
+            (click)="connectGoogleCalendar()"
+            [disabled]="isConnectingCalendar">
+            {{ isConnectingCalendar ? 'Connecting...' : 'Connect' }}
+          </button>
+          <button 
+            *ngIf="isGoogleCalendarConnected()"
+            class="disconnect-btn"
+            (click)="disconnectGoogleCalendar()">
+            Disconnect
+          </button>
+        </div>
+      </div>
+
+      <!-- Google Contacts -->
+      <div class="integration-item">
+        <div class="integration-info">
+          <div class="integration-icon">👥</div>
+          <div class="integration-details">
+            <div class="integration-name">Google Contacts</div>
+            <div class="integration-description">Access your contacts for project collaboration</div>
+          </div>
+        </div>
+        <div class="integration-actions">
+          <span *ngIf="isGoogleContactsConnected()" class="status-badge connected">Connected</span>
+          <span *ngIf="!isGoogleContactsConnected()" class="status-badge disconnected">Not Connected</span>
+          <button 
+            *ngIf="!isGoogleContactsConnected()"
+            class="connect-btn"
+            (click)="connectGoogleContacts()"
+            [disabled]="isConnectingContacts">
+            {{ isConnectingContacts ? 'Connecting...' : 'Connect' }}
+          </button>
+          <button 
+            *ngIf="isGoogleContactsConnected()"
+            class="disconnect-btn"
+            (click)="disconnectGoogleContacts()">
+            Disconnect
+          </button>
+        </div>
+      </div>
+
+      <!-- Gmail -->
+      <div class="integration-item">
+        <div class="integration-info">
+          <div class="integration-icon">📧</div>
+          <div class="integration-details">
+            <div class="integration-name">Gmail</div>
+            <div class="integration-description">Send invites and notifications via email</div>
+          </div>
+        </div>
+        <div class="integration-actions">
+          <span *ngIf="isGmailConnected()" class="status-badge connected">Connected</span>
+          <span *ngIf="!isGmailConnected()" class="status-badge disconnected">Not Connected</span>
+          <button 
+            *ngIf="!isGmailConnected()"
+            class="connect-btn"
+            (click)="connectGmail()"
+            [disabled]="isConnectingGmail">
+            {{ isConnectingGmail ? 'Connecting...' : 'Connect' }}
+          </button>
+          <button 
+            *ngIf="isGmailConnected()"
+            class="disconnect-btn"
+            (click)="disconnectGmail()">
+            Disconnect
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account Info -->
+    <div class="settings-section">
+      <h2>Account Information</h2>
+      <div class="account-info">
+        <div class="info-item">
+          <div class="info-label">Name</div>
+          <div class="info-value">{{ currentUser?.name || 'N/A' }}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">User ID</div>
+          <div class="info-value">{{ currentUser?.user_id || 'N/A' }}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Projects</div>
+          <div class="info-value">{{ currentUser?.projects?.length || 0 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,310 @@
+<div class="project-detail-container" *ngIf="project">
+  <div class="project-header">
+    <div class="header-left">
+      <a routerLink="/projects" class="back-btn">← Back to Projects</a>
+      <h1>{{ project.name }}</h1>
+    </div>
+    <div class="header-actions">
+      <div class="view-toggle">
+        <button 
+          [class.active]="viewMode === 'kanban'"
+          (click)="viewMode = 'kanban'">
+          📋 Kanban
+        </button>
+        <button 
+          [class.active]="viewMode === 'grid'"
+          (click)="viewMode = 'grid'">
+          🔲 Grid
+        </button>
+      </div>
+      <button class="add-btn" (click)="openAddElementModal()">
+        <span class="btn-icon">➕</span>
+        Add Element
+      </button>
+    </div>
+  </div>
+
+  <!-- Kanban View -->
+  <div class="kanban-view" *ngIf="viewMode === 'kanban'">
+    <div *ngIf="project.grid.length === 0" class="empty-kanban">
+      <div class="empty-kanban-content">
+        <h2>No columns yet</h2>
+        <p>Create your first kanban column to get started</p>
+        <button class="create-column-btn" (click)="openCreateGridModal()">
+          + Create Column
+        </button>
+      </div>
+    </div>
+    <div class="kanban-board" *ngIf="project.grid.length > 0">
+      <div 
+        *ngFor="let grid of project.grid; let columnIndex = index"
+        class="kanban-column"
+        (dragover)="onDragOver($event)"
+        (drop)="onDrop($event, columnIndex)">
+        <div class="kanban-column-header">
+          <h3>{{ grid.name }}</h3>
+          <div class="column-actions">
+            <span class="task-count">{{ getTasksForColumn(columnIndex).length }}</span>
+            <button class="add-task-btn" (click)="addTaskToColumn(columnIndex)" title="Add Task">
+              ➕
+            </button>
+            <button 
+              class="delete-column-btn" 
+              (click)="deleteGrid(columnIndex)"
+              *ngIf="project.grid.length > 1"
+              title="Delete Column">
+              🗑️
+            </button>
+          </div>
+        </div>
+        <div class="kanban-column-content">
+          <div 
+            *ngFor="let task of getTasksForColumn(columnIndex); let taskIndex = index"
+            class="kanban-task-card"
+            [class.dragging]="draggedTask === task"
+            [class.completed]="task.is_done"
+            draggable="true"
+            (dragstart)="onDragStart($event, task, columnIndex, 0, taskIndex)"
+            (dragend)="onDragEnd()">
+            <div class="task-card-header">
+              <input 
+                type="checkbox" 
+                [checked]="task.is_done"
+                (change)="onTaskToggle(task)"
+                (click)="$event.stopPropagation()">
+              <span class="task-priority-badge priority-{{ task.priority }}">
+                {{ task.priority === 1 ? '🔴' : task.priority === 2 ? '🟡' : '🟢' }}
+              </span>
+            </div>
+            <div class="task-card-body">
+              <div class="task-title" [class.completed-text]="task.is_done">
+                {{ task.taskname }}
+              </div>
+              <div class="task-time" *ngIf="task.time">
+                {{ task.time | date:'short' }}
+              </div>
+            </div>
+          </div>
+          <div *ngIf="getTasksForColumn(columnIndex).length === 0" class="empty-column">
+            <p>No tasks</p>
+            <button class="add-task-btn-small" (click)="addTaskToColumn(columnIndex)">
+              + Add Task
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="add-column-container">
+        <button class="add-column-btn" (click)="openCreateGridModal()">
+          <span class="add-icon">➕</span>
+          <span>Add Column</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid View -->
+  <div *ngIf="viewMode === 'grid'">
+    <div class="grids-tabs">
+      <div 
+        *ngFor="let grid of project.grid; let i = index"
+        class="tab"
+        [class.active]="selectedGridIndex === i"
+        (click)="selectedGridIndex = i">
+        {{ grid.name }}
+        <button 
+          class="tab-delete"
+          (click)="deleteGrid(i); $event.stopPropagation()"
+          *ngIf="project.grid.length > 1">
+          ×
+        </button>
+      </div>
+      <button class="add-tab" (click)="openCreateGridModal()">
+        + New Grid
+      </button>
+    </div>
+
+    <div class="grid-content" *ngIf="project.grid.length > 0 && project.grid[selectedGridIndex]">
+    <div class="grid-header">
+      <h2>{{ project.grid[selectedGridIndex].name }}</h2>
+      <div class="grid-stats">
+        {{ project.grid[selectedGridIndex].Screen_elements.length }} element{{ project.grid[selectedGridIndex].Screen_elements.length !== 1 ? 's' : '' }}
+      </div>
+    </div>
+
+    <div class="elements-grid">
+      <div 
+        *ngFor="let element of project.grid[selectedGridIndex].Screen_elements; let i = index"
+        class="element-card"
+        [ngSwitch]="getElementType(element)">
+        
+        <!-- ToDo List -->
+        <div *ngSwitchCase="'ToDoLst'" class="todo-element">
+          <div class="element-header">
+            <h3>{{ element.name }}</h3>
+            <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+          </div>
+          <div class="todo-list">
+            <div 
+              *ngFor="let task of getTodoTasks(element); let j = index"
+              class="todo-item">
+              <input 
+                type="checkbox" 
+                [checked]="task.is_done"
+                (change)="task.toggle_done_status()">
+              <span [class.completed]="task.is_done">{{ task.taskname }}</span>
+              <span class="task-priority priority-{{ task.priority }}">
+                {{ task.priority === 1 ? 'High' : task.priority === 2 ? 'Medium' : 'Low' }}
+              </span>
+            </div>
+            <p *ngIf="getTodoTasks(element).length === 0" class="empty-todo">
+              No tasks yet. Add tasks to this list.
+            </p>
+          </div>
+        </div>
+
+        <!-- Text Document -->
+        <div *ngSwitchCase="'Text_document'" class="text-element">
+          <div class="element-header">
+            <h3>{{ element.name }}</h3>
+            <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+          </div>
+          <div class="text-content">
+            {{ getTextContent(element) }}
+          </div>
+        </div>
+
+        <!-- Image -->
+        <div *ngSwitchCase="'Image'" class="image-element">
+          <div class="element-header">
+            <h3>{{ element.name }}</h3>
+            <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+          </div>
+          <div class="image-content">
+            <img [src]="getImagePath(element)" [alt]="getImageDescription(element)">
+            <p>{{ getImageDescription(element) }}</p>
+          </div>
+        </div>
+
+        <!-- Video -->
+        <div *ngSwitchCase="'Video'" class="video-element">
+          <div class="element-header">
+            <h3>{{ element.name }}</h3>
+            <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+          </div>
+          <div class="video-content">
+            <video controls>
+              <source [src]="getVideoPath(element)" type="video/mp4">
+            </video>
+            <p>{{ getVideoDescription(element) }}</p>
+          </div>
+        </div>
+
+        <!-- Default -->
+        <div *ngSwitchDefault class="unknown-element">
+          <p>Unknown element type: {{ getElementType(element) }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="project.grid[selectedGridIndex].Screen_elements.length === 0" class="empty-grid">
+        <p>No elements in this grid. Click "Add Element" to get started.</p>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- Create Grid Modal -->
+  <div *ngIf="showCreateGridModal" class="modal-overlay" (click)="closeCreateGridModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Create New Grid</h2>
+        <button class="close-btn" (click)="closeCreateGridModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Grid Name</label>
+          <input 
+            type="text" 
+            [(ngModel)]="newGridName"
+            placeholder="Enter grid name"
+            (keyup.enter)="createGrid()"
+            autofocus>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeCreateGridModal()">Cancel</button>
+        <button class="submit-btn" (click)="createGrid()" [disabled]="!newGridName.trim()">
+          Create Grid
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Element Modal -->
+  <div *ngIf="showAddElementModal" class="modal-overlay" (click)="closeAddElementModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Add Element</h2>
+        <button class="close-btn" (click)="closeAddElementModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Element Type</label>
+          <select [(ngModel)]="newElementType">
+            <option value="ToDoLst">Todo List</option>
+            <option value="Text_document">Text Document</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeAddElementModal()">Cancel</button>
+        <button class="submit-btn" (click)="addElement()">
+          Add Element
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="!project" class="loading">
+  <p>Loading project...</p>
+</div>
+
+<!-- Add Task Modal -->
+<div *ngIf="showAddTaskModal" class="modal-overlay" (click)="closeAddTaskModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Add New Task</h2>
+      <button class="close-btn" (click)="closeAddTaskModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Task Name *</label>
+        <input 
+          type="text" 
+          [(ngModel)]="newTaskName" 
+          placeholder="Enter task name"
+          (keyup.enter)="submitAddTask()"
+          autofocus
+        >
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select [(ngModel)]="newTaskPriority">
+          <option [value]="1">🔴 High</option>
+          <option [value]="2">🟡 Medium</option>
+          <option [value]="3">🟢 Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="cancel-btn" (click)="closeAddTaskModal()">Cancel</button>
+      <button 
+        class="submit-btn" 
+        (click)="submitAddTask()"
+        [disabled]="!newTaskName.trim()"
+      >
+        Add Task
+      </button>
+    </div>
+  </div>
+</div>
