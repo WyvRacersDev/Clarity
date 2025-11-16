@@ -1,0 +1,108 @@
+<div class="ai-insights-container">
+  <div class="ai-insights-header">
+    <h1>AI Insights & Assistant</h1>
+    <p class="subtitle">Get intelligent recommendations and productivity analysis</p>
+  </div>
+
+  <div class="insights-layout">
+    <!-- Insights Panel -->
+    <div class="insights-panel">
+      <div class="insight-section">
+        <h2>📊 Productivity Insights</h2>
+        <div class="insights-list">
+          <div *ngFor="let insight of insights" class="insight-item">
+            <span class="insight-icon">💡</span>
+            <span>{{ insight }}</span>
+          </div>
+          <div *ngIf="insights.length === 0" class="empty-state">
+            No insights available yet. Complete some tasks to get started!
+          </div>
+        </div>
+      </div>
+
+      <div class="insight-section">
+        <h2>⚠️ Bottlenecks</h2>
+        <div class="insights-list">
+          <div *ngFor="let bottleneck of bottlenecks" class="insight-item warning">
+            <span class="insight-icon">⚠️</span>
+            <span>{{ bottleneck }}</span>
+          </div>
+          <div *ngIf="bottlenecks.length === 0" class="empty-state success">
+            <span class="insight-icon">✅</span>
+            <span>No bottlenecks detected! Great job staying on track.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight-section">
+        <h2>💡 Suggestions</h2>
+        <div class="insights-list">
+          <div *ngFor="let suggestion of suggestions" class="insight-item suggestion">
+            <span class="insight-icon">🎯</span>
+            <span>{{ suggestion }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Chat Panel -->
+    <div class="ai-chat-panel">
+      <div class="chat-header">
+        <h2>AI Assistant</h2>
+        <p>Ask me anything about your productivity, tasks, or scheduling</p>
+      </div>
+      <div class="chat-messages">
+        <div
+          *ngFor="let message of aiChatMessages"
+          class="chat-message"
+          [class.user-message]="message.role === 'user'"
+          [class.ai-message]="message.role === 'ai'">
+          <div class="message-content">
+            {{ message.content }}
+          </div>
+        </div>
+        <div *ngIf="isLoading" class="chat-message ai-message">
+          <div class="message-content">
+            <span class="typing-indicator">AI is thinking...</span>
+          </div>
+        </div>
+        <div *ngIf="aiChatMessages.length === 0" class="empty-chat">
+          <div class="empty-icon">🤖</div>
+          <p>Start a conversation with your AI assistant</p>
+          <div class="suggested-questions">
+            <button
+              class="suggestion-btn"
+              (click)="userInput = 'How can I improve my productivity?'; sendMessage()">
+              How can I improve my productivity?
+            </button>
+            <button
+              class="suggestion-btn"
+              (click)="userInput = 'What are my most important tasks?'; sendMessage()">
+              What are my most important tasks?
+            </button>
+            <button
+              class="suggestion-btn"
+              (click)="userInput = 'Help me schedule my tasks'; sendMessage()">
+              Help me schedule my tasks
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-container">
+        <input
+          type="text"
+          [(ngModel)]="userInput"
+          (keyup.enter)="sendMessage()"
+          placeholder="Ask me anything..."
+          class="chat-input">
+        <button
+          class="send-btn"
+          (click)="sendMessage()"
+          [disabled]="!userInput.trim() || isLoading">
+          Send
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+

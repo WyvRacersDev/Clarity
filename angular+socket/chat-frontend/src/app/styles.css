@@ -1,0 +1,239 @@
+/* Global Color Palette - Cyan/Teal, Sky Blue, Moss Green Theme */
+:root {
+  --primary-cyan: #00D4FF;
+  --sky-blue: #0099FF;
+  --moss-green: #3AFF6F;
+  --dark-blue: #0A1428;
+  --card-bg: #0F2438;
+  --border-color: #1E4D6B;
+  --text-light: #E0E0E0;
+  --text-gray: #A0A0A0;
+  --white: #FFFFFF;
+  --error: #3AFF6F;
+  --warning: #FFB700;
+  --success: #3AFF6F;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+body {
+  background: #000000;
+  color: var(--text-light);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(2px 2px at 20% 30%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(2px 2px at 60% 70%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 50% 50%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 80% 10%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(2px 2px at 90% 60%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 30% 80%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 10% 60%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(2px 2px at 40% 40%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 70% 20%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(2px 2px at 15% 90%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 85% 85%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 25% 25%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(2px 2px at 95% 45%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 5% 35%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 45% 90%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(2px 2px at 55% 15%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 75% 65%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 35% 5%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(2px 2px at 65% 45%, white, rgba(255, 255, 255, 0.2)),
+    radial-gradient(1px 1px at 12% 75%, white, rgba(255, 255, 255, 0.2));
+  background-size: 200% 200%;
+  background-repeat: repeat;
+  background-position: 0% 0%;
+  pointer-events: none;
+  z-index: 0;
+  animation: twinkle 6s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 212, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--primary-cyan), var(--moss-green));
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(58, 255, 111, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--moss-green), var(--primary-cyan));
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+}
+
+/* Selection Styling */
+::selection {
+  background: var(--primary-cyan);
+  color: var(--dark-blue);
+  text-shadow: 0 0 10px rgba(58, 255, 111, 0.3);
+}
+
+/* Input Focus Styling */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary-cyan) !important;
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.4), inset 0 0 10px rgba(58, 255, 111, 0.05) !important;
+}
+
+/* Button Styling */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--sky-blue) 0%, var(--primary-cyan) 100%);
+  color: var(--dark-blue);
+  border: 1px solid var(--moss-green);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4), inset 0 0 20px rgba(58, 255, 111, 0.1);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(58, 255, 111, 0.6), 0 8px 20px rgba(0, 212, 255, 0.4);
+}
+
+.btn-secondary {
+  background-color: rgba(0, 212, 255, 0.1);
+  color: var(--primary-cyan);
+  border: 2px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(0, 212, 255, 0.2);
+  border-color: var(--primary-cyan);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+}
+
+/* Card Styling */
+.card {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(0, 153, 255, 0.05) 100%);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 4px 15px rgba(0, 168, 232, 0.15), inset 0 0 20px rgba(58, 255, 111, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover {
+  border-color: var(--primary-cyan);
+  box-shadow: 0 12px 40px rgba(0, 212, 255, 0.25), 0 0 20px rgba(58, 255, 111, 0.2), inset 0 0 20px rgba(0, 153, 255, 0.05);
+  transform: translateY(-4px);
+}
+
+/* Modal Styling */
+.modal-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #0F2438 0%, #0A1B2E 100%);
+  border: 2px solid var(--primary-cyan);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 212, 255, 0.3);
+}
+
+/* Header Styling */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-light);
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+/* Link Styling */
+a {
+  color: var(--primary-cyan);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  color: var(--moss-green);
+  text-shadow: 0 0 10px rgba(58, 255, 111, 0.5);
+}
+
+/* Loading & Status Indicators */
+.status-active {
+  color: var(--moss-green);
+  text-shadow: 0 0 10px rgba(58, 255, 111, 0.6);
+}
+
+.status-inactive {
+  color: var(--text-gray);
+}
+
+.status-error {
+  color: var(--error);
+  text-shadow: 0 0 10px rgba(255, 68, 85, 0.5);
+}
+
+.status-warning {
+  color: var(--warning);
+  text-shadow: 0 0 10px rgba(255, 183, 0, 0.5);
+}
+
+/* Animations */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(58, 255, 111, 0.6);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

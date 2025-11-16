@@ -1,0 +1,56 @@
+<div class="layout-container">
+  <!-- Sidebar -->
+  <aside class="sidebar" [class.collapsed]="!isSidebarOpen">
+    <div class="sidebar-header">
+      <h1 class="logo" *ngIf="isSidebarOpen">Clarity</h1>
+      <button class="toggle-btn" (click)="toggleSidebar()">
+        <span *ngIf="isSidebarOpen">‹</span>
+        <span *ngIf="!isSidebarOpen">›</span>
+      </button>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text" *ngIf="isSidebarOpen">Dashboard</span>
+      </a>
+      <a routerLink="/projects" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📁</span>
+        <span class="nav-text" *ngIf="isSidebarOpen">Projects</span>
+      </a>
+      <a routerLink="/tasks" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">✅</span>
+        <span class="nav-text" *ngIf="isSidebarOpen">Tasks & Calendar</span>
+      </a>
+      <a routerLink="/analytics" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📈</span>
+        <span class="nav-text" *ngIf="isSidebarOpen">Analytics</span>
+      </a>
+      <a routerLink="/ai-insights" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🤖</span>
+        <span class="nav-text" *ngIf="isSidebarOpen">AI Insights</span>
+      </a>
+      <a routerLink="/settings" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-text" *ngIf="isSidebarOpen">Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer" *ngIf="isSidebarOpen">
+      <div class="user-info">
+        <div class="user-avatar">{{ currentUser?.name?.charAt(0) || 'U' }}</div>
+        <div class="user-details">
+          <div class="user-name">{{ currentUser?.name || 'User' }}</div>
+          <div class="user-email">user@clarity.com</div>
+        </div>
+      </div>
+      <button class="logout-btn" (click)="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>
+

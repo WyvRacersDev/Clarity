@@ -1,0 +1,67 @@
+<div class="projects-container">
+  <div class="projects-header">
+    <h1>Projects</h1>
+    <button class="create-btn" (click)="openCreateModal()">
+      <span class="btn-icon">➕</span>
+      New Project
+    </button>
+  </div>
+
+  <div class="projects-list" *ngIf="currentUser && currentUser.projects.length > 0">
+    <div 
+      class="project-card" 
+      *ngFor="let project of currentUser.projects; let i = index"
+      (click)="selectProject(i)"
+    >
+      <div class="project-card-header">
+        <h2>{{ project.name }}</h2>
+        <button 
+          class="delete-btn" 
+          (click)="deleteProject(i, $event)"
+          title="Delete project"
+        >
+          🗑️
+        </button>
+      </div>
+      <div class="project-stats">
+        <span>{{ project.grid.length }} grids</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="empty-projects" *ngIf="!currentUser || currentUser.projects.length === 0">
+    <h2>No projects yet</h2>
+    <p>Create a new project to get started</p>
+  </div>
+
+  <!-- Create Project Modal -->
+  <div *ngIf="showCreateModal" class="modal-overlay" (click)="closeCreateModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Create New Project</h2>
+        <button class="close-btn" (click)="closeCreateModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Project Name *</label>
+          <input 
+            type="text" 
+            [(ngModel)]="newProjectName" 
+            placeholder="Enter project name"
+            (keyup.enter)="createProject()"
+          >
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeCreateModal()">Cancel</button>
+        <button 
+          class="submit-btn" 
+          (click)="createProject()"
+          [disabled]="!newProjectName.trim()"
+        >
+          Create
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

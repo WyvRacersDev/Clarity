@@ -1,7 +1,7 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { ChatComponent } from './app/chat(depreciated)/chat.component';
 import { AppComponent } from './app/app';
+import { appConfig } from './app/app.config';
 import 'zone.js'; 
 
-bootstrapApplication(AppComponent)
+bootstrapApplication(AppComponent, appConfig)
   .catch(err => console.error(err));
