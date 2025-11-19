@@ -135,78 +135,42 @@
       <div 
         *ngFor="let element of project.grid[selectedGridIndex].Screen_elements; let i = index"
         class="element-card"
-        [ngSwitch]="getElementType(element)">
+        [ngStyle]="getElementStyle(element)"
+        (mousedown)="onElementMouseDown($event, i)"
+        (mouseleave)="onElementMouseLeave()"
+        draggable="false">
         
-        <!-- ToDo List -->
-        <div *ngSwitchCase="'ToDoLst'" class="todo-element">
-          <div class="element-header">
-            <h3>{{ element.name }}</h3>
-            <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
-          </div>
-          <div class="todo-list">
-            <div 
-              *ngFor="let task of getTodoTasks(element); let j = index"
-              class="todo-item">
-              <input 
-                type="checkbox" 
-                [checked]="task.is_done"
-                (change)="task.toggle_done_status()">
-              <span [class.completed]="task.is_done">{{ task.taskname }}</span>
-              <span class="task-priority priority-{{ task.priority }}">
-                {{ task.priority === 1 ? 'High' : task.priority === 2 ? 'Medium' : 'Low' }}
-              </span>
-            </div>
-            <p *ngIf="getTodoTasks(element).length === 0" class="empty-todo">
-              No tasks yet. Add tasks to this list.
-            </p>
-          </div>
-        </div>
-
-        <!-- Text Document -->
-        <div *ngSwitchCase="'Text_document'" class="text-element">
-          <div class="element-header">
-            <h3>{{ element.name }}</h3>
-            <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
-          </div>
-          <div class="text-content">
-            {{ getTextContent(element) }}
-          </div>
-        </div>
-
         <!-- Image -->
-        <div *ngSwitchCase="'Image'" class="image-element">
+        <div *ngIf="getElementType(element) === 'Image'" class="image-element">
           <div class="element-header">
             <h3>{{ element.name }}</h3>
             <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
           </div>
           <div class="image-content">
             <img [src]="getImagePath(element)" [alt]="getImageDescription(element)">
-            <p>{{ getImageDescription(element) }}</p>
+            <p *ngIf="getImageDescription(element)">{{ getImageDescription(element) }}</p>
           </div>
         </div>
 
         <!-- Video -->
-        <div *ngSwitchCase="'Video'" class="video-element">
+        <div *ngIf="getElementType(element) === 'Video'" class="video-element">
           <div class="element-header">
             <h3>{{ element.name }}</h3>
             <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
           </div>
           <div class="video-content">
-            <video controls>
+            <video controls width="100%">
               <source [src]="getVideoPath(element)" type="video/mp4">
             </video>
-            <p>{{ getVideoDescription(element) }}</p>
+            <p *ngIf="getVideoDescription(element)">{{ getVideoDescription(element) }}</p>
           </div>
         </div>
 
-        <!-- Default -->
-        <div *ngSwitchDefault class="unknown-element">
-          <p>Unknown element type: {{ getElementType(element) }}</p>
-        </div>
+
       </div>
 
       <div *ngIf="project.grid[selectedGridIndex].Screen_elements.length === 0" class="empty-grid">
-        <p>No elements in this grid. Click "Add Element" to get started.</p>
+        <p>No elements yet. Click "Add Element" to get started.</p>
       </div>
     </div>
   </div>
@@ -239,26 +203,25 @@
     </div>
   </div>
 
-  <!-- Add Element Modal -->
-  <div *ngIf="showAddElementModal" class="modal-overlay" (click)="closeAddElementModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
+  <!-- Element Type Selector Modal -->
+  <div *ngIf="showElementTypeSelector" class="modal-overlay" (click)="showElementTypeSelector = false">
+    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Add Element</h2>
-        <button class="close-btn" (click)="closeAddElementModal()">×</button>
+        <h2>Add Element Type</h2>
+        <button class="close-btn" (click)="showElementTypeSelector = false">×</button>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Element Type</label>
-          <select [(ngModel)]="newElementType">
-            <option value="ToDoLst">Todo List</option>
-            <option value="Text_document">Text Document</option>
-          </select>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="cancel-btn" (click)="closeAddElementModal()">Cancel</button>
-        <button class="submit-btn" (click)="addElement()">
-          Add Element
+      <div class="modal-body type-selector">
+        <button class="type-btn" (click)="selectElementType('Image')">
+          <span class="type-icon">🖼️</span>
+          <span>Image</span>
+        </button>
+        <button class="type-btn" (click)="selectElementType('Video')">
+          <span class="type-icon">🎥</span>
+          <span>Video</span>
+        </button>
+        <button class="type-btn" (click)="selectElementType('ToDoLst')">
+          <span class="type-icon">📋</span>
+          <span>Todo List</span>
         </button>
       </div>
     </div>

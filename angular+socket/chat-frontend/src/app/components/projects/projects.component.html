@@ -14,7 +14,12 @@
       (click)="selectProject(i)"
     >
       <div class="project-card-header">
-        <h2>{{ project.name }}</h2>
+        <div class="project-title-section">
+          <h2>{{ project.name }}</h2>
+          <span class="project-type-badge" [class.local]="isLocalProject(project)" [class.hosted]="!isLocalProject(project)">
+            {{ isLocalProject(project) ? '📁 Local' : '🌐 Hosted' }}
+          </span>
+        </div>
         <button 
           class="delete-btn" 
           (click)="deleteProject(i, $event)"
@@ -50,6 +55,13 @@
             placeholder="Enter project name"
             (keyup.enter)="createProject()"
           >
+        </div>
+        <div class="form-group">
+          <label>Project Type</label>
+          <select [(ngModel)]="projectType">
+            <option value="local">📁 Local Project</option>
+            <option value="hosted">🌐 Hosted/Shared Project</option>
+          </select>
         </div>
       </div>
       <div class="modal-footer">
