@@ -7,13 +7,17 @@ export abstract class Screen_Element
     name:String;
     x_pos:number;  //BRUH WDYM "number", int/float better
     y_pos:number;
+    x_scale:number;
+    y_scale:number;
 
-    constructor(name: string,x_pos:number,y_pos:number) 
+    constructor(name: string,x_pos:number,y_pos:number,x_scale:number=1,y_scale:number=1) 
   { 
     console.log("Screen_Element object created")
     this.name = name;
     this.x_pos=x_pos;
     this.y_pos=y_pos;
+    this.x_scale=x_scale;
+    this.y_scale=y_scale;
   }
 
   get_xpos():number
@@ -36,13 +40,35 @@ export abstract class Screen_Element
     this.y_pos=ypos
   }
 
+  get_x_scale():number
+  {
+    return this.x_scale;
+  }
+
+   get_y_scale():number
+  {
+    return this.y_scale;
+  }
+
+  set_x_scale(scale:number)
+  {
+    this.x_scale=scale;
+  }
+
+  set_y_scale(scale:number)
+  {
+    this.y_scale=scale;
+  }
+
    toJSON() //need to send json objects over the network
    {
     return {
       type: this.constructor.name, 
       name: this.name,
       x_pos: this.x_pos,
-      y_pos: this.y_pos
+      y_pos: this.y_pos,
+      x_scale: this.x_scale,
+      y_scale:this.y_scale
     };
   }
 }
