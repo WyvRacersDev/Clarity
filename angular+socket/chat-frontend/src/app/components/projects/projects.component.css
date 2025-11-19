@@ -379,4 +379,52 @@
   }
 }
 
+.project-title-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.project-type-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.project-type-badge.local {
+  background: rgba(0, 168, 232, 0.2);
+  color: var(--primary-blue);
+  border: 1px solid var(--primary-blue);
+}
+
+.project-type-badge.hosted {
+  background: rgba(0, 255, 136, 0.2);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green);
+}
+
+.form-group select {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  color: var(--text-light);
+  background-color: rgba(10, 20, 40, 0.6);
+  cursor: pointer;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-teal);
+  background-color: rgba(0, 201, 255, 0.05);
+  box-shadow: 0 0 15px rgba(0, 201, 255, 0.4), inset 0 0 10px rgba(0, 255, 136, 0.05);
+}
+
 

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { DataService } from '../../../services/data.service';
 import { SocketService } from '../../../services/socket.service';
 import { User } from '../../../../../../shared_models/models/user.model';
@@ -16,6 +17,9 @@ import { Screen_Element, ToDoLst, Text_document, Image, Video, scheduled_task } 
   styleUrls: ['./project-detail.component.css']
 })
 export class ProjectDetailComponent implements OnInit {
+  // Make Math available in template
+  Math = Math;
+  
   currentUser: User | null = null;
   project: Project | null = null;
   projectIndex: number = -1;
@@ -23,8 +27,8 @@ export class ProjectDetailComponent implements OnInit {
   showCreateGridModal = false;
   newGridName = '';
   showAddElementModal = false;
-  newElementType: 'ToDoLst' | 'Text_document' = 'ToDoLst';
-  viewMode: 'kanban' | 'grid' = 'kanban';
+  newElementType: 'ToDoLst' | 'Image' | 'Video' = 'ToDoLst';
+  viewMode: 'kanban' | 'grid' = 'grid';
   draggedTask: any = null;
   draggedFromColumn: number = -1;
   draggedFromList: number = -1;
@@ -33,11 +37,42 @@ export class ProjectDetailComponent implements OnInit {
   newTaskName = '';
   newTaskPriority = 2;
   taskColumnIndex = -1;
+  
+  // Canvas dragging
+  draggedElement: HTMLElement | null = null;
+  draggedElementIndex: number = -1;
+  draggedElementGridIndex: number = -1;
+  elementDragOffsetX: number = 0;
+  elementDragOffsetY: number = 0;
+  isDraggingEnabled: boolean = false;
+  longPressTimer: any = null;
+  isResizing: boolean = false;
+  resizeHandle: string = '';
+  resizingElement: Screen_Element | null = null;
+  resizingElementIndex: number = -1;
+  resizingElementGridIndex: number = -1;
+  startResizeX: number = 0;
+  startResizeY: number = 0;
+  startWidth: number = 0;
+  startHeight: number = 0;
+  
+  // New element on canvas
+  showElementTypeSelector = false;
+  fileInput: HTMLInputElement | null = null;
+  
+  // Canvas properties
+  canvasZoom: number = 1;
+  canvasPanX: number = 0;
+  canvasPanY: number = 0;
+  isPanning: boolean = false;
+  panStartX: number = 0;
+  panStartY: number = 0;
 
   constructor(
     private dataService: DataService,
     private socketService: SocketService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -57,6 +92,11 @@ export class ProjectDetailComponent implements OnInit {
         this.loadProject();
       }
     });
+
+    // Global mouse move and up listeners for drag
+    document.addEventListener('mousemove', (e) => this.onDocumentMouseMove(e));
+    document.addEventListener('mouseup', (e) => this.onDocumentMouseUp(e));
+    document.addEventListener('mousedown', (e) => this.onDocumentMouseDown(e));
   }
 
   loadProject(): void {
@@ -98,33 +138,95 @@ export class ProjectDetailComponent implements OnInit {
   }
 
   openAddElementModal(): void {
-    this.showAddElementModal = true;
+    this.showElementTypeSelector = true;
   }
 
-  closeAddElementModal(): void {
-    this.showAddElementModal = false;
-  }
-
-  addElement(): void {
-    if (!this.project || this.selectedGridIndex < 0) return;
-
-    let element: Screen_Element;
-    if (this.newElementType === 'ToDoLst') {
-      element = new ToDoLst('New Todo List', 0, 0);
-    } else {
-      element = new Text_document('New Document', 0, 0, '');
-    }
-
-    this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+  selectElementType(type: 'ToDoLst' | 'Image' | 'Video'): void {
+    this.newElementType = type;
+    this.showElementTypeSelector = false;
     
-    // Emit update via socket
-    this.socketService.emitElementUpdate(
-      element,
-      this.project.name,
-      this.project.grid[this.selectedGridIndex].name
-    );
+    if (type === 'Image') {
+      this.triggerImageUpload();
+    } else if (type === 'Video') {
+      this.triggerVideoUpload();
+    } else if (type === 'ToDoLst') {
+      this.createTodoElement();
+    }
+  }
 
-    this.closeAddElementModal();
+  createTodoElement(): void {
+    if (!this.project || this.selectedGridIndex < 0) return;
+    
+    const element = new ToDoLst('Tasks', 200, 200);
+    this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+    this.dataService.updateCurrentUser();
+  }
+
+  triggerImageUpload(): void {
+    if (!this.fileInput) {
+      this.fileInput = document.createElement('input');
+      this.fileInput.type = 'file';
+      this.fileInput.accept = 'image/*';
+      this.fileInput.onchange = () => this.handleImageUpload();
+    }
+    this.fileInput.click();
+  }
+
+  triggerVideoUpload(): void {
+    if (!this.fileInput) {
+      this.fileInput = document.createElement('input');
+      this.fileInput.type = 'file';
+      this.fileInput.accept = 'video/*';
+      this.fileInput.onchange = () => this.handleVideoUpload();
+    }
+    this.fileInput.click();
+  }
+
+  handleImageUpload(): void {
+    if (!this.fileInput || !this.fileInput.files || !this.project) return;
+    
+    const file = this.fileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = (e: any) => {
+      const imageUrl = e.target.result;
+      const element = new Image(imageUrl, 400, 300, 'New Image', '');
+      element.set_x_scale(300); // width
+      element.set_y_scale(200); // height
+      this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+      this.dataService.updateCurrentUser();
+      this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
+    };
+    
+    reader.readAsDataURL(file);
+  }
+
+  handleVideoUpload(): void {
+    if (!this.fileInput || !this.fileInput.files || !this.project) return;
+    
+    const file = this.fileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = (e: any) => {
+      const videoUrl = e.target.result;
+      const element = new Video(videoUrl, 400, 300, 'New Video', '');
+      element.set_x_scale(400); // width
+      element.set_y_scale(300); // height
+      this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+      this.dataService.updateCurrentUser();
+      this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
+    };
+    
+    reader.readAsDataURL(file);
+  }
+
+  onTaskToggle(task: any): void {
+    task.toggle_done_status();
+    this.dataService.updateCurrentUser();
+  }
+
+  startEditingText(element: Screen_Element, gridIndex: number, elementIndex: number): void {
+    // Removed - text elements no longer supported
   }
 
   deleteElement(elementIndex: number): void {
@@ -144,18 +246,12 @@ export class ProjectDetailComponent implements OnInit {
     return [];
   }
 
-  getTextContent(element: Screen_Element): string {
-    if (element.constructor.name === 'Text_document') {
-      return (element as any).Text_field || 'Empty document';
-    }
-    return '';
-  }
-
-  getImagePath(element: Screen_Element): string {
+  getImagePath(element: Screen_Element): SafeUrl {
     if (element.constructor.name === 'Image') {
-      return (element as any).imagepath || '';
+      const path = (element as any).imagepath || '';
+      return this.sanitizer.bypassSecurityTrustUrl(path);
     }
-    return '';
+    return this.sanitizer.bypassSecurityTrustUrl('');
   }
 
   getImageDescription(element: Screen_Element): string {
@@ -165,11 +261,12 @@ export class ProjectDetailComponent implements OnInit {
     return '';
   }
 
-  getVideoPath(element: Screen_Element): string {
+  getVideoPath(element: Screen_Element): SafeUrl {
     if (element.constructor.name === 'Video') {
-      return (element as any).VideoPath || '';
+      const path = (element as any).VideoPath || '';
+      return this.sanitizer.bypassSecurityTrustUrl(path);
     }
-    return '';
+    return this.sanitizer.bypassSecurityTrustUrl('');
   }
 
   getVideoDescription(element: Screen_Element): string {
@@ -355,9 +452,238 @@ export class ProjectDetailComponent implements OnInit {
     this.closeAddTaskModal();
   }
 
-  onTaskToggle(task: any): void {
-    task.toggle_done_status();
-    this.dataService.updateCurrentUser();
+  // Grid element dragging methods with long-press
+  onElementMouseDown(event: MouseEvent, index: number): void {
+    const target = event.target as HTMLElement;
+    const card = event.currentTarget as HTMLElement;
+    
+    // Don't start drag if clicking on buttons
+    if (target.tagName === 'BUTTON' || target.closest('button')) {
+      return;
+    }
+
+    const elementData = this.project?.grid[this.selectedGridIndex].Screen_elements[index];
+
+    if (!card) return;
+
+    // Start long-press timer for dragging (500ms)
+    this.longPressTimer = setTimeout(() => {
+      
+      this.isDraggingEnabled = true;
+      const rect = card.getBoundingClientRect();
+      this.elementDragOffsetX = event.clientX - rect.left;
+      this.elementDragOffsetY = event.clientY - rect.top;
+      this.draggedElementIndex = index;
+      this.draggedElement = card;
+      
+      card.style.opacity = '0.7';
+      card.style.cursor = 'grabbing';
+      card.classList.add('dragging-active');
+    }, 500);
+  }
+
+  onDocumentMouseMove(event: MouseEvent): void {
+    if (!this.isDraggingEnabled || this.draggedElement === null || !this.project) return;
+
+    const container = document.querySelector('.elements-grid') as HTMLElement;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const x = event.clientX - containerRect.left - this.elementDragOffsetX;
+    const y = event.clientY - containerRect.top - this.elementDragOffsetY;
+
+    this.draggedElement.style.position = 'absolute';
+    this.draggedElement.style.left = x + 'px';
+    this.draggedElement.style.top = y + 'px';
+    this.draggedElement.style.zIndex = '1000';
+  }
+
+  onDocumentMouseUp(event: MouseEvent): void {
+    // Clear long-press timer
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+
+    if (!this.isDraggingEnabled) {
+      return;
+    }
+
+    if (this.draggedElement === null || !this.project) {
+      this.isDraggingEnabled = false;
+      return;
+    }
+
+    const container = document.querySelector('.elements-grid') as HTMLElement;
+    if (!container) {
+      this.isDraggingEnabled = false;
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const x = Math.max(0, event.clientX - containerRect.left - this.elementDragOffsetX);
+    const y = Math.max(0, event.clientY - containerRect.top - this.elementDragOffsetY);
+
+    // Save the position to the element
+    const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
+    if (element) {
+      (element as any).position_x = x;
+      (element as any).position_y = y;
+      this.dataService.updateCurrentUser();
+    }
+
+    this.draggedElement.style.opacity = '1';
+    this.draggedElement.style.cursor = 'grab';
+    this.draggedElement.classList.remove('dragging-active');
+
+    this.draggedElement = null;
+    this.draggedElementIndex = -1;
+    this.isDraggingEnabled = false;
+  }
+
+  onElementMouseLeave(): void {
+    // Only clear timer, don't stop dragging on leave
+    if (!this.isDraggingEnabled && this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  getElementStyle(element: Screen_Element): any {
+    return {
+      'left.px': element.get_xpos() || 0,
+      'top.px': element.get_ypos() || 0,
+      'width.px': element.get_x_scale() || 200,
+      'height.px': element.get_y_scale() || 100,
+      'position': 'absolute'
+    };
+  }
+
+  // Canvas methods
+  onCanvasMouseDown(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('.canvas-element')) {
+      return; // Don't pan if clicking on element
+    }
+    this.isPanning = true;
+    this.panStartX = event.clientX - this.canvasPanX;
+    this.panStartY = event.clientY - this.canvasPanY;
+  }
+
+  onCanvasMouseMove(event: MouseEvent): void {
+    if (this.isPanning) {
+      this.canvasPanX = event.clientX - this.panStartX;
+      this.canvasPanY = event.clientY - this.panStartY;
+      return;
+    }
+
+    if (this.isResizing && this.resizingElement) {
+      const deltaX = event.clientX - this.startResizeX;
+      const deltaY = event.clientY - this.startResizeY;
+      
+      let newWidth = this.startWidth + deltaX;
+      let newHeight = this.startHeight + deltaY;
+      
+      // Minimum size constraints
+      newWidth = Math.max(100, newWidth);
+      newHeight = Math.max(50, newHeight);
+      
+      this.resizingElement.set_x_scale(newWidth);
+      this.resizingElement.set_y_scale(newHeight);
+      this.dataService.updateCurrentUser();
+      return;
+    }
+
+    if (this.isDraggingEnabled && this.draggedElement) {
+      const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
+      if (!canvasContainer) return;
+      
+      const rect = canvasContainer.getBoundingClientRect();
+      const x = (event.clientX - rect.left - this.elementDragOffsetX - this.canvasPanX) / this.canvasZoom;
+      const y = (event.clientY - rect.top - this.elementDragOffsetY - this.canvasPanY) / this.canvasZoom;
+      
+      // Update the data model
+      if (this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
+        const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
+        if (element) {
+          (element as any).x_pos = Math.max(0, x);
+          (element as any).y_pos = Math.max(0, y);
+          this.dataService.updateCurrentUser();
+        }
+      }
+    }
+  }
+
+  onCanvasMouseUp(event: MouseEvent): void {
+    this.isPanning = false;
+    this.isResizing = false;
+    this.resizingElement = null;
+    this.isDraggingEnabled = false;
+    this.draggedElement = null;
+  }
+
+  onCanvasWheel(event: WheelEvent): void {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? -0.1 : 0.1;
+      this.canvasZoom = Math.max(0.5, Math.min(2, this.canvasZoom + delta));
+    }
+  }
+
+  onCanvasElementMouseDown(event: MouseEvent, element: Screen_Element, gridIndex: number, elementIndex: number): void {
+    const target = event.target as HTMLElement;
+    
+    // Don't drag if clicking on controls or resize handle
+    if (target.closest('.element-controls') || target.closest('.resize-handle')) {
+      return;
+    }
+
+    // Don't drag if double-clicking to edit
+    if (event.detail === 2) {
+      return;
+    }
+
+    event.stopPropagation();
+    
+    const elementEl = event.currentTarget as HTMLElement;
+    this.draggedElement = elementEl;
+    this.draggedElementIndex = elementIndex;
+    this.draggedElementGridIndex = gridIndex;
+    this.isDraggingEnabled = true;
+    
+    const rect = elementEl.getBoundingClientRect();
+    const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
+    if (canvasContainer) {
+      const containerRect = canvasContainer.getBoundingClientRect();
+      this.elementDragOffsetX = event.clientX - rect.left;
+      this.elementDragOffsetY = event.clientY - rect.top;
+    }
+  }
+
+  startResize(event: MouseEvent, element: Screen_Element, gridIndex: number, elementIndex: number, handle: string): void {
+    event.stopPropagation();
+    this.isResizing = true;
+    this.resizeHandle = handle;
+    this.resizingElement = element;
+    this.resizingElementIndex = elementIndex;
+    this.resizingElementGridIndex = gridIndex;
+    this.startResizeX = event.clientX;
+    this.startResizeY = event.clientY;
+    this.startWidth = element.get_x_scale();
+    this.startHeight = element.get_y_scale();
+  }
+
+  resetCanvasView(): void {
+    this.canvasZoom = 1;
+    this.canvasPanX = 0;
+    this.canvasPanY = 0;
+  }
+
+  onDocumentMouseDown(event: MouseEvent): void {
+    // Handle canvas panning
+    if ((event.target as HTMLElement).closest('.canvas-container') && 
+        !(event.target as HTMLElement).closest('.canvas-element')) {
+      this.onCanvasMouseDown(event);
+    }
   }
 }
 

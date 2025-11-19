@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
@@ -9,7 +9,7 @@ import { Project } from '../../../../../shared_models/models/project.model';
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './projects.component.html',
   styleUrls: ['./projects.component.css']
 })
@@ -17,6 +17,7 @@ export class ProjectsComponent implements OnInit {
   currentUser: User | null = null;
   showCreateModal = false;
   newProjectName = '';
+  projectType: 'local' | 'hosted' = 'local';
 
   constructor(
     private dataService: DataService,
@@ -41,6 +42,9 @@ export class ProjectsComponent implements OnInit {
   createProject(): void {
     if (this.newProjectName.trim()) {
       const newProject = new Project(this.newProjectName.trim());
+      // Add project type metadata
+      (newProject as any).projectType = this.projectType;
+      (newProject as any).isLocal = this.projectType === 'local';
       
       if (this.currentUser) {
         this.currentUser.projects.push(newProject);
@@ -49,6 +53,10 @@ export class ProjectsComponent implements OnInit {
       
       this.closeCreateModal();
     }
+  }
+
+  isLocalProject(project: Project): boolean {
+    return (project as any).isLocal !== false; // Default to local if not set
   }
 
   selectProject(index: number): void {
