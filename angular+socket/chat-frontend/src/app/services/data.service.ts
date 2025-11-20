@@ -48,7 +48,7 @@ export class DataService {
     return null;
   }
 
-  createUser(name: string, password: string): User {
+  createUser(name: string): User {
     // Check if user already exists
     const existingUser = this.findUserByName(name);
     if (existingUser) {
@@ -61,7 +61,7 @@ export class DataService {
     // Create new user
     const userId = Date.now(); // Simple ID generation
     const userSettings = new settings();
-    const user = new User(userId, name, password, userSettings);
+    const user = new User(userId, name, userSettings);
     this.usersData.set(userId, user);
     this.currentUserId = userId;
     this.currentUserSubject.next(user);

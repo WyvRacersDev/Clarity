@@ -605,8 +605,8 @@ export class ProjectDetailComponent implements OnInit {
       if (this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
         const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
         if (element) {
-          (element as any).x_pos = Math.max(0, x);
-          (element as any).y_pos = Math.max(0, y);
+          (element as any).set_xpos(Math.max(0, x));
+          (element as any).set_ypos(Math.max(0, y));
           this.dataService.updateCurrentUser();
         }
       }

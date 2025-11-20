@@ -12,12 +12,24 @@ export abstract class Screen_Element
 
     constructor(name: string,x_pos:number,y_pos:number,x_scale:number=1,y_scale:number=1) 
   { 
-    console.log("Screen_Element object created")
+    console.log("Screen_Element object created at position ",x_pos," and ",y_pos)
     this.name = name;
     this.x_pos=x_pos;
     this.y_pos=y_pos;
     this.x_scale=x_scale;
     this.y_scale=y_scale;
+
+  }
+
+  get_name():String
+  {
+    return this.name;
+  }
+
+  set_name(new_name:String)
+  {
+    this.name=new_name
+    console.log("name changed to",new_name)
   }
 
   get_xpos():number
@@ -33,11 +45,13 @@ export abstract class Screen_Element
   set_xpos(xpos:number)
   {
     this.x_pos=xpos
+    console.log("x position modified to ",this.x_pos)
   }
 
   set_ypos(ypos:number)
   {
     this.y_pos=ypos
+    console.log("y position modified to ",this.y_pos)
   }
 
   get_x_scale():number

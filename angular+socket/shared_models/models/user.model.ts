@@ -11,7 +11,7 @@ export class User
 {
     user_id:number;
     name:string;
-    password:string; //ye to encrypt kerna parhay ga lol
+    //password:string; //ye to encrypt kerna parhay ga lol
     
     projects:Project[]=[]; //projects jo user banaye ga to 
     
@@ -19,12 +19,12 @@ export class User
     settings:settings; // 
     contacts:contact[]=[];  //gmail se is ka kuch ho ga later on currently idk
 
-    constructor(user_id:number,name:string,password:string,settings:settings)
+    constructor(user_id:number,name:string,settings:settings)
     {
         console.log("user created")
         this.user_id=user_id;
         this.name=name;
-        this.password=password;
+        //this.password=password;
 
         //NEED TO FINISH
         this.settings = settings;
