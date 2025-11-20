@@ -28,7 +28,7 @@ export class AuthService {
   }
 
   register(name: string, password: string): User {
-    const user = this.dataService.createUser(name, password);
+    const user = this.dataService.createUser(name);
     this.login(user.user_id);
     return user;
   }

@@ -10,6 +10,16 @@ export class Grid{
         console.log("Grid object created")
     }
 
+    get_name():string
+    {
+        return this.name
+    }
+
+    set_name(name:string)
+    {
+        this.name=name;
+    }
+    
     add_element(element:Screen_Element):void  //the screen element must be passed to the function (because they all will have separate constructors) 
     {
         this.Screen_elements.push(element);
@@ -41,6 +51,16 @@ export class Project{
         console.log("Project object created")
     }
 
+    get_name():string
+    {
+        return this.name
+    }
+
+    set_name(name:string)
+    {
+        this.name=name;
+    }
+    
     create_grid(name:string)  //takes grid name and adds to the list of the grids in the project
     {
        this.grid.push(new Grid(name)); 
