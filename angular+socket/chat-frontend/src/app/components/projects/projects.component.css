@@ -427,4 +427,67 @@
   box-shadow: 0 0 15px rgba(0, 201, 255, 0.4), inset 0 0 10px rgba(0, 255, 136, 0.05);
 }
 
+/* Loading Spinner */
+.spinner-small {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 201, 255, 0.3);
+  border-top-color: var(--primary-teal);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.spinner-large {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(0, 201, 255, 0.3);
+  border-top-color: var(--primary-teal);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1.5rem;
+  color: var(--text-light);
+}
+
+.loading-container p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-gray);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
 

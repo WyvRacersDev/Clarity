@@ -85,6 +85,87 @@ export class SocketService {
   getSocket(): Socket {
     return this.socket;
   }
+
+  // === Project Management Methods ===
+
+  /**
+   * Save a project to the server
+   * @param project The project object to save
+   * @param projectType 'local' or 'hosted'
+   * @returns Observable that emits the save result
+   */
+  saveProject(project: any, projectType: 'local' | 'hosted'): Observable<any> {
+    return new Observable(observer => {
+      const timeout = setTimeout(() => {
+        observer.error(new Error('Save project timeout'));
+        observer.complete();
+      }, 10000); // 10 second timeout
+      
+      this.socket.emit('saveProject', { project, projectType });
+      
+      this.socket.once('projectSaved', (response: any) => {
+        clearTimeout(timeout);
+        observer.next(response);
+        observer.complete();
+      });
+    });
+  }
+
+  /**
+   * Load a project from the server
+   * @param projectName Name of the project to load
+   * @param projectType 'local' or 'hosted'
+   * @returns Observable that emits the loaded project
+   */
+  loadProject(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
+    return new Observable(observer => {
+      this.socket.emit('loadProject', { projectName, projectType });
+      
+      this.socket.once('projectLoaded', (response: any) => {
+        observer.next(response);
+        observer.complete();
+      });
+    });
+  }
+
+  /**
+   * List all projects of a specific type
+   * @param projectType 'local' or 'hosted'
+   * @returns Observable that emits the list of projects
+   */
+  listProjects(projectType: 'local' | 'hosted'): Observable<any> {
+    return new Observable(observer => {
+      const timeout = setTimeout(() => {
+        observer.error(new Error('List projects timeout'));
+        observer.complete();
+      }, 10000); // 10 second timeout
+      
+      this.socket.emit('listProjects', { projectType });
+      
+      this.socket.once('projectsListed', (response: any) => {
+        clearTimeout(timeout);
+        observer.next(response);
+        observer.complete();
+      });
+    });
+  }
+
+  /**
+   * Delete a project from the server
+   * @param projectName Name of the project to delete
+   * @param projectType 'local' or 'hosted'
+   * @returns Observable that emits the delete result
+   */
+  deleteProject(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
+    return new Observable(observer => {
+      this.socket.emit('deleteProject', { projectName, projectType });
+      
+      this.socket.once('projectDeleted', (response: any) => {
+        observer.next(response);
+        observer.complete();
+      });
+    });
+  }
 }
 
 

@@ -14,7 +14,8 @@ import path from "path";
 import { google } from "googleapis";
 
 import { Socket } from "socket.io";
-import {objects_builder} from '../shared_models/models/screen_elements.model.ts'; // incredible location ngl 
+import {objects_builder} from '../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
+import { Project, Grid } from '../shared_models/dist/project.model.js';
 
 const app = express();
 const PORT = 3000;
@@ -46,6 +47,205 @@ const io = new Server(server, {
 // });
 
 
+// === Paths ===
+
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECTS_BASE_PATH = path.join(__dirname, "projects");
+const LOCAL_PROJECTS_PATH = path.join(PROJECTS_BASE_PATH, "local");
+const HOSTED_PROJECTS_PATH = path.join(PROJECTS_BASE_PATH, "hosted");
+
+// === Ensure project directories exist ===
+if (!fs.existsSync(PROJECTS_BASE_PATH)) {
+  fs.mkdirSync(PROJECTS_BASE_PATH, { recursive: true });
+}
+if (!fs.existsSync(LOCAL_PROJECTS_PATH)) {
+  fs.mkdirSync(LOCAL_PROJECTS_PATH, { recursive: true });
+}
+if (!fs.existsSync(HOSTED_PROJECTS_PATH)) {
+  fs.mkdirSync(HOSTED_PROJECTS_PATH, { recursive: true });
+}
+
+// === Project Management Utilities ===
+
+/**
+ * Sanitize filename to prevent directory traversal and invalid characters
+ */
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[^a-z0-9_\- ]/gi, '_')
+    .replace(/\s+/g, '_')
+    .substring(0, 100); // Limit length
+}
+
+/**
+ * Get the project directory path based on type
+ */
+function getProjectDirectory(projectType: 'local' | 'hosted'): string {
+  return projectType === 'local' ? LOCAL_PROJECTS_PATH : HOSTED_PROJECTS_PATH;
+}
+
+/**
+ * Get the full file path for a project
+ */
+function getProjectFilePath(projectName: string, projectType: 'local' | 'hosted'): string {
+  const dir = getProjectDirectory(projectType);
+  const safeName = sanitizeFilename(projectName);
+  return path.join(dir, `${safeName}.json`);
+}
+
+/**
+ * Serialize a Project object to JSON
+ */
+function serializeProject(project: any): any {
+  return {
+    name: project.name,
+    projectType: project.projectType || 'local',
+    grid: project.grid.map((grid: any) => ({
+      name: grid.name,
+      Screen_elements: grid.Screen_elements.map((element: any) => {
+        // Use toJSON if available, otherwise serialize manually
+        if (element.toJSON) {
+          return element.toJSON();
+        }
+        return {
+          type: element.constructor?.name || 'Screen_Element',
+          name: element.name,
+          x_pos: element.x_pos,
+          y_pos: element.y_pos,
+          x_scale: element.x_scale,
+          y_scale: element.y_scale,
+          ...(element.Text_field !== undefined && { Text_field: element.Text_field }),
+          ...(element.imageDescription !== undefined && { imageDescription: element.imageDescription }),
+          ...(element.VideoDescription !== undefined && { VideoDescription: element.VideoDescription }),
+          ...(element.scheduled_tasks !== undefined && { 
+            scheduled_tasks: element.scheduled_tasks.map((t: any) => t.toJSON ? t.toJSON() : t)
+          })
+        };
+      })
+    }))
+  };
+}
+
+/**
+ * Deserialize JSON to a Project object
+ */
+function deserializeProject(data: any): Project {
+  const project = new Project(data.name);
+  (project as any).projectType = data.projectType || 'local';
+  
+  if (data.grid && Array.isArray(data.grid)) {
+    data.grid.forEach((gridData: any) => {
+      const grid = new Grid(gridData.name);
+      if (gridData.Screen_elements && Array.isArray(gridData.Screen_elements)) {
+        gridData.Screen_elements.forEach((elementData: any) => {
+          const element = objects_builder.rebuild(elementData);
+          if (element) {
+            grid.add_element(element as any);
+          }
+        });
+      }
+      project.grid.push(grid);
+    });
+  }
+  
+  return project;
+}
+
+/**
+ * Save a project to file
+ */
+function saveProject(project: any, projectType: 'local' | 'hosted'): { success: boolean; message: string; path?: string } {
+  try {
+    const filePath = getProjectFilePath(project.name, projectType);
+    const serialized = serializeProject(project);
+    serialized.projectType = projectType; // Ensure type is set
+    serialized.lastModified = new Date().toISOString();
+    
+    fs.writeFileSync(filePath, JSON.stringify(serialized, null, 2), 'utf-8');
+    return { success: true, message: `Project "${project.name}" saved successfully`, path: filePath };
+  } catch (error: any) {
+    console.error('Error saving project:', error);
+    return { success: false, message: `Failed to save project: ${error.message}` };
+  }
+}
+
+/**
+ * Load a project from file
+ */
+function loadProject(projectName: string, projectType: 'local' | 'hosted'): { success: boolean; project?: Project; message: string } {
+  try {
+    const filePath = getProjectFilePath(projectName, projectType);
+    
+    if (!fs.existsSync(filePath)) {
+      return { success: false, message: `Project "${projectName}" not found` };
+    }
+    
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(fileContent);
+    const project = deserializeProject(data);
+    
+    return { success: true, project, message: `Project "${projectName}" loaded successfully` };
+  } catch (error: any) {
+    console.error('Error loading project:', error);
+    return { success: false, message: `Failed to load project: ${error.message}` };
+  }
+}
+
+/**
+ * List all projects in a directory
+ */
+function listProjects(projectType: 'local' | 'hosted'): { success: boolean; projects: any[]; message: string } {
+  try {
+    const dir = getProjectDirectory(projectType);
+    const files = fs.readdirSync(dir).filter(file => file.endsWith('.json'));
+    
+    const projects = files.map(file => {
+      try {
+        const filePath = path.join(dir, file);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const data = JSON.parse(content);
+        return {
+          name: data.name,
+          projectType: data.projectType || projectType,
+          gridCount: data.grid?.length || 0,
+          lastModified: data.lastModified || fs.statSync(filePath).mtime.toISOString()
+        };
+      } catch (error) {
+        console.error(`Error reading project file ${file}:`, error);
+        return null;
+      }
+    }).filter((p): p is any => p !== null);
+    
+    return { success: true, projects, message: `Found ${projects.length} projects` };
+  } catch (error: any) {
+    console.error('Error listing projects:', error);
+    return { success: false, projects: [], message: `Failed to list projects: ${error.message}` };
+  }
+}
+
+/**
+ * Delete a project file
+ */
+function deleteProject(projectName: string, projectType: 'local' | 'hosted'): { success: boolean; message: string } {
+  try {
+    const filePath = getProjectFilePath(projectName, projectType);
+    
+    if (!fs.existsSync(filePath)) {
+      return { success: false, message: `Project "${projectName}" not found` };
+    }
+    
+    fs.unlinkSync(filePath);
+    return { success: true, message: `Project "${projectName}" deleted successfully` };
+  } catch (error: any) {
+    console.error('Error deleting project:', error);
+    return { success: false, message: `Failed to delete project: ${error.message}` };
+  }
+}
+
+// === Socket Event Handlers ===
+
 io.on("connection", (socket:Socket) => {
   console.log("✅ User connected:", socket.id);
 
@@ -60,6 +260,88 @@ io.on("connection", (socket:Socket) => {
     // ❌ No broadcasting back
   });
 
+  // === Project Management Socket Events ===
+
+  /**
+   * Save a project
+   * Expected payload: { project: Project, projectType: 'local' | 'hosted' }
+   */
+  socket.on("saveProject", (data: { project: any; projectType: 'local' | 'hosted' }) => {
+    try {
+      console.log("💾 Saving project:", data.project?.name, "Type:", data.projectType);
+      const result = saveProject(data.project, data.projectType);
+      
+      if (result.success) {
+        socket.emit("projectSaved", { success: true, message: result.message, projectName: data.project.name });
+      } else {
+        socket.emit("projectSaved", { success: false, message: result.message });
+      }
+    } catch (error: any) {
+      console.error("Error in saveProject handler:", error);
+      socket.emit("projectSaved", { success: false, message: `Error: ${error.message}` });
+    }
+  });
+
+  /**
+   * Load a project
+   * Expected payload: { projectName: string, projectType: 'local' | 'hosted' }
+   */
+  socket.on("loadProject", (data: { projectName: string; projectType: 'local' | 'hosted' }) => {
+    try {
+      console.log("📂 Loading project:", data.projectName, "Type:", data.projectType);
+      const result = loadProject(data.projectName, data.projectType);
+      
+      if (result.success && result.project) {
+        // Serialize the project for sending over socket
+        const serialized = serializeProject(result.project);
+        socket.emit("projectLoaded", { 
+          success: true, 
+          project: serialized, 
+          message: result.message 
+        });
+      } else {
+        socket.emit("projectLoaded", { success: false, message: result.message });
+      }
+    } catch (error: any) {
+      console.error("Error in loadProject handler:", error);
+      socket.emit("projectLoaded", { success: false, message: `Error: ${error.message}` });
+    }
+  });
+
+  /**
+   * List all projects of a type
+   * Expected payload: { projectType: 'local' | 'hosted' }
+   */
+  socket.on("listProjects", (data: { projectType: 'local' | 'hosted' }) => {
+    try {
+      console.log("📋 Listing projects, Type:", data.projectType);
+      const result = listProjects(data.projectType);
+      socket.emit("projectsListed", result);
+    } catch (error: any) {
+      console.error("Error in listProjects handler:", error);
+      socket.emit("projectsListed", { 
+        success: false, 
+        projects: [], 
+        message: `Error: ${error.message}` 
+      });
+    }
+  });
+
+  /**
+   * Delete a project
+   * Expected payload: { projectName: string, projectType: 'local' | 'hosted' }
+   */
+  socket.on("deleteProject", (data: { projectName: string; projectType: 'local' | 'hosted' }) => {
+    try {
+      console.log("🗑️ Deleting project:", data.projectName, "Type:", data.projectType);
+      const result = deleteProject(data.projectName, data.projectType);
+      socket.emit("projectDeleted", result);
+    } catch (error: any) {
+      console.error("Error in deleteProject handler:", error);
+      socket.emit("projectDeleted", { success: false, message: `Error: ${error.message}` });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("❌ User disconnected:", socket.id);
   });
@@ -71,11 +353,8 @@ server.listen(3000, () => {
 });
 
 
-// === Paths ===
+// === Additional Paths ===
 
-import { fileURLToPath } from "url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const CREDENTIALS_PATH = path.join(__dirname, "credentials.json");
 const TOKEN_PATH = path.join(__dirname, "tokens.json");
 

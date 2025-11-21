@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -68,11 +68,16 @@ export class ProjectDetailComponent implements OnInit {
   panStartX: number = 0;
   panStartY: number = 0;
 
+  // Loading states
+  isSaving = false;
+  isLoading = false;
+
   constructor(
     private dataService: DataService,
     private socketService: SocketService,
     private route: ActivatedRoute,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -84,6 +89,18 @@ export class ProjectDetailComponent implements OnInit {
     this.dataService.currentUser$.subscribe((user: User | null) => {
       this.currentUser = user;
       this.loadProject();
+    });
+
+    // Subscribe to loading states
+    this.dataService.savingProject$.subscribe(loading => {
+      this.isSaving = loading;
+      console.log('Project detail - Saving state changed:', loading);
+      this.cdr.detectChanges();
+    });
+    
+    this.dataService.loadingProject$.subscribe(loading => {
+      this.isLoading = loading;
+      this.cdr.detectChanges();
     });
 
     // Listen for real-time updates
@@ -118,9 +135,9 @@ export class ProjectDetailComponent implements OnInit {
     this.newGridName = '';
   }
 
-  createGrid(): void {
+  async createGrid(): Promise<void> {
     if (this.newGridName.trim() && this.projectIndex >= 0) {
-      this.dataService.createGrid(this.projectIndex, this.newGridName.trim());
+      await this.dataService.createGrid(this.projectIndex, this.newGridName.trim());
       this.closeCreateGridModal();
       if (this.project) {
         this.selectedGridIndex = this.project.grid.length - 1;
@@ -128,9 +145,9 @@ export class ProjectDetailComponent implements OnInit {
     }
   }
 
-  deleteGrid(index: number): void {
+  async deleteGrid(index: number): Promise<void> {
     if (this.project && confirm(`Delete grid "${this.project.grid[index].name}"?`)) {
-      this.dataService.deleteGrid(this.projectIndex, index);
+      await this.dataService.deleteGrid(this.projectIndex, index);
       if (this.selectedGridIndex >= this.project.grid.length) {
         this.selectedGridIndex = Math.max(0, this.project.grid.length - 1);
       }
@@ -154,12 +171,11 @@ export class ProjectDetailComponent implements OnInit {
     }
   }
 
-  createTodoElement(): void {
+  async createTodoElement(): Promise<void> {
     if (!this.project || this.selectedGridIndex < 0) return;
     
     const element = new ToDoLst('Tasks', 200, 200);
-    this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
-    this.dataService.updateCurrentUser();
+    await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
   }
 
   triggerImageUpload(): void {
@@ -188,13 +204,12 @@ export class ProjectDetailComponent implements OnInit {
     const file = this.fileInput.files[0];
     const reader = new FileReader();
     
-    reader.onload = (e: any) => {
+    reader.onload = async (e: any) => {
       const imageUrl = e.target.result;
       const element = new Image(imageUrl, 400, 300, 'New Image', '');
       element.set_x_scale(300); // width
       element.set_y_scale(200); // height
-      this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
-      this.dataService.updateCurrentUser();
+      await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
       this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
     };
     
@@ -207,13 +222,12 @@ export class ProjectDetailComponent implements OnInit {
     const file = this.fileInput.files[0];
     const reader = new FileReader();
     
-    reader.onload = (e: any) => {
+    reader.onload = async (e: any) => {
       const videoUrl = e.target.result;
       const element = new Video(videoUrl, 400, 300, 'New Video', '');
       element.set_x_scale(400); // width
       element.set_y_scale(300); // height
-      this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
-      this.dataService.updateCurrentUser();
+      await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
       this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
     };
     
@@ -229,9 +243,9 @@ export class ProjectDetailComponent implements OnInit {
     // Removed - text elements no longer supported
   }
 
-  deleteElement(elementIndex: number): void {
+  async deleteElement(elementIndex: number): Promise<void> {
     if (this.project && this.selectedGridIndex >= 0) {
-      this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, elementIndex);
+      await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, elementIndex);
     }
   }
 
@@ -367,7 +381,7 @@ export class ProjectDetailComponent implements OnInit {
     }
   }
 
-  onDrop(event: DragEvent, targetColumnIndex: number): void {
+  async onDrop(event: DragEvent, targetColumnIndex: number): Promise<void> {
     event.preventDefault();
     
     if (!this.project || this.draggedTask === null || this.draggedFromColumn === -1) return;
@@ -391,7 +405,7 @@ export class ProjectDetailComponent implements OnInit {
     if (!targetTodoList) {
       // Create a new todo list in target column
       targetTodoList = new ToDoLst('Tasks', 0, 0);
-      this.dataService.addElementToGrid(this.projectIndex, targetColumnIndex, targetTodoList);
+      await this.dataService.addElementToGrid(this.projectIndex, targetColumnIndex, targetTodoList);
     }
 
     // Remove task from source
@@ -433,7 +447,7 @@ export class ProjectDetailComponent implements OnInit {
     this.taskColumnIndex = -1;
   }
 
-  submitAddTask(): void {
+  async submitAddTask(): Promise<void> {
     if (!this.project || this.taskColumnIndex === -1 || !this.newTaskName.trim()) return;
     
     let todoList = this.getTodoListForColumn(this.taskColumnIndex);
@@ -441,13 +455,13 @@ export class ProjectDetailComponent implements OnInit {
     if (!todoList) {
       // Create new todo list
       todoList = new ToDoLst('Tasks', 0, 0);
-      this.dataService.addElementToGrid(this.projectIndex, this.taskColumnIndex, todoList);
+      await this.dataService.addElementToGrid(this.projectIndex, this.taskColumnIndex, todoList);
     }
     
     // Create new task
     const task = new scheduled_task(this.newTaskName.trim(), this.newTaskPriority, new Date().toISOString());
     todoList.add_task(task);
-    this.dataService.updateCurrentUser();
+    await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
     
     this.closeAddTaskModal();
   }

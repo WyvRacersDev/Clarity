@@ -142,6 +142,7 @@ export class Image extends Screen_Element
       name: this.name,
       x_pos: this.x_pos,
       y_pos: this.y_pos,
+      //imagepath:this.imagepath,
       ImageDescription: this.imageDescription,
       ImageBase64: this.imageFile||null,
     };
@@ -171,6 +172,7 @@ export class Video extends Screen_Element
       name: this.name,
       x_pos: this.x_pos,
       y_pos: this.y_pos,
+      //VideoPath:this.VideoPath,
       VideoDescription: this.VideoDescription,
       videoBase64: this.VideoFile ||null
     };
@@ -273,7 +275,7 @@ export class objects_builder
   {
     if (!obj || !obj.type) return obj;
 
-    switch(obj.__type) {
+    switch(obj.type) {
       case 'Text_document':
         return new Text_document(obj.name, obj.x_pos, obj.y_pos, obj.Text_field);
 

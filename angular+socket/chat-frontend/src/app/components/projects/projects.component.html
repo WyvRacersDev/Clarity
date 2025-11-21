@@ -1,13 +1,19 @@
 <div class="projects-container">
   <div class="projects-header">
     <h1>Projects</h1>
-    <button class="create-btn" (click)="openCreateModal()">
+    <button class="create-btn" (click)="openCreateModal()" [disabled]="isLoading">
       <span class="btn-icon">➕</span>
       New Project
     </button>
   </div>
 
-  <div class="projects-list" *ngIf="currentUser && currentUser.projects.length > 0">
+  <!-- Loading indicator -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner-large"></div>
+    <p>Loading projects...</p>
+  </div>
+
+  <div class="projects-list" *ngIf="!isLoading && currentUser && currentUser.projects.length > 0">
     <div 
       class="project-card" 
       *ngFor="let project of currentUser.projects; let i = index"
@@ -24,8 +30,10 @@
           class="delete-btn" 
           (click)="deleteProject(i, $event)"
           title="Delete project"
+          [disabled]="isDeleting && deletingProjectIndex === i"
         >
-          🗑️
+          <span *ngIf="isDeleting && deletingProjectIndex === i" class="spinner-small"></span>
+          <span *ngIf="!(isDeleting && deletingProjectIndex === i)">🗑️</span>
         </button>
       </div>
       <div class="project-stats">
@@ -34,7 +42,7 @@
     </div>
   </div>
 
-  <div class="empty-projects" *ngIf="!currentUser || currentUser.projects.length === 0">
+  <div class="empty-projects" *ngIf="!isLoading && (!currentUser || currentUser.projects.length === 0)">
     <h2>No projects yet</h2>
     <p>Create a new project to get started</p>
   </div>
@@ -69,9 +77,10 @@
         <button 
           class="submit-btn" 
           (click)="createProject()"
-          [disabled]="!newProjectName.trim()"
+          [disabled]="!newProjectName.trim() || isSaving"
         >
-          Create
+          <span *ngIf="isSaving" class="spinner-small"></span>
+          <span *ngIf="!isSaving">Create</span>
         </button>
       </div>
     </div>
