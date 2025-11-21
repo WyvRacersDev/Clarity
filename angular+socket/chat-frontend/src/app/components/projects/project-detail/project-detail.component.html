@@ -1,3 +1,12 @@
+<!-- Loading Overlay -->
+<div class="loading-overlay" *ngIf="isSaving || isLoading">
+  <div class="loading-spinner">
+    <div class="spinner"></div>
+    <p *ngIf="isSaving">Saving project...</p>
+    <p *ngIf="isLoading">Loading project...</p>
+  </div>
+</div>
+
 <div class="project-detail-container" *ngIf="project">
   <div class="project-header">
     <div class="header-left">

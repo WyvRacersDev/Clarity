@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -13,21 +13,121 @@ import { Project } from '../../../../../shared_models/models/project.model';
   templateUrl: './projects.component.html',
   styleUrls: ['./projects.component.css']
 })
-export class ProjectsComponent implements OnInit {
+export class ProjectsComponent implements OnInit, OnDestroy {
   currentUser: User | null = null;
   showCreateModal = false;
   newProjectName = '';
   projectType: 'local' | 'hosted' = 'local';
+  
+  // Loading states
+  isSaving = false;
+  isDeleting = false;
+  isLoading = false;
+  deletingProjectIndex: number | null = null;
+  
+  // Prevent infinite loops
+  private isLoadingProjects = false;
+  private hasLoadedProjects = false;
+  private userSubscription: any;
 
   constructor(
     private dataService: DataService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.dataService.currentUser$.subscribe(user => {
+    // Reset loading flags when component initializes
+    this.hasLoadedProjects = false;
+    this.isLoadingProjects = false;
+    
+    // Get initial user state
+    const initialUser = this.dataService.getCurrentUser();
+    if (initialUser) {
+      this.currentUser = initialUser;
+      // Load projects immediately if user is already set
+      this.loadProjectsFromServer();
+    }
+    
+    // Subscribe to user changes
+    this.userSubscription = this.dataService.currentUser$.subscribe(async user => {
+      const previousUserId = this.currentUser?.user_id;
       this.currentUser = user;
+      
+      // Only load projects if:
+      // 1. User is set
+      // 2. User actually changed (different user ID)
+      // 3. Not already loading
+      if (user && !this.isLoadingProjects && previousUserId !== user.user_id) {
+        this.hasLoadedProjects = false;
+        await this.loadProjectsFromServer();
+      }
     });
+    
+    // Subscribe to loading states
+    this.dataService.savingProject$.subscribe(loading => {
+      this.isSaving = loading;
+      console.log('Saving state changed:', loading);
+      this.cdr.detectChanges();
+    });
+    
+    this.dataService.deletingProject$.subscribe(loading => {
+      this.isDeleting = loading;
+      this.cdr.detectChanges();
+    });
+    
+    this.dataService.listingProjects$.subscribe(loading => {
+      this.isLoading = loading;
+      console.log('Loading projects state changed:', loading);
+      this.cdr.detectChanges();
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.userSubscription) {
+      this.userSubscription.unsubscribe();
+    }
+  }
+
+  async loadProjectsFromServer(): Promise<void> {
+    if (!this.currentUser) {
+      console.log('No current user, skipping load');
+      return;
+    }
+    
+    if (this.isLoadingProjects) {
+      console.log('Already loading projects, skipping');
+      return;
+    }
+    
+    this.isLoadingProjects = true;
+    this.hasLoadedProjects = false; // Reset before loading
+    try {
+      console.log('Loading projects from server...');
+      // Load both local and hosted projects
+      const localProjects = await this.dataService.listProjects('local');
+      const hostedProjects = await this.dataService.listProjects('hosted');
+      
+      // Combine and update user's projects
+      const allProjects = [...localProjects, ...hostedProjects];
+      console.log(`Loaded ${allProjects.length} projects from server`);
+      
+      if (this.currentUser) {
+        // Update projects array directly without triggering observable
+        this.currentUser.projects.length = 0;
+        this.currentUser.projects.push(...allProjects);
+        this.hasLoadedProjects = true;
+        console.log('Projects loaded successfully');
+        this.cdr.detectChanges(); // Force change detection
+      }
+    } catch (error) {
+      console.error('Error loading projects from server:', error);
+      this.hasLoadedProjects = false; // Reset on error so it can retry
+    } finally {
+      this.isLoadingProjects = false;
+      console.log('Loading projects completed');
+      this.cdr.detectChanges(); // Force change detection
+    }
   }
 
   openCreateModal(): void {
@@ -39,16 +139,18 @@ export class ProjectsComponent implements OnInit {
     this.newProjectName = '';
   }
 
-  createProject(): void {
+  async createProject(): Promise<void> {
     if (this.newProjectName.trim()) {
-      const newProject = new Project(this.newProjectName.trim());
-      // Add project type metadata
-      (newProject as any).projectType = this.projectType;
-      (newProject as any).isLocal = this.projectType === 'local';
+      const newProject = this.dataService.createProject(this.newProjectName.trim(), this.projectType);
       
-      if (this.currentUser) {
-        this.currentUser.projects.push(newProject);
-        this.dataService.updateCurrentUser();
+      if (newProject && this.currentUser) {
+        // Save to server
+        const saved = await this.dataService.saveProject(newProject, this.projectType);
+        if (saved) {
+          console.log('Project created and saved successfully');
+        } else {
+          console.error('Failed to save project to server');
+        }
       }
       
       this.closeCreateModal();
@@ -63,11 +165,22 @@ export class ProjectsComponent implements OnInit {
     this.router.navigate(['/projects', index]);
   }
 
-  deleteProject(index: number, event: Event): void {
+  async deleteProject(index: number, event: Event): Promise<void> {
     event.stopPropagation();
-    if (this.currentUser && confirm('Are you sure you want to delete this project?')) {
-      this.currentUser.projects.splice(index, 1);
-      this.dataService.updateCurrentUser();
+    if (this.currentUser && this.currentUser.projects[index]) {
+      if (confirm('Are you sure you want to delete this project?')) {
+        this.deletingProjectIndex = index;
+        const project = this.currentUser.projects[index];
+        const projectType = (project as any).projectType || 'local';
+        const deleted = await this.dataService.deleteProject(project.name, projectType);
+        this.deletingProjectIndex = null;
+        if (deleted) {
+          console.log('Project deleted successfully');
+        } else {
+          console.error('Failed to delete project from server');
+          alert('Failed to delete project. Please try again.');
+        }
+      }
     }
   }
 }

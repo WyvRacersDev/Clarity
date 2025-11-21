@@ -3,6 +3,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+  //  "allowImportingTsExtensions": true,
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,

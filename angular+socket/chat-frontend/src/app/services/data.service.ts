@@ -1,9 +1,10 @@
 import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import { User, settings } from '../../../../shared_models/models/user.model';
-import { Project } from '../../../../shared_models/models/project.model';
-import { Screen_Element } from '../../../../shared_models/models/screen_elements.model';
+import { Project, Grid } from '../../../../shared_models/models/project.model';
+import { Screen_Element, objects_builder } from '../../../../shared_models/models/screen_elements.model';
+import { SocketService } from './socket.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,8 +15,25 @@ export class DataService {
 
   private usersData: Map<number, User> = new Map();
   private currentUserId: number | null = null;
+  private projectsCache: Map<string, Project> = new Map(); // Cache for loaded projects
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  // Loading states
+  private savingProjectSubject = new BehaviorSubject<boolean>(false);
+  public savingProject$ = this.savingProjectSubject.asObservable();
+
+  private loadingProjectSubject = new BehaviorSubject<boolean>(false);
+  public loadingProject$ = this.loadingProjectSubject.asObservable();
+
+  private deletingProjectSubject = new BehaviorSubject<boolean>(false);
+  public deletingProject$ = this.deletingProjectSubject.asObservable();
+
+  private listingProjectsSubject = new BehaviorSubject<boolean>(false);
+  public listingProjects$ = this.listingProjectsSubject.asObservable();
+
+  constructor(
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private socketService: SocketService
+  ) {
     this.loadInitialData();
   }
 
@@ -84,49 +102,235 @@ export class DataService {
   }
 
   // Project management
-  createProject(projectName: string): Project | null {
+  /**
+   * Create a new project (in memory only, call saveProject to persist)
+   */
+  createProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Project | null {
     const user = this.getCurrentUser();
     if (user) {
-      user.create_project(projectName);
-      this.saveToStorage();
+      const project = new Project(projectName);
+      (project as any).projectType = projectType;
+      (project as any).isLocal = projectType === 'local';
+      user.projects.push(project);
       this.currentUserSubject.next(user);
-      return user.projects[user.projects.length - 1];
+      return project;
     }
     return null;
   }
 
-  deleteProject(projectIndex: number): boolean {
-    const user = this.getCurrentUser();
-    if (user) {
-      const result = user.delete_project(projectIndex);
-      if (result) {
-        this.saveToStorage();
-        this.currentUserSubject.next(user);
+  /**
+   * Save a project to the server
+   */
+  async saveProject(project: Project, projectType: 'local' | 'hosted' = 'local'): Promise<boolean> {
+    console.log('saveProject called, setting saving to true');
+    this.savingProjectSubject.next(true);
+    try {
+      const response = await firstValueFrom(
+        this.socketService.saveProject(project, projectType)
+      );
+      
+      console.log('Save response received:', response);
+      
+      if (response && response.success) {
+        // Update cache
+        this.projectsCache.set(project.name, project);
+        // Update user's project list if needed (but don't trigger observable to avoid loops)
+        const user = this.getCurrentUser();
+        if (user) {
+          const index = user.projects.findIndex(p => p.name === project.name);
+          if (index === -1) {
+            user.projects.push(project);
+          } else {
+            user.projects[index] = project;
+          }
+        }
+        console.log('Save successful, setting saving to false');
+        this.savingProjectSubject.next(false);
+        return true;
       }
+      console.error('Failed to save project:', response?.message || 'Unknown error');
+      this.savingProjectSubject.next(false);
+      return false;
+    } catch (error) {
+      console.error('Error saving project:', error);
+      // Always clear saving state, even on error
+      this.savingProjectSubject.next(false);
+      return false;
+    }
+  }
+
+  /**
+   * Load a project from the server
+   */
+  async loadProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Promise<Project | null> {
+    // Check cache first (no loading state for cached projects)
+    if (this.projectsCache.has(projectName)) {
+      return this.projectsCache.get(projectName) || null;
+    }
+
+    this.loadingProjectSubject.next(true);
+    try {
+      const response = await firstValueFrom(
+        this.socketService.loadProject(projectName, projectType)
+      );
+      
+      if (response.success && response.project) {
+        const project = this.deserializeProject(response.project);
+        this.projectsCache.set(projectName, project);
+        this.loadingProjectSubject.next(false);
+        return project;
+      }
+      console.error('Failed to load project:', response.message);
+      this.loadingProjectSubject.next(false);
+      return null;
+    } catch (error) {
+      console.error('Error loading project:', error);
+      this.loadingProjectSubject.next(false);
+      return null;
+    }
+  }
+
+  /**
+   * List all projects from the server
+   */
+  async listProjects(projectType: 'local' | 'hosted' = 'local'): Promise<Project[]> {
+    this.listingProjectsSubject.next(true);
+    try {
+      const response = await firstValueFrom(
+        this.socketService.listProjects(projectType)
+      );
+      
+      if (response.success && response.projects) {
+        // Load full project data for each project
+        const projects: Project[] = [];
+        for (const projectInfo of response.projects) {
+          // Bypass cache and load directly from server
+          const loadResponse = await firstValueFrom(
+            this.socketService.loadProject(projectInfo.name, projectType)
+          );
+          
+          if (loadResponse.success && loadResponse.project) {
+            const project = this.deserializeProject(loadResponse.project);
+            this.projectsCache.set(projectInfo.name, project);
+            projects.push(project);
+          }
+        }
+        this.listingProjectsSubject.next(false);
+        return projects;
+      }
+      this.listingProjectsSubject.next(false);
+      return [];
+    } catch (error) {
+      console.error('Error listing projects:', error);
+      this.listingProjectsSubject.next(false);
+      return [];
+    }
+  }
+
+  /**
+   * Delete a project from the server
+   */
+  async deleteProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Promise<boolean> {
+    this.deletingProjectSubject.next(true);
+    try {
+      const response = await firstValueFrom(
+        this.socketService.deleteProject(projectName, projectType)
+      );
+      
+      if (response.success) {
+        // Remove from cache
+        this.projectsCache.delete(projectName);
+        // Remove from user's project list (but don't trigger observable to avoid loops)
+        const user = this.getCurrentUser();
+        if (user) {
+          const index = user.projects.findIndex(p => p.name === projectName);
+          if (index !== -1) {
+            user.projects.splice(index, 1);
+            // Don't emit - let component handle its own updates
+          }
+        }
+        this.deletingProjectSubject.next(false);
+        return true;
+      }
+      console.error('Failed to delete project:', response.message);
+      this.deletingProjectSubject.next(false);
+      return false;
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      this.deletingProjectSubject.next(false);
+      return false;
+    }
+  }
+
+  /**
+   * Delete project by index (for backward compatibility)
+   */
+  async deleteProjectByIndex(projectIndex: number): Promise<boolean> {
+    const user = this.getCurrentUser();
+    if (user && user.projects[projectIndex]) {
+      const project = user.projects[projectIndex];
+      const projectType = (project as any).projectType || 'local';
+      const result = await this.deleteProject(project.name, projectType);
       return result;
     }
     return false;
   }
 
+  /**
+   * Deserialize a project from JSON data
+   */
+  private deserializeProject(data: any): Project {
+    const project = new Project(data.name);
+    (project as any).projectType = data.projectType || 'local';
+    (project as any).isLocal = data.projectType !== 'hosted';
+    
+    if (data.grid && Array.isArray(data.grid)) {
+      data.grid.forEach((gridData: any) => {
+        const grid = new Grid(gridData.name);
+        if (gridData.Screen_elements && Array.isArray(gridData.Screen_elements)) {
+          gridData.Screen_elements.forEach((elementData: any) => {
+            const element = objects_builder.rebuild(elementData);
+            if (element) {
+              grid.add_element(element as any);
+            }
+          });
+        }
+        project.grid.push(grid);
+      });
+    }
+    
+    return project;
+  }
+
   // Grid management
-  createGrid(projectIndex: number, gridName: string): boolean {
+  /**
+   * Create a grid in a project (updates in memory, call saveProject to persist)
+   */
+  async createGrid(projectIndex: number, gridName: string): Promise<boolean> {
     const user = this.getCurrentUser();
     if (user && user.projects[projectIndex]) {
       user.projects[projectIndex].create_grid(gridName);
-      this.saveToStorage();
-      this.currentUserSubject.next(user);
+      // Auto-save the project (don't trigger observable to avoid loops)
+      const project = user.projects[projectIndex];
+      const projectType = (project as any).projectType || 'local';
+      await this.saveProject(project, projectType);
       return true;
     }
     return false;
   }
 
-  deleteGrid(projectIndex: number, gridIndex: number): boolean {
+  /**
+   * Delete a grid from a project (updates in memory, call saveProject to persist)
+   */
+  async deleteGrid(projectIndex: number, gridIndex: number): Promise<boolean> {
     const user = this.getCurrentUser();
     if (user && user.projects[projectIndex]) {
       const result = user.projects[projectIndex].remove_grid(gridIndex);
       if (result) {
-        this.saveToStorage();
-        this.currentUserSubject.next(user);
+        // Auto-save the project (don't trigger observable to avoid loops)
+        const project = user.projects[projectIndex];
+        const projectType = (project as any).projectType || 'local';
+        await this.saveProject(project, projectType);
       }
       return result;
     }
@@ -134,24 +338,34 @@ export class DataService {
   }
 
   // Element management
-  addElementToGrid(projectIndex: number, gridIndex: number, element: Screen_Element): boolean {
+  /**
+   * Add an element to a grid (updates in memory, call saveProject to persist)
+   */
+  async addElementToGrid(projectIndex: number, gridIndex: number, element: Screen_Element): Promise<boolean> {
     const user = this.getCurrentUser();
     if (user && user.projects[projectIndex] && user.projects[projectIndex].grid[gridIndex]) {
       user.projects[projectIndex].grid[gridIndex].add_element(element);
-      this.saveToStorage();
-      this.currentUserSubject.next(user);
+      // Auto-save the project (don't trigger observable to avoid loops)
+      const project = user.projects[projectIndex];
+      const projectType = (project as any).projectType || 'local';
+      await this.saveProject(project, projectType);
       return true;
     }
     return false;
   }
 
-  removeElementFromGrid(projectIndex: number, gridIndex: number, elementIndex: number): boolean {
+  /**
+   * Remove an element from a grid (updates in memory, call saveProject to persist)
+   */
+  async removeElementFromGrid(projectIndex: number, gridIndex: number, elementIndex: number): Promise<boolean> {
     const user = this.getCurrentUser();
     if (user && user.projects[projectIndex] && user.projects[projectIndex].grid[gridIndex]) {
       const result = user.projects[projectIndex].grid[gridIndex].remove_element(elementIndex);
       if (result) {
-        this.saveToStorage();
-        this.currentUserSubject.next(user);
+        // Auto-save the project (don't trigger observable to avoid loops)
+        const project = user.projects[projectIndex];
+        const projectType = (project as any).projectType || 'local';
+        await this.saveProject(project, projectType);
       }
       return result;
     }
@@ -163,13 +377,14 @@ export class DataService {
     const user = this.getCurrentUser();
     if (user) {
       user.settings = settings;
-      this.saveToStorage();
+      // Save user data to localStorage (but not projects - those are on server)
+      this.saveUserDataToStorage();
       this.currentUserSubject.next(user);
     }
   }
 
-  // Save to localStorage
-  private saveToStorage(): void {
+  // Save user data to localStorage (excluding projects - they're on server)
+  private saveUserDataToStorage(): void {
     // Only access localStorage in browser environment
     if (!isPlatformBrowser(this.platformId)) {
       return;
@@ -177,17 +392,26 @@ export class DataService {
 
     const user = this.getCurrentUser();
     if (user && this.currentUserId) {
-      // Convert to JSON (simplified - you may need proper serialization)
+      // Save user data but not full project data (just project names/types for reference)
       const userData = {
         userId: user.user_id,
         name: user.name,
-        projects: user.projects,
         settings: user.settings,
-        contacts: user.contacts
+        contacts: user.contacts,
+        projectReferences: user.projects.map(p => ({
+          name: p.name,
+          projectType: (p as any).projectType || 'local',
+          gridCount: p.grid.length
+        }))
       };
       this.usersData.set(this.currentUserId, user);
       localStorage.setItem('clarity_users', JSON.stringify(Array.from(this.usersData.entries())));
     }
+  }
+
+  // Legacy method for backward compatibility (now just saves user data)
+  private saveToStorage(): void {
+    this.saveUserDataToStorage();
   }
 
   // Update current user (for triggering change detection)

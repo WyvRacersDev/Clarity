@@ -1,0 +1,29 @@
+{
+  "name": "YOOO",
+  "projectType": "local",
+  "grid": [
+    {
+      "name": "W",
+      "Screen_elements": [
+        {
+          "type": "Object",
+          "name": "Tasks",
+          "x_pos": 200,
+          "y_pos": 200,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": []
+        },
+        {
+          "type": "Object",
+          "name": "New Image",
+          "x_pos": 400,
+          "y_pos": 300,
+          "x_scale": 300,
+          "y_scale": 200
+        }
+      ]
+    }
+  ],
+  "lastModified": "2025-11-21T11:44:28.104Z"
+}
