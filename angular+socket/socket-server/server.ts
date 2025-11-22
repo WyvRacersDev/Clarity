@@ -16,6 +16,9 @@ import { google } from "googleapis";
 import { Socket } from "socket.io";
 import {objects_builder} from '../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
 import { Project, Grid } from '../shared_models/dist/project.model.js';
+import cors from "cors";
+import type { CorsOptions } from "cors";
+
 
 const app = express();
 const PORT = 3000;
@@ -27,6 +30,28 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
+const allowedOrigins: RegExp[] = [
+  /^http:\/\/localhost:\d+$/
+];
+
+// Dynamic CORS middleware in TypeScript
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (Postman, CURL, mobile apps)
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    }
+  },
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 
 //   // Send history immediately
 //   socket.emit("chatHistory", messages);
@@ -367,6 +392,13 @@ const oAuth2Client = new google.auth.OAuth2(
   client_secret,
   redirect_uris[0]
 );
+//=== Store frontend URL ===
+let FRONTEND_URL = "http://localhost:4200"; //default
+app.post("/set-redirect-url", express.json(), (req, res) => {
+  FRONTEND_URL = req.body.frontendUrl;
+  console.log("Frontend URL updated:", FRONTEND_URL);
+  res.json({ success: true });
+});
 
 // === Generate auth URL ===
 app.get("/auth", (req:any, res:any) => {
@@ -416,7 +448,7 @@ app.get("/oauth2callback", async (req:any, res:any) => {
     tokenStore[email] = tokens;
 
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenStore, null, 2));
-    res.send(`✅ Authentication successful! Tokens saved for ${email}`);
+      return res.redirect(`${FRONTEND_URL}/settings?`);
   } catch (err) {
     console.error("Error during OAuth callback:", err);
     res.status(500).send("Error retrieving access token");
