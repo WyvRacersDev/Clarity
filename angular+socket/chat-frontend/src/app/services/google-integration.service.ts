@@ -2,6 +2,10 @@ import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { User, settings } from '../../../../shared_models/models/user.model';
 import { DataService } from './data.service';
+import { firstValueFrom } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { provideHttpClient } from '@angular/common/http';
+
 
 @Injectable({
   providedIn: 'root'
@@ -12,7 +16,7 @@ export class GoogleIntegrationService {
   private isGmailConnectedStatus = false;
 
   constructor(
-    private dataService: DataService,
+    private dataService: DataService,private http: HttpClient,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     // Load connection status from localStorage
@@ -55,16 +59,11 @@ export class GoogleIntegrationService {
     this.updateUserSettings();
   }
 
-  connectGmail(): Promise<boolean> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        this.isGmailConnectedStatus = true;
-        this.saveConnectionStatus();
-        this.updateUserSettings();
-        resolve(true);
-      }, 1000);
-    });
-  }
+// 
+async connectGmail(): Promise<void> {
+    await this.saveFrontendUrl();
+  window.location.href = "http://localhost:3000/auth";
+}
 
   disconnectGmail(): void {
     this.isGmailConnectedStatus = false;
@@ -123,5 +122,14 @@ export class GoogleIntegrationService {
       }
     }
   }
+  saveFrontendUrl(): Promise<void> {
+  const frontendUrl = window.location.origin;
+
+  return fetch("http://localhost:3000/set-redirect-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ frontendUrl })
+  }).then(() => {});
+}
 }
 
