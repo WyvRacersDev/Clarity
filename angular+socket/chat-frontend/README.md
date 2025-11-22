@@ -1,178 +1,59 @@
-# Clarity - Productivity Application Frontend
+# ChatFrontend
 
-A comprehensive all-in-one productivity application built with Angular, featuring task management, collaboration, scheduling, and AI-powered insights.
+This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.1.
 
-## Features
+## Development server
 
-### ✅ Implemented Features
-
-1. **User Authentication**
-   - Login/Register system
-   - User session management
-   - Route guards for protected pages
-
-2. **Dashboard**
-   - Overview of projects, tasks, and productivity metrics
-   - Quick action buttons
-   - Recent projects display
-   - Progress tracking
-
-3. **Projects Management**
-   - Create and manage multiple projects
-   - Grid-based organization within projects
-   - Add various screen elements (Text documents, To-Do lists)
-   - Real-time collaboration via Socket.IO
-   - Delete projects and grids
-
-4. **Tasks & Calendar**
-   - View tasks by date
-   - Create scheduled tasks with priorities
-   - Track upcoming and overdue tasks
-   - Calendar navigation
-   - Task completion tracking
-
-5. **Analytics**
-   - Task completion rates
-   - Priority distribution charts
-   - Project performance metrics
-   - Weekly completion trends
-   - Visual data representations
-
-6. **AI Insights**
-   - Productivity analysis
-   - Bottleneck identification
-   - Personalized suggestions
-   - AI chat assistant for productivity questions
-
-7. **Settings**
-   - User preferences (notifications, invites)
-   - Google Calendar integration toggle
-   - Google Contacts integration (placeholder)
-   - Gmail integration (placeholder)
-   - Account information
-
-8. **Real-time Collaboration**
-   - Socket.IO integration for live updates
-   - Element synchronization across users
-   - Project room management
-
-## Tech Stack
-
-- **Angular 20** - Frontend framework
-- **Ionic** - Mobile compatibility (configured)
-- **Capacitor** - Cross-platform support (configured)
-- **Socket.IO Client** - Real-time communication
-- **Chart.js** - Analytics visualizations (configured)
-- **Day.js** - Date manipulation
-- **TypeScript** - Type-safe development
-
-## Project Structure
-
-```
-src/app/
-├── components/
-│   ├── login/          # Authentication
-│   ├── layout/          # Main layout with sidebar
-│   ├── dashboard/       # Dashboard overview
-│   ├── projects/       # Project management
-│   ├── tasks/          # Tasks & Calendar
-│   ├── analytics/      # Analytics & charts
-│   ├── ai-insights/    # AI assistant & insights
-│   └── settings/       # User settings
-├── services/
-│   ├── auth.service.ts      # Authentication logic
-│   ├── data.service.ts      # Data management
-│   └── socket.service.ts    # Socket.IO communication
-└── guards/
-    └── auth.guard.ts        # Route protection
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v18 or higher)
-- npm or yarn
-
-### Installation
-
-1. Navigate to the frontend directory:
-```bash
-cd angular+socket/chat-frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
-npm start
-```
-
-4. Open your browser and navigate to `http://localhost:4200`
-
-### Building for Production
+To start a local development server, run:
 
 ```bash
-npm run build
+ng serve
 ```
 
-## Usage
+Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
-1. **Register/Login**: Create a new account or login with existing credentials
-2. **Create Projects**: Start by creating a project from the Projects page
-3. **Add Grids**: Organize your work into grids within projects
-4. **Add Elements**: Add text documents, to-do lists, and other elements
-5. **Manage Tasks**: Create and schedule tasks with priorities
-6. **View Analytics**: Track your productivity with visual analytics
-7. **Get AI Insights**: Use the AI assistant for productivity recommendations
-8. **Configure Settings**: Customize notifications and integrations
+## Code scaffolding
 
-## Data Storage
+Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
 
-Currently, data is stored in:
-- **localStorage** - User data and projects (JSON format)
-- **In-memory** - Active session data
+```bash
+ng generate component component-name
+```
 
-Note: This is a frontend-only implementation. For production, you'll need to integrate with a backend API.
+For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
 
-## Real-time Features
+```bash
+ng generate --help
+```
 
-The application uses Socket.IO for real-time collaboration:
-- Element updates are synchronized across users
-- Project rooms for multi-user collaboration
-- Task updates broadcast to all connected users
+## Building
 
-## Google Integrations
+To build the project run:
 
-The following Google services are prepared for integration:
-- **Google Calendar** - Sync tasks and events
-- **Google Contacts** - Import contacts
-- **Gmail** - Email-based task creation
+```bash
+ng build
+```
 
-Note: OAuth implementation is required on the backend for full integration.
+This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
-## Future Enhancements
+## Running unit tests
 
-- [ ] Full Google OAuth implementation
-- [ ] Enhanced AI capabilities with actual API integration
-- [ ] Mobile app deployment with Capacitor
-- [ ] Offline support (currently live data only)
-- [ ] Advanced analytics with Chart.js
-- [ ] File upload for images and videos
-- [ ] Team collaboration features
-- [ ] Export/Import functionality
+To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
 
-## Development Notes
+```bash
+ng test
+```
 
-- All components are standalone (Angular 20 feature)
-- Services use RxJS for reactive data management
-- Socket.IO client configured for `http://localhost:3000`
-- Responsive design with modern CSS
-- Type-safe development with TypeScript
+## Running end-to-end tests
 
-## Contributing
+For end-to-end (e2e) testing, run:
 
-This is a project for Software Design and Analysis course. For questions or issues, please contact the development team.
+```bash
+ng e2e
+```
+
+Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+
+## Additional Resources
+
+For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
