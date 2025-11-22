@@ -76,7 +76,7 @@
 
 .project-header h1 {
   font-size: 2.5rem;
-  color: #333;
+  color: #FFFFFF;
   margin: 0;
   font-weight: 700;
 }
@@ -93,6 +93,13 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #666;
 }
 
 .grids-tabs {
@@ -255,6 +262,32 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: none;
+}
+
+.element-header h3:hover {
+  color: #00D4FF;
+}
+
+.element-name-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 2px solid #00D4FF;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  font-family: inherit;
+  min-width: 150px;
+  margin-right: 8px;
+}
+
+.element-name-input:focus {
+  outline: none;
+  background: rgba(0, 212, 255, 0.15);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
 }
 
 .delete-element-btn {
@@ -274,10 +307,12 @@
   color: #3AFF6F;
 }
 
-.todo-list {
+.todo-list, .todo-list-content {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .todo-item {
@@ -296,13 +331,47 @@
   cursor: pointer;
 }
 
-.todo-item span.completed {
+.todo-item span.completed, .todo-item .task-name.completed {
   text-decoration: line-through;
   color: #A0A0A0;
 }
 
-.todo-item span {
+.todo-item span, .todo-item .task-name {
   color: #FFFFFF;
+  flex: 1;
+  word-wrap: break-word;
+}
+
+.todo-item .task-priority {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.empty-todo {
+  text-align: center;
+  padding: 20px;
+  color: #A0A0A0;
+}
+
+.empty-todo p {
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+}
+
+.add-task-btn-small {
+  background: rgba(0, 212, 255, 0.2);
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  color: #00D4FF;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.add-task-btn-small:hover {
+  background: rgba(0, 212, 255, 0.3);
+  border-color: #00D4FF;
 }
 
 .task-priority {
@@ -344,6 +413,36 @@
   color: #FFFFFF;
   white-space: pre-wrap;
   border: 1px solid rgba(0, 212, 255, 0.2);
+  cursor: text;
+}
+
+.text-content p {
+  margin: 0;
+  word-wrap: break-word;
+}
+
+.text-edit-input, .text-content-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid rgba(0, 212, 255, 0.3);
+  background: rgba(0, 212, 255, 0.1);
+  border-radius: 6px;
+  color: #FFFFFF;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.text-edit-input:focus, .text-content-input:focus {
+  outline: none;
+  border-color: #00D4FF;
+  background: rgba(0, 212, 255, 0.15);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.text-edit-input::placeholder, .text-content-input::placeholder {
+  color: #A0A0A0;
 }
 
 .image-content, .video-content {
@@ -358,7 +457,7 @@
   gap: 8px;
 }
 
-.image-element, .video-element {
+.image-element, .video-element, .text-element, .todo-element {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -500,6 +599,27 @@
   color: #FFFFFF;
   font-family: inherit;
   transition: all 0.3s;
+}
+
+.form-group select {
+  color: #FFFFFF !important;
+  background: rgba(0, 212, 255, 0.05) !important;
+}
+
+.form-group select option {
+  color: #FFFFFF !important;
+  background: #000000 !important;
+}
+
+.form-group select option:checked,
+.form-group select option:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
+}
+
+.form-group select:focus {
+  background: rgba(0, 212, 255, 0.1) !important;
+  color: #FFFFFF !important;
 }
 
 .form-group input::placeholder, .form-group textarea::placeholder {
@@ -954,15 +1074,28 @@
   border-radius: 4px;
   font-size: 1rem;
   box-sizing: border-box;
-  background-color: white;
+  background-color: rgba(0, 212, 255, 0.05);
   cursor: pointer;
   font-family: inherit;
+  color: #FFFFFF !important;
+}
+
+.form-group select option {
+  color: #FFFFFF !important;
+  background: #000000 !important;
+}
+
+.form-group select option:checked,
+.form-group select option:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
 }
 
 .form-group select:focus {
   outline: none;
   border-color: #0099FF;
   box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+  color: #FFFFFF !important;
 }
 
 /* Type Selector Modal */
@@ -1091,4 +1224,369 @@
 }
 .edit-buttons .cancel-btn:hover {
   background: rgba(0, 212, 255, 0.2);
+}
+
+/* Full-Screen Todo List Styles - Modal Popup */
+.fullscreen-todo-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.fullscreen-todo-container {
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, #0F2438 0%, #0A1B2E 100%);
+  border: 2px solid #00D4FF;
+  border-radius: 16px;
+  color: #FFFFFF;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 255, 0.3);
+  overflow: hidden;
+}
+
+.fullscreen-todo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+}
+
+.fullscreen-todo-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.close-fullscreen-btn {
+  background: transparent;
+  border: 2px solid #00D4FF;
+  color: #00D4FF;
+  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-fullscreen-btn:hover {
+  background: rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+}
+
+.add-task-section {
+  margin-bottom: 2rem;
+}
+
+.add-task-input-wrapper {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.add-task-input {
+  flex: 1;
+  padding: 14px 18px;
+  background: rgba(0, 212, 255, 0.05);
+  border: 2px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #FFFFFF;
+  font-family: inherit;
+}
+
+.add-task-input::placeholder {
+  color: #A0A0A0;
+}
+
+.add-task-input:focus {
+  outline: none;
+  border-color: #00D4FF;
+  background: rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.task-date-input {
+  padding: 14px;
+  background: rgba(0, 212, 255, 0.05);
+  border: 2px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #FFFFFF;
+  font-family: inherit;
+}
+
+.task-date-input:focus {
+  outline: none;
+  border-color: #00D4FF;
+  background: rgba(0, 212, 255, 0.1);
+}
+
+.task-priority-select {
+  padding: 14px;
+  background: rgba(0, 212, 255, 0.05) !important;
+  border: 2px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #FFFFFF !important;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.task-priority-select option {
+  color: #000000 !important;
+  background: #000000 !important;
+}
+
+.task-priority-select option:checked,
+.task-priority-select option:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
+}
+
+.task-priority-select:focus {
+  outline: none;
+  border-color: #00D4FF;
+  background: rgba(0, 212, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
+
+.add-task-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%);
+  border: 2px solid #00D4FF;
+  color: #FFFFFF;
+  font-size: 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.add-task-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+}
+
+.add-task-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tasks-section {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title.collapsible {
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-title.collapsible:hover {
+  color: #00D4FF;
+}
+
+.toggle-icon {
+  font-size: 0.9rem;
+  color: #00D4FF;
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-item-fullscreen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  transition: all 0.2s;
+  cursor: move;
+}
+
+.task-item-fullscreen[draggable="true"] {
+  cursor: grab;
+}
+
+.task-item-fullscreen[draggable="true"]:active {
+  cursor: grabbing;
+  opacity: 0.7;
+}
+
+.task-item-fullscreen:hover {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.4);
+}
+
+.task-item-fullscreen.overdue {
+  border-left: 4px solid #FF4444;
+}
+
+.task-item-fullscreen.completed {
+  opacity: 0.7;
+}
+
+.task-drag-handle {
+  color: #A0A0A0;
+  font-size: 1.2rem;
+  cursor: grab;
+  user-select: none;
+}
+
+.task-drag-handle:active {
+  cursor: grabbing;
+}
+
+.task-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #3AFF6F;
+}
+
+.task-content-fullscreen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-name-fullscreen {
+  font-size: 1rem;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.task-name-fullscreen.completed-text {
+  text-decoration: line-through;
+  color: #A0A0A0;
+}
+
+.task-date-fullscreen {
+  font-size: 0.85rem;
+  color: #A0A0A0;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.priority-select-fullscreen {
+  padding: 6px 10px;
+  background: rgba(0, 212, 255, 0.05) !important;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #FFFFFF !important;
+  cursor: pointer;
+}
+
+.priority-select-fullscreen option {
+  color: #000000 !important;
+  background: #000000 !important;
+}
+
+.priority-select-fullscreen option:checked,
+.priority-select-fullscreen option:hover {
+  background: #333333 !important;
+  color: #FFFFFF !important;
+}
+
+.priority-select-fullscreen:focus {
+  outline: none;
+  border-color: #00D4FF;
+  background: rgba(0, 212, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
+
+.delete-task-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  color: #FF4444;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.delete-task-btn:hover {
+  background: rgba(255, 68, 68, 0.1);
+  border-color: #FF4444;
+}
+
+.empty-tasks {
+  text-align: center;
+  padding: 2rem;
+  color: #A0A0A0;
+}
+
+.empty-tasks p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Scrollbar for tasks section */
+.tasks-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tasks-section::-webkit-scrollbar-track {
+  background: rgba(0, 212, 255, 0.05);
+  border-radius: 4px;
+}
+
+.tasks-section::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 4px;
+}
+
+.tasks-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.5);
 }

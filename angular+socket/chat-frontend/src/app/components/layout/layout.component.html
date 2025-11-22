@@ -11,27 +11,27 @@
     
     <nav class="sidebar-nav">
       <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
-        <span class="nav-icon">📊</span>
+        <img src="/assets/histogram.png" alt="Dashboard" class="nav-icon">
         <span class="nav-text" *ngIf="isSidebarOpen">Dashboard</span>
       </a>
       <a routerLink="/projects" routerLinkActive="active" class="nav-item">
-        <span class="nav-icon">📁</span>
+        <img src="/assets/folder.png" alt="Projects" class="nav-icon">
         <span class="nav-text" *ngIf="isSidebarOpen">Projects</span>
       </a>
       <a routerLink="/tasks" routerLinkActive="active" class="nav-item">
-        <span class="nav-icon">✅</span>
+        <img src="/assets/check.jpg" alt="Tasks" class="nav-icon">
         <span class="nav-text" *ngIf="isSidebarOpen">Tasks & Calendar</span>
       </a>
       <a routerLink="/analytics" routerLinkActive="active" class="nav-item">
-        <span class="nav-icon">📈</span>
+        <img src="/assets/graph.png" alt="Analytics" class="nav-icon">
         <span class="nav-text" *ngIf="isSidebarOpen">Analytics</span>
       </a>
       <a routerLink="/ai-insights" routerLinkActive="active" class="nav-item">
-        <span class="nav-icon">🤖</span>
+        <img src="/assets/robot.png" alt="AI Insights" class="nav-icon">
         <span class="nav-text" *ngIf="isSidebarOpen">AI Insights</span>
       </a>
       <a routerLink="/settings" routerLinkActive="active" class="nav-item">
-        <span class="nav-icon">⚙️</span>
+        <img src="/assets/settings.jpg" alt="Settings" class="nav-icon">
         <span class="nav-text" *ngIf="isSidebarOpen">Settings</span>
       </a>
     </nav>
@@ -53,5 +53,7 @@
     <router-outlet></router-outlet>
   </main>
 </div>
+
+
 
 

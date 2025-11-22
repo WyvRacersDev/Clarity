@@ -104,13 +104,15 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.hasLoadedProjects = false; // Reset before loading
     try {
       console.log('Loading projects from server...');
-      // Load both local and hosted projects
-      const localProjects = await this.dataService.listProjects('local');
-      const hostedProjects = await this.dataService.listProjects('hosted');
+      // Load both local and hosted projects in parallel (much faster!)
+      const [localProjects, hostedProjects] = await Promise.all([
+        this.dataService.listProjects('local'),
+        this.dataService.listProjects('hosted')
+      ]);
       
       // Combine and update user's projects
       const allProjects = [...localProjects, ...hostedProjects];
-      console.log(`Loaded ${allProjects.length} projects from server`);
+      console.log(`Loaded ${allProjects.length} projects from server (${localProjects.length} local, ${hostedProjects.length} hosted)`);
       
       if (this.currentUser) {
         // Update projects array directly without triggering observable

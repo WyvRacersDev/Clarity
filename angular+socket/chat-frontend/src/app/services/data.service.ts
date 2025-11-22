@@ -134,7 +134,7 @@ export class DataService {
       if (response && response.success) {
         // Update cache
         this.projectsCache.set(project.name, project);
-        // Update user's project list if needed (but don't trigger observable to avoid loops)
+        // Update user's project list if needed
         const user = this.getCurrentUser();
         if (user) {
           const index = user.projects.findIndex(p => p.name === project.name);
@@ -143,6 +143,8 @@ export class DataService {
           } else {
             user.projects[index] = project;
           }
+          // Emit updated user to trigger component reloads
+          this.currentUserSubject.next(user);
         }
         console.log('Save successful, setting saving to false');
         this.savingProjectSubject.next(false);
@@ -201,22 +203,45 @@ export class DataService {
       );
       
       if (response.success && response.projects) {
-        // Load full project data for each project
-        const projects: Project[] = [];
+        // Check cache first and only load missing projects
+        const projectsToLoad: { name: string; cached?: Project }[] = [];
+        const cachedProjects: Project[] = [];
+        
         for (const projectInfo of response.projects) {
-          // Bypass cache and load directly from server
-          const loadResponse = await firstValueFrom(
-            this.socketService.loadProject(projectInfo.name, projectType)
-          );
-          
-          if (loadResponse.success && loadResponse.project) {
-            const project = this.deserializeProject(loadResponse.project);
-            this.projectsCache.set(projectInfo.name, project);
-            projects.push(project);
+          const cached = this.projectsCache.get(projectInfo.name);
+          if (cached) {
+            cachedProjects.push(cached);
+          } else {
+            projectsToLoad.push({ name: projectInfo.name });
           }
         }
+        
+        // Load missing projects in parallel (much faster!)
+        const loadPromises = projectsToLoad.map(async (projectInfo) => {
+          try {
+            const loadResponse = await firstValueFrom(
+              this.socketService.loadProject(projectInfo.name, projectType)
+            );
+            
+            if (loadResponse.success && loadResponse.project) {
+              const project = this.deserializeProject(loadResponse.project);
+              this.projectsCache.set(projectInfo.name, project);
+              return project;
+            }
+            return null;
+          } catch (error) {
+            console.error(`Error loading project ${projectInfo.name}:`, error);
+            return null;
+          }
+        });
+        
+        const loadedProjects = await Promise.all(loadPromises);
+        const validLoadedProjects = loadedProjects.filter(p => p !== null) as Project[];
+        
+        // Combine cached and newly loaded projects
+        const allProjects = [...cachedProjects, ...validLoadedProjects];
         this.listingProjectsSubject.next(false);
-        return projects;
+        return allProjects;
       }
       this.listingProjectsSubject.next(false);
       return [];

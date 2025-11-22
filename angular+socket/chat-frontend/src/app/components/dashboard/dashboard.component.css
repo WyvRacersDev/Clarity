@@ -50,7 +50,6 @@
 }
 
 .stat-icon {
-  font-size: 2.5rem;
   width: 60px;
   height: 60px;
   display: flex;
@@ -59,6 +58,16 @@
   background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%);
   border-radius: 12px;
   box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+  padding: 8px;
+  font-size: 0;
+  line-height: 0;
+}
+
+.stat-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .stat-content {
@@ -193,7 +202,16 @@
 }
 
 .project-icon {
-  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-icon-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
 }
 
 .project-info {
@@ -270,8 +288,13 @@
 }
 
 .action-icon {
-  font-size: 2.5rem;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
   margin-bottom: 10px;
+  display: block;
+  font-size: 0;
+  line-height: 0;
 }
 
 .action-text {

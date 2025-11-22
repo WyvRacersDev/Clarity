@@ -27,7 +27,7 @@ export class ProjectDetailComponent implements OnInit {
   showCreateGridModal = false;
   newGridName = '';
   showAddElementModal = false;
-  newElementType: 'ToDoLst' | 'Image' | 'Video' = 'ToDoLst';
+  newElementType: 'ToDoLst' | 'Image' | 'Video' | 'Text_document' = 'ToDoLst';
   viewMode: 'kanban' | 'grid' = 'grid';
   draggedTask: any = null;
   draggedFromColumn: number = -1;
@@ -36,7 +36,29 @@ export class ProjectDetailComponent implements OnInit {
   showAddTaskModal = false;
   newTaskName = '';
   newTaskPriority = 2;
+  newTaskTime = '';
   taskColumnIndex = -1;
+  taskElementIndex = -1;
+  showAddTextModal = false;
+  newTextDocumentName = '';
+  newTextDocumentContent = '';
+  isEditingText = false;
+  editingTextIndex = -1;
+  editingTextContent = '';
+  
+  // Full-screen todo list view
+  showFullScreenTodo = false;
+  fullScreenTodoElement: ToDoLst | null = null;
+  fullScreenTodoElementIndex = -1;
+  fullScreenTodoGridIndex = -1;
+  showCompletedTasks = true;
+  
+  // Element selection and editing
+  selectedElementIndex = -1;
+  editingElementIndex = -1;
+  editingElementName = '';
+  editingElementNameIndex = -1;
+  editingElementNameGridIndex = -1;
   
   // Canvas dragging
   draggedElement: HTMLElement | null = null;
@@ -46,6 +68,7 @@ export class ProjectDetailComponent implements OnInit {
   elementDragOffsetY: number = 0;
   isDraggingEnabled: boolean = false;
   longPressTimer: any = null;
+  justFinishedDragging: boolean = false;
   isResizing: boolean = false;
   resizeHandle: string = '';
   resizingElement: Screen_Element | null = null;
@@ -155,10 +178,13 @@ export class ProjectDetailComponent implements OnInit {
   }
 
   openAddElementModal(): void {
+    if (!this.project || this.project.grid.length === 0) {
+      return;
+    }
     this.showElementTypeSelector = true;
   }
 
-  selectElementType(type: 'ToDoLst' | 'Image' | 'Video'): void {
+  selectElementType(type: 'ToDoLst' | 'Image' | 'Video' | 'Text_document'): void {
     this.newElementType = type;
     this.showElementTypeSelector = false;
     
@@ -166,6 +192,8 @@ export class ProjectDetailComponent implements OnInit {
       this.triggerImageUpload();
     } else if (type === 'Video') {
       this.triggerVideoUpload();
+    } else if (type === 'Text_document') {
+      this.openAddTextModal();
     } else if (type === 'ToDoLst') {
       this.createTodoElement();
     }
@@ -176,25 +204,31 @@ export class ProjectDetailComponent implements OnInit {
     
     const element = new ToDoLst('Tasks', 200, 200);
     await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+    this.loadProject(); // Reload to see the changes
+    this.cdr.detectChanges();
   }
 
   triggerImageUpload(): void {
-    if (!this.fileInput) {
-      this.fileInput = document.createElement('input');
-      this.fileInput.type = 'file';
-      this.fileInput.accept = 'image/*';
-      this.fileInput.onchange = () => this.handleImageUpload();
+    // Reset file input to ensure accept attribute is correct
+    if (this.fileInput) {
+      this.fileInput.remove();
     }
+    this.fileInput = document.createElement('input');
+    this.fileInput.type = 'file';
+    this.fileInput.accept = 'image/*';
+    this.fileInput.onchange = () => this.handleImageUpload();
     this.fileInput.click();
   }
 
   triggerVideoUpload(): void {
-    if (!this.fileInput) {
-      this.fileInput = document.createElement('input');
-      this.fileInput.type = 'file';
-      this.fileInput.accept = 'video/*';
-      this.fileInput.onchange = () => this.handleVideoUpload();
+    // Reset file input to ensure accept attribute is correct
+    if (this.fileInput) {
+      this.fileInput.remove();
     }
+    this.fileInput = document.createElement('input');
+    this.fileInput.type = 'file';
+    this.fileInput.accept = 'video/*';
+    this.fileInput.onchange = () => this.handleVideoUpload();
     this.fileInput.click();
   }
 
@@ -211,6 +245,8 @@ export class ProjectDetailComponent implements OnInit {
       element.set_y_scale(200); // height
       await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
       this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
+      this.loadProject(); // Reload to see the changes
+      this.cdr.detectChanges();
     };
     
     reader.readAsDataURL(file);
@@ -229,23 +265,96 @@ export class ProjectDetailComponent implements OnInit {
       element.set_y_scale(300); // height
       await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
       this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
+      this.loadProject(); // Reload to see the changes
+      this.cdr.detectChanges();
     };
     
     reader.readAsDataURL(file);
   }
 
-  onTaskToggle(task: any): void {
+  async onTaskToggle(task: any): Promise<void> {
     task.toggle_done_status();
     this.dataService.updateCurrentUser();
+    // Save the project to persist changes
+    if (this.project) {
+      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      this.loadProject(); // Reload to see the changes
+      this.cdr.detectChanges();
+    }
   }
 
   startEditingText(element: Screen_Element, gridIndex: number, elementIndex: number): void {
-    // Removed - text elements no longer supported
+    if (element.constructor.name === 'Text_document') {
+      this.isEditingText = true;
+      this.editingTextIndex = elementIndex;
+      this.editingTextContent = (element as any).get_field() || '';
+    }
+  }
+
+  async saveTextEdit(): Promise<void> {
+    if (!this.project || this.editingTextIndex === -1) return;
+    
+    const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.editingTextIndex];
+    if (element && element.constructor.name === 'Text_document') {
+      (element as any).set_field(this.editingTextContent);
+      this.dataService.updateCurrentUser();
+      // Save the project to persist changes
+      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      this.loadProject(); // Reload to see the changes
+      this.cdr.detectChanges();
+    }
+    
+    this.isEditingText = false;
+    this.editingTextIndex = -1;
+    this.editingTextContent = '';
+  }
+
+  cancelTextEdit(): void {
+    this.isEditingText = false;
+    this.editingTextIndex = -1;
+    this.editingTextContent = '';
+  }
+
+  getTextContent(element: Screen_Element): string {
+    if (element.constructor.name === 'Text_document') {
+      return (element as any).get_field() || '';
+    }
+    return '';
+  }
+
+  openAddTextModal(): void {
+    this.showAddTextModal = true;
+    this.newTextDocumentName = '';
+    this.newTextDocumentContent = '';
+  }
+
+  closeAddTextModal(): void {
+    this.showAddTextModal = false;
+    this.newTextDocumentName = '';
+    this.newTextDocumentContent = '';
+  }
+
+  async submitAddTextDocument(): Promise<void> {
+    if (!this.project || this.selectedGridIndex < 0 || !this.newTextDocumentName.trim()) return;
+    
+    const element = new Text_document(
+      this.newTextDocumentName.trim(),
+      200,
+      200,
+      this.newTextDocumentContent || ''
+    );
+    await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+    this.socketService.emitElementUpdate(element, this.project.name, this.project.grid[this.selectedGridIndex].name);
+    this.loadProject(); // Reload to see the changes
+    this.cdr.detectChanges();
+    this.closeAddTextModal();
   }
 
   async deleteElement(elementIndex: number): Promise<void> {
     if (this.project && this.selectedGridIndex >= 0) {
       await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, elementIndex);
+      this.loadProject(); // Reload to see the changes
+      this.cdr.detectChanges();
     }
   }
 
@@ -441,16 +550,44 @@ export class ProjectDetailComponent implements OnInit {
     this.newTaskPriority = 2;
   }
 
+  addTaskToTodoList(elementIndex: number): void {
+    if (!this.project || this.selectedGridIndex < 0) return;
+    
+    const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
+    if (element && element.constructor.name === 'ToDoLst') {
+      // Set the task column index to the selected grid index and use the element as the todo list
+      this.taskColumnIndex = this.selectedGridIndex;
+      this.taskElementIndex = elementIndex;
+      this.showAddTaskModal = true;
+      this.newTaskName = '';
+      this.newTaskPriority = 2;
+    }
+  }
+
   closeAddTaskModal(): void {
     this.showAddTaskModal = false;
     this.newTaskName = '';
     this.taskColumnIndex = -1;
+    this.taskElementIndex = -1;
   }
 
   async submitAddTask(): Promise<void> {
     if (!this.project || this.taskColumnIndex === -1 || !this.newTaskName.trim()) return;
     
-    let todoList = this.getTodoListForColumn(this.taskColumnIndex);
+    let todoList: ToDoLst | null = null;
+    
+    // If we have a specific element index (from grid view), use that
+    if (this.taskElementIndex >= 0 && this.project.grid[this.taskColumnIndex]) {
+      const element = this.project.grid[this.taskColumnIndex].Screen_elements[this.taskElementIndex];
+      if (element && element.constructor.name === 'ToDoLst') {
+        todoList = element as ToDoLst;
+      }
+    }
+    
+    // Otherwise, find the first todo list in the column (for kanban view)
+    if (!todoList) {
+      todoList = this.getTodoListForColumn(this.taskColumnIndex);
+    }
     
     if (!todoList) {
       // Create new todo list
@@ -462,8 +599,228 @@ export class ProjectDetailComponent implements OnInit {
     const task = new scheduled_task(this.newTaskName.trim(), this.newTaskPriority, new Date().toISOString());
     todoList.add_task(task);
     await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
-    
+    this.loadProject(); // Reload to see the changes
+    this.cdr.detectChanges();
     this.closeAddTaskModal();
+  }
+
+  // Full-screen todo list methods
+  openFullScreenTodo(elementIndex: number, event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    // Don't open if we're dragging or just finished dragging
+    if (this.isDraggingEnabled || this.justFinishedDragging) {
+      this.justFinishedDragging = false;
+      return;
+    }
+    
+    if (!this.project || this.selectedGridIndex < 0) return;
+    
+    const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
+    if (element && element.constructor.name === 'ToDoLst') {
+      this.fullScreenTodoElement = element as ToDoLst;
+      this.fullScreenTodoElementIndex = elementIndex;
+      this.fullScreenTodoGridIndex = this.selectedGridIndex;
+      this.showFullScreenTodo = true;
+    }
+  }
+
+  closeFullScreenTodo(): void {
+    this.showFullScreenTodo = false;
+    this.fullScreenTodoElement = null;
+    this.fullScreenTodoElementIndex = -1;
+    this.fullScreenTodoGridIndex = -1;
+  }
+
+  async addTaskToFullScreenTodo(): Promise<void> {
+    if (!this.fullScreenTodoElement || !this.newTaskName.trim()) return;
+    
+    // Convert datetime-local format to ISO string
+    let taskTime = new Date().toISOString();
+    if (this.newTaskTime) {
+      // datetime-local format is YYYY-MM-DDTHH:mm, convert to ISO
+      const localDate = new Date(this.newTaskTime);
+      if (!isNaN(localDate.getTime())) {
+        taskTime = localDate.toISOString();
+      }
+    }
+    
+    const task = new scheduled_task(this.newTaskName.trim(), this.newTaskPriority, taskTime);
+    this.fullScreenTodoElement.add_task(task);
+    await this.saveFullScreenTodo();
+    this.newTaskName = '';
+    this.newTaskPriority = 2;
+    this.newTaskTime = '';
+  }
+
+  getDateTimeLocalValue(isoString: string): string {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      // Format as YYYY-MM-DDTHH:mm for datetime-local input
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  }
+
+  async deleteTaskFromFullScreenTodo(task: scheduled_task): Promise<void> {
+    if (!this.fullScreenTodoElement) return;
+    
+    const taskIndex = this.fullScreenTodoElement.scheduled_tasks.findIndex(t => t === task);
+    if (taskIndex !== -1) {
+      this.fullScreenTodoElement.delete_task(taskIndex);
+      await this.saveFullScreenTodo();
+    }
+  }
+
+  async toggleTaskStatusInFullScreen(task: scheduled_task): Promise<void> {
+    if (!this.fullScreenTodoElement) return;
+    
+    task.toggle_done_status();
+    await this.saveFullScreenTodo();
+  }
+
+  async updateTaskPriorityInFullScreen(task: scheduled_task, priority: number): Promise<void> {
+    if (!this.fullScreenTodoElement) return;
+    
+    task.edit_priority(priority);
+    await this.saveFullScreenTodo();
+  }
+
+  onPriorityChange(task: scheduled_task, event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    if (target) {
+      this.updateTaskPriorityInFullScreen(task, +target.value);
+    }
+  }
+
+  async saveFullScreenTodo(): Promise<void> {
+    if (!this.project || this.fullScreenTodoGridIndex < 0 || this.fullScreenTodoElementIndex < 0) return;
+    
+    await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+    this.loadProject();
+    
+    // Reload the full-screen todo element
+    if (this.project && this.project.grid[this.fullScreenTodoGridIndex]) {
+      const element = this.project.grid[this.fullScreenTodoGridIndex].Screen_elements[this.fullScreenTodoElementIndex];
+      if (element && element.constructor.name === 'ToDoLst') {
+        this.fullScreenTodoElement = element as ToDoLst;
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
+  getUpcomingTasks(): scheduled_task[] {
+    if (!this.fullScreenTodoElement) return [];
+    return this.fullScreenTodoElement.scheduled_tasks.filter(task => !task.is_done);
+  }
+
+  getCompletedTasks(): scheduled_task[] {
+    if (!this.fullScreenTodoElement) return [];
+    return this.fullScreenTodoElement.scheduled_tasks.filter(task => task.is_done);
+  }
+
+  formatTaskDate(timeString: string): string {
+    if (!timeString || timeString === 'Invalid Date' || timeString.includes('Invalid')) return '';
+    try {
+      const date = new Date(timeString);
+      if (isNaN(date.getTime())) return '';
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  }
+
+  toggleCompletedSection(): void {
+    this.showCompletedTasks = !this.showCompletedTasks;
+  }
+
+  isTaskOverdue(task: scheduled_task): boolean {
+    if (!task.get_time()) return false;
+    try {
+      const taskDate = new Date(task.get_time());
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      taskDate.setHours(0, 0, 0, 0);
+      return taskDate < today && !task.is_done;
+    } catch {
+      return false;
+    }
+  }
+
+  // Element name editing
+  startEditingElementName(element: Screen_Element, gridIndex: number, elementIndex: number): void {
+    this.editingElementName = String(element.get_name());
+    this.editingElementNameIndex = elementIndex;
+    this.editingElementNameGridIndex = gridIndex;
+  }
+
+  async saveElementName(): Promise<void> {
+    if (!this.project || this.editingElementNameIndex < 0 || this.editingElementNameGridIndex < 0) return;
+    
+    const element = this.project.grid[this.editingElementNameGridIndex].Screen_elements[this.editingElementNameIndex];
+    if (element && this.editingElementName.trim()) {
+      element.set_name(this.editingElementName.trim());
+      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      this.loadProject();
+    }
+    
+    this.cancelElementNameEdit();
+  }
+
+  cancelElementNameEdit(): void {
+    this.editingElementName = '';
+    this.editingElementNameIndex = -1;
+    this.editingElementNameGridIndex = -1;
+  }
+
+  // Task reordering for full-screen todo
+  draggedFullScreenTaskIndex: number = -1;
+
+  onTaskDragStart(event: DragEvent, task: scheduled_task): void {
+    if (!this.fullScreenTodoElement) return;
+    this.draggedFullScreenTaskIndex = this.fullScreenTodoElement.scheduled_tasks.findIndex(t => t === task);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', '');
+    }
+  }
+
+  onTaskDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  async onTaskDrop(event: DragEvent, targetTask: scheduled_task): Promise<void> {
+    event.preventDefault();
+    if (this.draggedFullScreenTaskIndex === -1 || !this.fullScreenTodoElement) {
+      this.draggedFullScreenTaskIndex = -1;
+      return;
+    }
+
+    const tasks = this.fullScreenTodoElement.scheduled_tasks;
+    const draggedTask = tasks[this.draggedFullScreenTaskIndex];
+    const targetIndex = tasks.findIndex(t => t === targetTask);
+    
+    if (targetIndex === -1 || this.draggedFullScreenTaskIndex === targetIndex) {
+      this.draggedFullScreenTaskIndex = -1;
+      return;
+    }
+
+    const [movedTask] = tasks.splice(this.draggedFullScreenTaskIndex, 1);
+    tasks.splice(targetIndex, 0, movedTask);
+
+    await this.saveFullScreenTodo();
+    this.draggedFullScreenTaskIndex = -1;
   }
 
   // Grid element dragging methods with long-press
@@ -541,9 +898,10 @@ export class ProjectDetailComponent implements OnInit {
     // Save the position to the element
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
     if (element) {
-      (element as any).position_x = x;
-      (element as any).position_y = y;
-      this.dataService.updateCurrentUser();
+      element.set_xpos(x);
+      element.set_ypos(y);
+      // Save to backend
+      this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
     }
 
     this.draggedElement.style.opacity = '1';
@@ -553,6 +911,12 @@ export class ProjectDetailComponent implements OnInit {
     this.draggedElement = null;
     this.draggedElementIndex = -1;
     this.isDraggingEnabled = false;
+    this.justFinishedDragging = true;
+    
+    // Reset flag after a short delay to allow click event
+    setTimeout(() => {
+      this.justFinishedDragging = false;
+    }, 100);
   }
 
   onElementMouseLeave(): void {
@@ -627,7 +991,20 @@ export class ProjectDetailComponent implements OnInit {
     }
   }
 
-  onCanvasMouseUp(event: MouseEvent): void {
+  async onCanvasMouseUp(event: MouseEvent): Promise<void> {
+    if (this.isDraggingEnabled && this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
+      // Save position when drag ends
+      const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
+      if (element) {
+        await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      }
+    }
+    
+    if (this.isResizing && this.resizingElement && this.project) {
+      // Save size changes
+      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+    }
+    
     this.isPanning = false;
     this.isResizing = false;
     this.resizingElement = null;

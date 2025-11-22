@@ -6,7 +6,9 @@
 
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-icon">📁</div>
+      <div class="stat-icon">
+        <img src="/assets/folder.png" alt="Projects" class="stat-icon-img">
+      </div>
       <div class="stat-content">
         <div class="stat-value">{{ totalProjects }}</div>
         <div class="stat-label">Active Projects</div>
@@ -14,7 +16,9 @@
     </div>
 
     <div class="stat-card">
-      <div class="stat-icon">✅</div>
+      <div class="stat-icon">
+        <img src="/assets/check.jpg" alt="Tasks" class="stat-icon-img">
+      </div>
       <div class="stat-content">
         <div class="stat-value">{{ totalTasks }}</div>
         <div class="stat-label">Total Tasks</div>
@@ -22,7 +26,9 @@
     </div>
 
     <div class="stat-card">
-      <div class="stat-icon">🎯</div>
+      <div class="stat-icon">
+        <img src="/assets/dart.png" alt="Completion" class="stat-icon-img">
+      </div>
       <div class="stat-content">
         <div class="stat-value">{{ getCompletionPercentage() }}%</div>
         <div class="stat-label">Completion Rate</div>
@@ -30,7 +36,9 @@
     </div>
 
     <div class="stat-card">
-      <div class="stat-icon">⚡</div>
+      <div class="stat-icon">
+        <img src="/assets/bolt.png" alt="Productivity" class="stat-icon-img">
+      </div>
       <div class="stat-content">
         <div class="stat-value">{{ productivityScore }}</div>
         <div class="stat-label">Productivity Score</div>
@@ -73,7 +81,9 @@
           <p>No projects yet. <a routerLink="/projects">Create your first project</a></p>
         </div>
         <div *ngFor="let project of recentProjects; let i = index" class="project-item" [routerLink]="['/projects', getProjectIndex(project)]">
-          <div class="project-icon">📁</div>
+          <div class="project-icon">
+            <img src="/assets/folder.png" alt="Project" class="project-icon-img">
+          </div>
           <div class="project-info">
             <div class="project-name">{{ project.name }}</div>
             <div class="project-meta">{{ project.grid.length }} grid{{ project.grid.length !== 1 ? 's' : '' }}</div>
@@ -88,19 +98,19 @@
     <h2>Quick Actions</h2>
     <div class="actions-grid">
       <a routerLink="/projects" class="action-card">
-        <div class="action-icon">➕</div>
+        <img src="/assets/plus.jpg" alt="New Project" class="action-icon">
         <div class="action-text">New Project</div>
       </a>
       <a routerLink="/tasks" class="action-card">
-        <div class="action-icon">📅</div>
+        <img src="/assets/calender.jpg" alt="Schedule Task" class="action-icon">
         <div class="action-text">Schedule Task</div>
       </a>
       <a routerLink="/ai-insights" class="action-card">
-        <div class="action-icon">🤖</div>
+        <img src="/assets/robot.png" alt="AI Assistant" class="action-icon">
         <div class="action-text">AI Assistant</div>
       </a>
       <a routerLink="/analytics" class="action-card">
-        <div class="action-icon">📊</div>
+        <img src="/assets/histogram.png" alt="View Analytics" class="action-icon">
         <div class="action-text">View Analytics</div>
       </a>
     </div>
