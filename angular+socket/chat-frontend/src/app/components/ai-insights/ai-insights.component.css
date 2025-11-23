@@ -44,6 +44,16 @@
   margin: 0 0 1rem 0;
   color: #1e293b;
   font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .insights-list {
@@ -62,6 +72,10 @@
   border-left: 4px solid #0099FF;
 }
 
+.insight-item img {
+  display: block;
+}
+
 .insight-item.warning {
   border-left-color: #f59e0b;
   background: #fffbeb;
@@ -73,8 +87,14 @@
 }
 
 .insight-icon {
-  font-size: 1.25rem;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  object-fit: contain;
   flex-shrink: 0;
+  display: block;
+  vertical-align: middle;
 }
 
 .empty-state {
@@ -91,6 +111,14 @@
   gap: 0.5rem;
   background: #f0fdf4;
   border-radius: 8px;
+}
+
+.empty-state-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
 }
 
 .ai-chat-panel {
@@ -168,6 +196,15 @@
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.robot-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 
 .suggested-questions {
