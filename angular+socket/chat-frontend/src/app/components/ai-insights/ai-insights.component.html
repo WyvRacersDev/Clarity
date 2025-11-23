@@ -9,14 +9,17 @@
     <div class="insights-panel">
       <!-- Productivity Insights -->
       <div class="insight-section">
-        <h2>📊 Productivity Insights</h2>
+        <h2>
+          <img src="/assets/histogram.png" alt="Productivity" class="section-icon">
+          Productivity Insights
+        </h2>
         <div class="insights-list">
           <div *ngFor="let insight of insights" class="insight-item">
-            <span class="insight-icon">💡</span>
+            <img src="/assets/check.jpg" alt="Insight" class="insight-icon">
             <span>{{ insight }}</span>
           </div>
           <div *ngIf="insights.length === 0" class="empty-state success">
-            <span>✅</span>
+            <img src="/assets/check.jpg" alt="Check" class="empty-state-icon">
             <span>No insights available yet. Start creating projects and tasks!</span>
           </div>
         </div>
@@ -24,14 +27,17 @@
 
       <!-- Bottlenecks -->
       <div class="insight-section">
-        <h2>⚠️ Bottlenecks</h2>
+        <h2>
+          <img src="/assets/warning.png" alt="Bottlenecks" class="section-icon">
+          Bottlenecks
+        </h2>
         <div class="insights-list">
           <div *ngFor="let bottleneck of bottlenecks" class="insight-item warning">
-            <span class="insight-icon">⚠️</span>
+            <img src="/assets/warning.png" alt="Warning" class="insight-icon">
             <span>{{ bottleneck }}</span>
           </div>
           <div *ngIf="bottlenecks.length === 0" class="empty-state success">
-            <span>✅</span>
+            <img src="/assets/check.jpg" alt="Check" class="empty-state-icon">
             <span>No bottlenecks detected. Great work!</span>
           </div>
         </div>
@@ -39,10 +45,13 @@
 
       <!-- Suggestions -->
       <div class="insight-section">
-        <h2>💡 Suggestions</h2>
+        <h2>
+          <img src="/assets/bulb.png" alt="Suggestions" class="section-icon">
+          Suggestions
+        </h2>
         <div class="insights-list">
           <div *ngFor="let suggestion of suggestions" class="insight-item suggestion">
-            <span class="insight-icon">💡</span>
+            <img src="/assets/bulb.png" alt="Suggestion" class="insight-icon">
             <span>{{ suggestion }}</span>
           </div>
           <div *ngIf="suggestions.length === 0" class="empty-state">
@@ -61,7 +70,9 @@
 
       <div class="chat-messages">
         <div *ngIf="aiChatMessages.length === 0" class="empty-chat">
-          <div class="empty-icon">🤖</div>
+          <div class="empty-icon">
+            <img src="/assets/robot.png" alt="AI Assistant" class="robot-icon">
+          </div>
           <p>Start a conversation to get AI-powered insights</p>
           <div class="suggested-questions">
             <button class="suggestion-btn" (click)="userInput = 'How can I improve my productivity?'; sendMessage()">
