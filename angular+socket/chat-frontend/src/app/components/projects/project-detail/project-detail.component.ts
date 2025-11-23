@@ -142,6 +142,11 @@ export class ProjectDetailComponent implements OnInit {
   loadProject(): void {
     if (this.currentUser && this.projectIndex >= 0 && this.currentUser.projects[this.projectIndex]) {
       this.project = this.currentUser.projects[this.projectIndex];
+      // CRITICAL: Ensure projectType is set and never lost
+      if (!(this.project as any).projectType) {
+        console.error(`[ProjectDetail] Project ${this.project.name} missing projectType! This should never happen.`);
+        (this.project as any).projectType = 'local'; // Fallback, but log error
+      }
       if (this.project.grid.length > 0 && this.selectedGridIndex >= this.project.grid.length) {
         this.selectedGridIndex = 0;
       }
@@ -277,7 +282,12 @@ export class ProjectDetailComponent implements OnInit {
     this.dataService.updateCurrentUser();
     // Save the project to persist changes
     if (this.project) {
-      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      const projectType = (this.project as any).projectType;
+      if (!projectType) {
+        console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
+        return;
+      }
+      await this.dataService.saveProject(this.project, projectType);
       this.loadProject(); // Reload to see the changes
       this.cdr.detectChanges();
     }
@@ -299,7 +309,12 @@ export class ProjectDetailComponent implements OnInit {
       (element as any).set_field(this.editingTextContent);
       this.dataService.updateCurrentUser();
       // Save the project to persist changes
-      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      const projectType = (this.project as any).projectType;
+      if (!projectType) {
+        console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
+        return;
+      }
+      await this.dataService.saveProject(this.project, projectType);
       this.loadProject(); // Reload to see the changes
       this.cdr.detectChanges();
     }
@@ -768,7 +783,12 @@ export class ProjectDetailComponent implements OnInit {
     const element = this.project.grid[this.editingElementNameGridIndex].Screen_elements[this.editingElementNameIndex];
     if (element && this.editingElementName.trim()) {
       element.set_name(this.editingElementName.trim());
-      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      const projectType = (this.project as any).projectType;
+      if (!projectType) {
+        console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
+        return;
+      }
+      await this.dataService.saveProject(this.project, projectType);
       this.loadProject();
     }
     
@@ -898,8 +918,13 @@ export class ProjectDetailComponent implements OnInit {
     // Save the position to the element
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
     if (element) {
-      element.set_xpos(x);
-      element.set_ypos(y);
+      if ((element as any).set_xpos) {
+        (element as any).set_xpos(x);
+        (element as any).set_ypos(y);
+      } else {
+        (element as any).x_pos = x;
+        (element as any).y_pos = y;
+      }
       // Save to backend
       this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
     }
@@ -928,11 +953,17 @@ export class ProjectDetailComponent implements OnInit {
   }
 
   getElementStyle(element: Screen_Element): any {
+    // Handle both class instances and plain objects
+    const xpos = (element as any).get_xpos ? (element as any).get_xpos() : ((element as any).x_pos || 0);
+    const ypos = (element as any).get_ypos ? (element as any).get_ypos() : ((element as any).y_pos || 0);
+    const xscale = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
+    const yscale = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
+    
     return {
-      'left.px': element.get_xpos() || 0,
-      'top.px': element.get_ypos() || 0,
-      'width.px': element.get_x_scale() || 200,
-      'height.px': element.get_y_scale() || 100,
+      'left.px': xpos,
+      'top.px': ypos,
+      'width.px': xscale,
+      'height.px': yscale,
       'position': 'absolute'
     };
   }
@@ -965,8 +996,13 @@ export class ProjectDetailComponent implements OnInit {
       newWidth = Math.max(100, newWidth);
       newHeight = Math.max(50, newHeight);
       
-      this.resizingElement.set_x_scale(newWidth);
-      this.resizingElement.set_y_scale(newHeight);
+      if ((this.resizingElement as any).set_x_scale) {
+        (this.resizingElement as any).set_x_scale(newWidth);
+        (this.resizingElement as any).set_y_scale(newHeight);
+      } else {
+        (this.resizingElement as any).x_scale = newWidth;
+        (this.resizingElement as any).y_scale = newHeight;
+      }
       this.dataService.updateCurrentUser();
       return;
     }
@@ -983,8 +1019,13 @@ export class ProjectDetailComponent implements OnInit {
       if (this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
         const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
         if (element) {
-          (element as any).set_xpos(Math.max(0, x));
-          (element as any).set_ypos(Math.max(0, y));
+          if ((element as any).set_xpos) {
+            (element as any).set_xpos(Math.max(0, x));
+            (element as any).set_ypos(Math.max(0, y));
+          } else {
+            (element as any).x_pos = Math.max(0, x);
+            (element as any).y_pos = Math.max(0, y);
+          }
           this.dataService.updateCurrentUser();
         }
       }
@@ -996,13 +1037,23 @@ export class ProjectDetailComponent implements OnInit {
       // Save position when drag ends
       const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
       if (element) {
-        await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+        const projectType = (this.project as any).projectType;
+      if (!projectType) {
+        console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
+        return;
+      }
+      await this.dataService.saveProject(this.project, projectType);
       }
     }
     
     if (this.isResizing && this.resizingElement && this.project) {
       // Save size changes
-      await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
+      const projectType = (this.project as any).projectType;
+      if (!projectType) {
+        console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
+        return;
+      }
+      await this.dataService.saveProject(this.project, projectType);
     }
     
     this.isPanning = false;
@@ -1059,8 +1110,8 @@ export class ProjectDetailComponent implements OnInit {
     this.resizingElementGridIndex = gridIndex;
     this.startResizeX = event.clientX;
     this.startResizeY = event.clientY;
-    this.startWidth = element.get_x_scale();
-    this.startHeight = element.get_y_scale();
+    this.startWidth = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
+    this.startHeight = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
   }
 
   resetCanvasView(): void {

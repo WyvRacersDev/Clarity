@@ -197,55 +197,91 @@ function saveProject(project: any, projectType: 'local' | 'hosted'): { success: 
 }
 
 /**
- * Load a project from file
+ * Load a project from file - SIMPLE: search by project name in JSON, not filename
  */
 function loadProject(projectName: string, projectType: 'local' | 'hosted'): { success: boolean; project?: Project; message: string } {
   try {
-    const filePath = getProjectFilePath(projectName, projectType);
+    console.log(`[Server] loadProject called: projectName="${projectName}", projectType="${projectType}"`);
+    const dir = getProjectDirectory(projectType);
+    console.log(`[Server] Searching in directory: ${dir}`);
     
-    if (!fs.existsSync(filePath)) {
-      return { success: false, message: `Project "${projectName}" not found` };
+    if (!fs.existsSync(dir)) {
+      return { success: false, message: `Directory does not exist: ${dir}` };
     }
     
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const data = JSON.parse(fileContent);
-    const project = deserializeProject(data);
+    // Search through all files to find one with matching project name
+    const files = fs.readdirSync(dir).filter(file => file.endsWith('.json'));
+    console.log(`[Server] Found ${files.length} files in ${projectType} directory:`, files);
     
-    return { success: true, project, message: `Project "${projectName}" loaded successfully` };
+    for (const file of files) {
+      try {
+        const filePath = path.join(dir, file);
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const data = JSON.parse(fileContent);
+        
+        console.log(`[Server] Checking file ${file}: JSON name="${data.name}", looking for="${projectName}"`);
+        
+        // Match by the actual project name in the JSON, not the filename
+        if (data.name === projectName) {
+          console.log(`[Server] ✓ MATCH! Found project "${projectName}" in file ${file}`);
+          const project = deserializeProject(data);
+          console.log(`[Server] Deserialized project name: "${project.name}"`);
+          (project as any).projectType = projectType;
+          (project as any).isLocal = projectType === 'local';
+          console.log(`[Server] Returning project with name="${project.name}", type="${(project as any).projectType}"`);
+          return { success: true, project, message: `Project "${projectName}" loaded from ${projectType} directory` };
+        }
+      } catch (error) {
+        console.error(`[Server] Error reading file ${file}:`, error);
+        continue;
+      }
+    }
+    
+    console.error(`[Server] ✗ Project "${projectName}" NOT FOUND in ${projectType} directory after checking ${files.length} files`);
+    return { success: false, message: `Project "${projectName}" not found in ${projectType} directory` };
   } catch (error: any) {
-    console.error('Error loading project:', error);
+    console.error(`Error loading ${projectType} project "${projectName}":`, error);
     return { success: false, message: `Failed to load project: ${error.message}` };
   }
 }
 
 /**
- * List all projects in a directory
+ * List all projects in a directory - SIMPLE: just read from the directory
  */
 function listProjects(projectType: 'local' | 'hosted'): { success: boolean; projects: any[]; message: string } {
   try {
     const dir = getProjectDirectory(projectType);
-    const files = fs.readdirSync(dir).filter(file => file.endsWith('.json'));
     
+    if (!fs.existsSync(dir)) {
+      return { success: false, projects: [], message: `Directory does not exist: ${dir}` };
+    }
+    
+    const files = fs.readdirSync(dir).filter(file => file.endsWith('.json'));
     const projects = files.map(file => {
       try {
         const filePath = path.join(dir, file);
         const content = fs.readFileSync(filePath, 'utf-8');
         const data = JSON.parse(content);
-        return {
-          name: data.name,
-          projectType: data.projectType || projectType,
+        
+        const projectInfo = {
+          name: data.name, // Use the actual project name from JSON, not the filename
+          filename: file, // Store the actual filename so we can load it later
+          projectType: projectType,
           gridCount: data.grid?.length || 0,
           lastModified: data.lastModified || fs.statSync(filePath).mtime.toISOString()
         };
+        console.log(`[Server] Found ${projectType} project: "${projectInfo.name}" from file: ${file}`);
+        return projectInfo;
       } catch (error) {
         console.error(`Error reading project file ${file}:`, error);
         return null;
       }
     }).filter((p): p is any => p !== null);
     
-    return { success: true, projects, message: `Found ${projects.length} projects` };
+    console.log(`[Server] Returning ${projects.length} ${projectType} projects:`, projects.map(p => p.name));
+    return { success: true, projects, message: `Found ${projects.length} ${projectType} projects` };
   } catch (error: any) {
-    console.error('Error listing projects:', error);
+    console.error(`Error listing ${projectType} projects:`, error);
     return { success: false, projects: [], message: `Failed to list projects: ${error.message}` };
   }
 }
@@ -311,25 +347,29 @@ io.on("connection", (socket:Socket) => {
    * Load a project
    * Expected payload: { projectName: string, projectType: 'local' | 'hosted' }
    */
-  socket.on("loadProject", (data: { projectName: string; projectType: 'local' | 'hosted' }) => {
+  socket.on("loadProject", (data: { projectName: string; projectType: 'local' | 'hosted', eventName?: string }) => {
     try {
-      console.log("📂 Loading project:", data.projectName, "Type:", data.projectType);
       const result = loadProject(data.projectName, data.projectType);
       
+      // Use the provided event name if available, otherwise use default
+      const eventName = data.eventName || "projectLoaded";
+      
       if (result.success && result.project) {
-        // Serialize the project for sending over socket
         const serialized = serializeProject(result.project);
-        socket.emit("projectLoaded", { 
+        serialized.projectType = data.projectType; // Ensure type matches directory
+        console.log(`[Server] Sending project over socket: name="${serialized.name}", type="${serialized.projectType}", event="${eventName}"`);
+        socket.emit(eventName, { 
           success: true, 
           project: serialized, 
           message: result.message 
         });
       } else {
-        socket.emit("projectLoaded", { success: false, message: result.message });
+        socket.emit(eventName, { success: false, message: result.message });
       }
     } catch (error: any) {
       console.error("Error in loadProject handler:", error);
-      socket.emit("projectLoaded", { success: false, message: `Error: ${error.message}` });
+      const eventName = data.eventName || "projectLoaded";
+      socket.emit(eventName, { success: false, message: `Error: ${error.message}` });
     }
   });
 
@@ -337,14 +377,14 @@ io.on("connection", (socket:Socket) => {
    * List all projects of a type
    * Expected payload: { projectType: 'local' | 'hosted' }
    */
-  socket.on("listProjects", (data: { projectType: 'local' | 'hosted' }) => {
+  socket.on("listProjects", (data: { projectType: 'local' | 'hosted', requestId?: string }) => {
     try {
-      console.log("📋 Listing projects, Type:", data.projectType);
       const result = listProjects(data.projectType);
-      socket.emit("projectsListed", result);
+      // Emit to a type-specific event to avoid mix-ups
+      socket.emit(`projectsListed_${data.projectType}`, result);
     } catch (error: any) {
       console.error("Error in listProjects handler:", error);
-      socket.emit("projectsListed", { 
+      socket.emit(`projectsListed_${data.projectType}`, { 
         success: false, 
         projects: [], 
         message: `Error: ${error.message}` 

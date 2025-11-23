@@ -110,17 +110,18 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         this.dataService.listProjects('hosted')
       ]);
       
-      // Combine and update user's projects
+      // SIMPLE: Just combine the projects - they're already correctly typed from their directories
+      console.log(`[ProjectsComponent] Local projects:`, localProjects.map(p => p.name));
+      console.log(`[ProjectsComponent] Hosted projects:`, hostedProjects.map(p => p.name));
       const allProjects = [...localProjects, ...hostedProjects];
-      console.log(`Loaded ${allProjects.length} projects from server (${localProjects.length} local, ${hostedProjects.length} hosted)`);
+      console.log(`[ProjectsComponent] All projects:`, allProjects.map(p => ({ name: p.name, type: (p as any).projectType })));
       
       if (this.currentUser) {
-        // Update projects array directly without triggering observable
         this.currentUser.projects.length = 0;
         this.currentUser.projects.push(...allProjects);
+        console.log(`[ProjectsComponent] Final user projects:`, this.currentUser.projects.map(p => ({ name: p.name, type: (p as any).projectType })));
         this.hasLoadedProjects = true;
-        console.log('Projects loaded successfully');
-        this.cdr.detectChanges(); // Force change detection
+        this.cdr.detectChanges();
       }
     } catch (error) {
       console.error('Error loading projects from server:', error);
