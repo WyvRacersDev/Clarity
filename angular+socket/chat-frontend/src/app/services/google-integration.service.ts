@@ -62,7 +62,11 @@ export class GoogleIntegrationService {
 // 
 async connectGmail(): Promise<void> {
     await this.saveFrontendUrl();
+    localStorage.setItem("oauth_in_progress", "1");
   window.location.href = "http://localhost:3000/auth";
+  this.isGmailConnectedStatus = true;
+  this.saveConnectionStatus();
+  this.updateUserSettings();
 }
 
   disconnectGmail(): void {

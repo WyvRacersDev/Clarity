@@ -10,6 +10,7 @@ import { SocketService } from './socket.service';
   providedIn: 'root'
 })
 export class DataService {
+  
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
@@ -32,6 +33,7 @@ export class DataService {
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
     private socketService: SocketService
+    
   ) {
     this.loadInitialData();
   }
@@ -42,17 +44,25 @@ export class DataService {
       return;
     }
 
-    // Load from localStorage if available
-    const savedData = localStorage.getItem('clarity_users');
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        // Reconstruct users from JSON
-        // Note: This is a simplified version - you may need to properly deserialize
-      } catch (e) {
-        console.error('Error loading saved data:', e);
+   if (!isPlatformBrowser(this.platformId)) return;
+
+  const saved = localStorage.getItem("clarity_users");
+  const currentId = localStorage.getItem("current_user_id");
+  console.log("Loaded from storage:", saved, currentId);
+  if (saved && currentId) {
+    try {
+      const users = JSON.parse(saved);
+      const userEntry = users.find((u: any[]) => u[0] === Number(currentId));
+
+      if (userEntry) {
+        const user = userEntry[1];
+        console.log("Restoring user:", user);
+        this.currentUserSubject.next(user);   // <-- IMPORTANT
       }
+    } catch (e) {
+      console.error("Error parsing user data:", e);
     }
+  }
   }
 
   // User management
@@ -91,6 +101,9 @@ export class DataService {
     if (user) {
       this.currentUserId = userId;
       this.currentUserSubject.next(user);
+
+          // 🔥 Persist login across reloads
+    localStorage.setItem("current_user_id", userId.toString());
       return true;
     }
     return false;
@@ -441,6 +454,8 @@ export class DataService {
   logout(): void {
     this.currentUserId = null;
     this.currentUserSubject.next(null);
+      // 🔥 Clear login persistence
+  localStorage.removeItem("current_user_id");
   }
 }
 
