@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { GoogleIntegrationService } from '../../services/google-integration.service';
 import { User, settings } from '../../../../../shared_models/models/user.model';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-settings',
@@ -14,7 +15,7 @@ import { User, settings } from '../../../../../shared_models/models/user.model';
 })
 export class SettingsComponent implements OnInit {
   currentUser: User | null = null;
-  userSettings: settings | null = null;
+    userSettings: settings | null = null;
   
   isConnectingCalendar = false;
   isConnectingContacts = false;
@@ -22,10 +23,14 @@ export class SettingsComponent implements OnInit {
 
   constructor(
     private dataService: DataService,
+    private route: ActivatedRoute,
     private googleIntegration: GoogleIntegrationService
   ) {}
 
   ngOnInit(): void {
+      if (this.route.snapshot.queryParamMap.has('oauth')) {
+    localStorage.removeItem("oauth_in_progress");
+  }
     this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
       if (user) {

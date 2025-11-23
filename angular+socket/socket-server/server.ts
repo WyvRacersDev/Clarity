@@ -488,7 +488,7 @@ app.get("/oauth2callback", async (req:any, res:any) => {
     tokenStore[email] = tokens;
 
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenStore, null, 2));
-      return res.redirect(`${FRONTEND_URL}/settings?`);
+      return res.redirect(`${FRONTEND_URL}/settings?oauth=success`);
   } catch (err) {
     console.error("Error during OAuth callback:", err);
     res.status(500).send("Error retrieving access token");
