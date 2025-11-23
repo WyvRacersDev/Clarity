@@ -15,7 +15,6 @@ export class DataService {
 
   private usersData: Map<number, User> = new Map();
   private currentUserId: number | null = null;
-  private projectsCache: Map<string, Project> = new Map(); // Cache for loaded projects
 
   // Loading states
   private savingProjectSubject = new BehaviorSubject<boolean>(false);
@@ -132,8 +131,6 @@ export class DataService {
       console.log('Save response received:', response);
       
       if (response && response.success) {
-        // Update cache
-        this.projectsCache.set(project.name, project);
         // Update user's project list if needed
         const user = this.getCurrentUser();
         if (user) {
@@ -165,11 +162,6 @@ export class DataService {
    * Load a project from the server
    */
   async loadProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Promise<Project | null> {
-    // Check cache first (no loading state for cached projects)
-    if (this.projectsCache.has(projectName)) {
-      return this.projectsCache.get(projectName) || null;
-    }
-
     this.loadingProjectSubject.next(true);
     try {
       const response = await firstValueFrom(
@@ -178,7 +170,9 @@ export class DataService {
       
       if (response.success && response.project) {
         const project = this.deserializeProject(response.project);
-        this.projectsCache.set(projectName, project);
+        // Ensure projectType is set correctly
+        (project as any).projectType = projectType;
+        (project as any).isLocal = projectType === 'local';
         this.loadingProjectSubject.next(false);
         return project;
       }
@@ -193,7 +187,7 @@ export class DataService {
   }
 
   /**
-   * List all projects from the server
+   * List all projects from the server - SIMPLE: just load from the correct directory
    */
   async listProjects(projectType: 'local' | 'hosted' = 'local'): Promise<Project[]> {
     this.listingProjectsSubject.next(true);
@@ -202,51 +196,49 @@ export class DataService {
         this.socketService.listProjects(projectType)
       );
       
-      if (response.success && response.projects) {
-        // Check cache first and only load missing projects
-        const projectsToLoad: { name: string; cached?: Project }[] = [];
-        const cachedProjects: Project[] = [];
+      if (response && response.success && response.projects) {
+        const projectInfos = response.projects;
+        console.log(`[DataService] ${projectType} projects to load:`, projectInfos.map((p: any) => ({ name: p.name, filename: p.filename })));
         
-        for (const projectInfo of response.projects) {
-          const cached = this.projectsCache.get(projectInfo.name);
-          if (cached) {
-            cachedProjects.push(cached);
-          } else {
-            projectsToLoad.push({ name: projectInfo.name });
-          }
-        }
-        
-        // Load missing projects in parallel (much faster!)
-        const loadPromises = projectsToLoad.map(async (projectInfo) => {
+        // Load all projects in parallel
+        const loadPromises = projectInfos.map(async (projectInfo: any) => {
           try {
+            console.log(`[DataService] Loading ${projectType} project: "${projectInfo.name}"`);
             const loadResponse = await firstValueFrom(
               this.socketService.loadProject(projectInfo.name, projectType)
             );
             
-            if (loadResponse.success && loadResponse.project) {
+            if (loadResponse && loadResponse.success && loadResponse.project) {
+              console.log(`[DataService] Received project from server:`, loadResponse.project);
               const project = this.deserializeProject(loadResponse.project);
-              this.projectsCache.set(projectInfo.name, project);
+              console.log(`[DataService] After deserialize, project name: "${project.name}", type: ${projectType}`);
+              // Set projectType based on which directory it came from
+              (project as any).projectType = projectType;
+              (project as any).isLocal = projectType === 'local';
+              console.log(`[DataService] Final project: name="${project.name}", projectType="${(project as any).projectType}"`);
               return project;
+            } else {
+              console.warn(`[DataService] Failed to load ${projectType} project "${projectInfo.name}":`, loadResponse?.message);
             }
             return null;
           } catch (error) {
-            console.error(`Error loading project ${projectInfo.name}:`, error);
+            console.error(`[DataService] Error loading ${projectType} project ${projectInfo.name}:`, error);
             return null;
           }
         });
         
         const loadedProjects = await Promise.all(loadPromises);
-        const validLoadedProjects = loadedProjects.filter(p => p !== null) as Project[];
+        const validProjects = loadedProjects.filter(p => p !== null) as Project[];
+        console.log(`[DataService] Returning ${validProjects.length} ${projectType} projects:`, validProjects.map(p => p.name));
         
-        // Combine cached and newly loaded projects
-        const allProjects = [...cachedProjects, ...validLoadedProjects];
         this.listingProjectsSubject.next(false);
-        return allProjects;
+        return validProjects;
       }
+      
       this.listingProjectsSubject.next(false);
       return [];
     } catch (error) {
-      console.error('Error listing projects:', error);
+      console.error(`Error listing ${projectType} projects:`, error);
       this.listingProjectsSubject.next(false);
       return [];
     }
@@ -263,8 +255,6 @@ export class DataService {
       );
       
       if (response.success) {
-        // Remove from cache
-        this.projectsCache.delete(projectName);
         // Remove from user's project list (but don't trigger observable to avoid loops)
         const user = this.getCurrentUser();
         if (user) {
@@ -305,7 +295,9 @@ export class DataService {
    * Deserialize a project from JSON data
    */
   private deserializeProject(data: any): Project {
+    console.log(`[DataService] deserializeProject called with data.name="${data.name}", data.projectType="${data.projectType}"`);
     const project = new Project(data.name);
+    console.log(`[DataService] Created project with name="${project.name}"`);
     (project as any).projectType = data.projectType || 'local';
     (project as any).isLocal = data.projectType !== 'hosted';
     
