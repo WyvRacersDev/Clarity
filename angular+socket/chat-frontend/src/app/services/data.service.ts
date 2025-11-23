@@ -120,7 +120,7 @@ export class DataService {
   createProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Project | null {
     const user = this.getCurrentUser();
     if (user) {
-      const project = new Project(projectName);
+      const project = new Project(projectName,user.user_id);
       (project as any).projectType = projectType;
       (project as any).isLocal = projectType === 'local';
       user.projects.push(project);
@@ -309,7 +309,7 @@ export class DataService {
    */
   private deserializeProject(data: any): Project {
     console.log(`[DataService] deserializeProject called with data.name="${data.name}", data.projectType="${data.projectType}"`);
-    const project = new Project(data.name);
+    const project = new Project(data.name,data.owner_id);
     console.log(`[DataService] Created project with name="${project.name}"`);
     (project as any).projectType = data.projectType || 'local';
     (project as any).isLocal = data.projectType !== 'hosted';

@@ -25,9 +25,10 @@ export class Grid {
 }
 export class Project {
     //each of which can be edited independently 
-    constructor(name) {
+    constructor(name, owner_id) {
         this.grid = []; //list of grids (each project can have multiple grids)
         this.name = name;
+        this.owner_id = owner_id;
         console.log("Project object created");
     }
     get_name() {
@@ -47,5 +48,11 @@ export class Project {
         else {
             return false;
         }
+    }
+    get_owner_id() {
+        return this.owner_id;
+    }
+    set_owner_id(owner_id) {
+        this.owner_id = owner_id;
     }
 }
