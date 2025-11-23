@@ -28,11 +28,6 @@ export class ProjectDetailComponent implements OnInit {
   newGridName = '';
   showAddElementModal = false;
   newElementType: 'ToDoLst' | 'Image' | 'Video' | 'Text_document' = 'ToDoLst';
-  viewMode: 'kanban' | 'grid' = 'grid';
-  draggedTask: any = null;
-  draggedFromColumn: number = -1;
-  draggedFromList: number = -1;
-  draggedTaskIndex: number = -1;
   showAddTaskModal = false;
   newTaskName = '';
   newTaskPriority = 2;
@@ -414,156 +409,6 @@ export class ProjectDetailComponent implements OnInit {
     return '';
   }
 
-  // Kanban methods
-  getAllTasksFromProject(): { columnIndex: number; listIndex: number; taskIndex: number; task: any; columnName: string }[] {
-    const allTasks: { columnIndex: number; listIndex: number; taskIndex: number; task: any; columnName: string }[] = [];
-    
-    if (!this.project) return allTasks;
-
-    this.project.grid.forEach((grid: Grid, columnIndex: number) => {
-      grid.Screen_elements.forEach((element: Screen_Element, listIndex: number) => {
-        if (element.constructor.name === 'ToDoLst') {
-          const todoList = element as any;
-          if (todoList.scheduled_tasks) {
-            todoList.scheduled_tasks.forEach((task: any, taskIndex: number) => {
-              allTasks.push({
-                columnIndex,
-                listIndex,
-                taskIndex,
-                task,
-                columnName: grid.name
-              });
-            });
-          }
-        }
-      });
-    });
-
-    return allTasks;
-  }
-
-  getTasksForColumn(columnIndex: number): any[] {
-    if (!this.project || !this.project.grid[columnIndex]) return [];
-    
-    const allTasks: any[] = [];
-    this.project.grid[columnIndex].Screen_elements.forEach((element: Screen_Element) => {
-      if (element.constructor.name === 'ToDoLst') {
-        const todoList = element as any;
-        if (todoList.scheduled_tasks) {
-          allTasks.push(...todoList.scheduled_tasks);
-        }
-      }
-    });
-    
-    return allTasks;
-  }
-
-  getTodoListForColumn(columnIndex: number): ToDoLst | null {
-    if (!this.project || !this.project.grid[columnIndex]) return null;
-    
-    const todoList = this.project.grid[columnIndex].Screen_elements.find(
-      (el: Screen_Element) => el.constructor.name === 'ToDoLst'
-    ) as ToDoLst | undefined;
-    
-    return todoList || null;
-  }
-
-  onDragStart(event: DragEvent, task: any, columnIndex: number, listIndex: number, taskIndex: number): void {
-    if (!this.project) return;
-    
-    // Find the actual todo list and task index
-    const grid = this.project.grid[columnIndex];
-    let foundListIndex = -1;
-    let foundTaskIndex = -1;
-    
-    grid.Screen_elements.forEach((element: Screen_Element, idx: number) => {
-      if (element.constructor.name === 'ToDoLst') {
-        const todoList = element as any;
-        if (todoList.scheduled_tasks) {
-          const taskIdx = todoList.scheduled_tasks.findIndex((t: any) => t === task);
-          if (taskIdx !== -1) {
-            foundListIndex = idx;
-            foundTaskIndex = taskIdx;
-          }
-        }
-      }
-    });
-    
-    this.draggedTask = task;
-    this.draggedFromColumn = columnIndex;
-    this.draggedFromList = foundListIndex;
-    this.draggedTaskIndex = foundTaskIndex;
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-    }
-  }
-
-  onDragOver(event: DragEvent): void {
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
-  }
-
-  async onDrop(event: DragEvent, targetColumnIndex: number): Promise<void> {
-    event.preventDefault();
-    
-    if (!this.project || this.draggedTask === null || this.draggedFromColumn === -1) return;
-
-    // Get source and target todo lists
-    const sourceGrid = this.project.grid[this.draggedFromColumn];
-    const targetGrid = this.project.grid[targetColumnIndex];
-    
-    if (!sourceGrid || !targetGrid) return;
-
-    const sourceElement = sourceGrid.Screen_elements[this.draggedFromList];
-    if (sourceElement.constructor.name !== 'ToDoLst') return;
-
-    const sourceTodoList = sourceElement as any;
-    
-    // Find or create target todo list
-    let targetTodoList = targetGrid.Screen_elements.find(
-      (el: Screen_Element) => el.constructor.name === 'ToDoLst'
-    ) as any;
-
-    if (!targetTodoList) {
-      // Create a new todo list in target column
-      targetTodoList = new ToDoLst('Tasks', 0, 0);
-      await this.dataService.addElementToGrid(this.projectIndex, targetColumnIndex, targetTodoList);
-    }
-
-    // Remove task from source
-    sourceTodoList.scheduled_tasks.splice(this.draggedTaskIndex, 1);
-    
-    // Add task to target
-    targetTodoList.add_task(this.draggedTask);
-    
-    // Update data
-    this.dataService.updateCurrentUser();
-    
-    // Emit socket update
-    this.socketService.emitTaskUpdate(this.draggedTask, this.project.name);
-    
-    // Reset drag state
-    this.draggedTask = null;
-    this.draggedFromColumn = -1;
-    this.draggedFromList = -1;
-    this.draggedTaskIndex = -1;
-  }
-
-  onDragEnd(): void {
-    this.draggedTask = null;
-    this.draggedFromColumn = -1;
-    this.draggedFromList = -1;
-    this.draggedTaskIndex = -1;
-  }
-
-  addTaskToColumn(columnIndex: number): void {
-    this.taskColumnIndex = columnIndex;
-    this.showAddTaskModal = true;
-    this.newTaskName = '';
-    this.newTaskPriority = 2;
-  }
 
   addTaskToTodoList(elementIndex: number): void {
     if (!this.project || this.selectedGridIndex < 0) return;
@@ -599,9 +444,14 @@ export class ProjectDetailComponent implements OnInit {
       }
     }
     
-    // Otherwise, find the first todo list in the column (for kanban view)
-    if (!todoList) {
-      todoList = this.getTodoListForColumn(this.taskColumnIndex);
+    // Find the first todo list in the column if no specific element index
+    if (!todoList && this.project.grid[this.taskColumnIndex]) {
+      const element = this.project.grid[this.taskColumnIndex].Screen_elements.find(
+        (el: Screen_Element) => el.constructor.name === 'ToDoLst'
+      );
+      if (element) {
+        todoList = element as ToDoLst;
+      }
     }
     
     if (!todoList) {

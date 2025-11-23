@@ -287,13 +287,19 @@
   background: rgba(0, 212, 255, 0.05);
   border-radius: 8px;
   font-size: 1rem;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   font-family: inherit;
   transition: all 0.3s;
 }
 
+.form-group select option {
+  background: #0F2438;
+  color: #FFFFFF !important;
+}
+
 .form-group input::placeholder {
-  color: #A0A0A0;
+  color: #FFFFFF;
+  opacity: 0.7;
 }
 
 .form-group input:focus, .form-group select:focus {
@@ -410,7 +416,7 @@
   font-size: 1rem;
   font-family: inherit;
   transition: all 0.2s ease;
-  color: var(--text-light);
+  color: #FFFFFF !important;
   background-color: rgba(10, 20, 40, 0.6);
   cursor: pointer;
 }

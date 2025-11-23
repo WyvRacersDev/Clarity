@@ -14,18 +14,6 @@
       <h1>{{ project.name }}</h1>
     </div>
     <div class="header-actions">
-      <div class="view-toggle">
-        <button 
-          [class.active]="viewMode === 'kanban'"
-          (click)="viewMode = 'kanban'">
-          📋 Kanban
-        </button>
-        <button 
-          [class.active]="viewMode === 'grid'"
-          (click)="viewMode = 'grid'">
-          🔲 Grid
-        </button>
-      </div>
       <button class="add-btn" (click)="openAddElementModal()" [disabled]="!project || project.grid.length === 0">
         <span class="btn-icon">➕</span>
         Add Element
@@ -33,86 +21,8 @@
     </div>
   </div>
 
-  <!-- Kanban View -->
-  <div class="kanban-view" *ngIf="viewMode === 'kanban'">
-    <div *ngIf="project.grid.length === 0" class="empty-kanban">
-      <div class="empty-kanban-content">
-        <h2>No columns yet</h2>
-        <p>Create your first kanban column to get started</p>
-        <button class="create-column-btn" (click)="openCreateGridModal()">
-          + Create Column
-        </button>
-      </div>
-    </div>
-    <div class="kanban-board" *ngIf="project.grid.length > 0">
-      <div 
-        *ngFor="let grid of project.grid; let columnIndex = index"
-        class="kanban-column"
-        (dragover)="onDragOver($event)"
-        (drop)="onDrop($event, columnIndex)">
-        <div class="kanban-column-header">
-          <h3>{{ grid.name }}</h3>
-          <div class="column-actions">
-            <span class="task-count">{{ getTasksForColumn(columnIndex).length }}</span>
-            <button class="add-task-btn" (click)="addTaskToColumn(columnIndex)" title="Add Task">
-              ➕
-            </button>
-            <button 
-              class="delete-column-btn" 
-              (click)="deleteGrid(columnIndex)"
-              *ngIf="project.grid.length > 1"
-              title="Delete Column">
-              🗑️
-            </button>
-          </div>
-        </div>
-        <div class="kanban-column-content">
-          <div 
-            *ngFor="let task of getTasksForColumn(columnIndex); let taskIndex = index"
-            class="kanban-task-card"
-            [class.dragging]="draggedTask === task"
-            [class.completed]="task.is_done"
-            draggable="true"
-            (dragstart)="onDragStart($event, task, columnIndex, 0, taskIndex)"
-            (dragend)="onDragEnd()">
-            <div class="task-card-header">
-              <input 
-                type="checkbox" 
-                [checked]="task.is_done"
-                (change)="onTaskToggle(task)"
-                (click)="$event.stopPropagation()">
-              <span class="task-priority-badge priority-{{ task.priority }}">
-                {{ task.priority === 1 ? '🔴' : task.priority === 2 ? '🟡' : '🟢' }}
-              </span>
-            </div>
-            <div class="task-card-body">
-              <div class="task-title" [class.completed-text]="task.is_done">
-                {{ task.taskname }}
-              </div>
-              <div class="task-time" *ngIf="task.time">
-                {{ task.time | date:'short' }}
-              </div>
-            </div>
-          </div>
-          <div *ngIf="getTasksForColumn(columnIndex).length === 0" class="empty-column">
-            <p>No tasks</p>
-            <button class="add-task-btn-small" (click)="addTaskToColumn(columnIndex)">
-              + Add Task
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="add-column-container">
-        <button class="add-column-btn" (click)="openCreateGridModal()">
-          <span class="add-icon">➕</span>
-          <span>Add Column</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Grid View -->
-  <div *ngIf="viewMode === 'grid'">
+  <div>
     <div class="grids-tabs">
       <div 
         *ngFor="let grid of project.grid; let i = index"
