@@ -46,24 +46,32 @@ export class AiInsightsComponent implements OnInit {
     const now = dayjs();
 
     this.currentUser.projects.forEach((project: Project) => {
-      project.grid.forEach((grid: Grid) => {
-        grid.Screen_elements.forEach((element: Screen_Element) => {
-          if (element.constructor.name === 'ToDoLst') {
-            const todoList = element as ToDoLst;
-            todoList.scheduled_tasks.forEach((task: scheduled_task) => {
-              totalTasks++;
-              if (task.get_status()) {
-                completedTasks++;
-              } else {
-                const taskDate = dayjs(task.get_time());
-                if (taskDate.isBefore(now)) {
-                  overdueTasks++;
+      if (project.grid && Array.isArray(project.grid)) {
+        project.grid.forEach((grid: Grid) => {
+          if (grid.Screen_elements && Array.isArray(grid.Screen_elements)) {
+            grid.Screen_elements.forEach((element: Screen_Element) => {
+              if (element && element.constructor.name === 'ToDoLst') {
+                const todoList = element as ToDoLst;
+                if (todoList.scheduled_tasks && Array.isArray(todoList.scheduled_tasks)) {
+                  todoList.scheduled_tasks.forEach((task: scheduled_task) => {
+                    if (task) {
+                      totalTasks++;
+                      if (task.get_status()) {
+                        completedTasks++;
+                      } else {
+                        const taskDate = dayjs(task.get_time());
+                        if (taskDate.isBefore(now)) {
+                          overdueTasks++;
+                        }
+                      }
+                    }
+                  });
                 }
               }
             });
           }
         });
-      });
+      }
     });
 
     // Generate insights
