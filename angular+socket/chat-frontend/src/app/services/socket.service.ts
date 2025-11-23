@@ -119,12 +119,28 @@ export class SocketService {
    */
   loadProject(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
     return new Observable(observer => {
-      this.socket.emit('loadProject', { projectName, projectType });
-      
-      this.socket.once('projectLoaded', (response: any) => {
-        observer.next(response);
+      const timeout = setTimeout(() => {
+        observer.error(new Error('Load project timeout'));
         observer.complete();
-      });
+      }, 10000);
+      
+      // Use a unique event name per project to avoid mix-ups when loading in parallel
+      // Create a safe event name from project name and type
+      const safeName = projectName.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+      const eventName = `projectLoaded_${projectType}_${safeName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      
+      const handler = (response: any) => {
+        // Verify this is the correct project
+        if (response && response.success && response.project && response.project.name === projectName) {
+          clearTimeout(timeout);
+          this.socket.off(eventName, handler);
+          observer.next(response);
+          observer.complete();
+        }
+      };
+      
+      this.socket.on(eventName, handler);
+      this.socket.emit('loadProject', { projectName, projectType, eventName });
     });
   }
 
@@ -140,13 +156,16 @@ export class SocketService {
         observer.complete();
       }, 10000); // 10 second timeout
       
-      this.socket.emit('listProjects', { projectType });
+      // Use a unique event name per project type to avoid mix-ups when loading in parallel
+      const eventName = `projectsListed_${projectType}`;
       
-      this.socket.once('projectsListed', (response: any) => {
+      this.socket.once(eventName, (response: any) => {
         clearTimeout(timeout);
         observer.next(response);
         observer.complete();
       });
+      
+      this.socket.emit('listProjects', { projectType });
     });
   }
 
