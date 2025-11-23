@@ -1,4 +1,5 @@
 {
+  "owner_id": 123,
   "name": "YOOO",
   "projectType": "local",
   "grid": [
@@ -21,9 +22,26 @@
           "y_pos": 300,
           "x_scale": 300,
           "y_scale": 200
+        },
+        {
+          "type": "Object",
+          "name": "Tasks",
+          "x_pos": 200,
+          "y_pos": 200,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Gmail reminder",
+              "priority": 1,
+              "is_done": false,
+              "time": "2025-11-23T16:46:00.000Z"
+            }
+          ]
         }
       ]
     }
   ],
-  "lastModified": "2025-11-21T11:44:28.104Z"
+  "lastModified": "2025-11-23T15:46:42.376Z"
 }

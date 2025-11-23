@@ -41,13 +41,15 @@ export class Grid{
 
 export class Project{
     name:string;
+    owner_id?:number;
 
     grid:Grid[]=[];  //list of grids (each project can have multiple grids)
     //each of which can be edited independently 
 
-    constructor(name:string)
+    constructor(name:string, owner_id?:number)
     { 
         this.name=name;
+        this.owner_id = owner_id;
         console.log("Project object created")
     }
 
@@ -78,5 +80,15 @@ export class Project{
             return false
         }
     }
+
+    get_owner_id():number | undefined
+    {
+        return this.owner_id;
+    }
+
+    set_owner_id(owner_id:number)
+    {
+        this.owner_id=owner_id;
+    }   
 }
 

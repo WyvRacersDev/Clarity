@@ -125,6 +125,7 @@ function getProjectFilePath(projectName: string, projectType: 'local' | 'hosted'
  */
 function serializeProject(project: any): any {
   return {
+    owner_id: project.owner_id,
     name: project.name,
     projectType: project.projectType || 'local',
     grid: project.grid.map((grid: any) => ({
@@ -157,7 +158,7 @@ function serializeProject(project: any): any {
  * Deserialize JSON to a Project object
  */
 function deserializeProject(data: any): Project {
-  const project = new Project(data.name);
+  const project = new Project(data.name,data.owner_id);
   (project as any).projectType = data.projectType || 'local';
   
   if (data.grid && Array.isArray(data.grid)) {
@@ -265,6 +266,7 @@ function listProjects(projectType: 'local' | 'hosted'): { success: boolean; proj
         
         const projectInfo = {
           name: data.name, // Use the actual project name from JSON, not the filename
+          owner_id: data.owner_id,
           filename: file, // Store the actual filename so we can load it later
           projectType: projectType,
           gridCount: data.grid?.length || 0,
