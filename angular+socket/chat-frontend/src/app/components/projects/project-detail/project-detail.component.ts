@@ -213,10 +213,10 @@ export class ProjectDetailComponent implements OnInit {
     if (this.fileInput) {
       this.fileInput.remove();
     }
-    this.fileInput = document.createElement('input');
-    this.fileInput.type = 'file';
-    this.fileInput.accept = 'image/*';
-    this.fileInput.onchange = () => this.handleImageUpload();
+      this.fileInput = document.createElement('input');
+      this.fileInput.type = 'file';
+      this.fileInput.accept = 'image/*';
+      this.fileInput.onchange = () => this.handleImageUpload();
     this.fileInput.click();
   }
 
@@ -225,10 +225,10 @@ export class ProjectDetailComponent implements OnInit {
     if (this.fileInput) {
       this.fileInput.remove();
     }
-    this.fileInput = document.createElement('input');
-    this.fileInput.type = 'file';
-    this.fileInput.accept = 'video/*';
-    this.fileInput.onchange = () => this.handleVideoUpload();
+      this.fileInput = document.createElement('input');
+      this.fileInput.type = 'file';
+      this.fileInput.accept = 'video/*';
+      this.fileInput.onchange = () => this.handleVideoUpload();
     this.fileInput.click();
   }
 
