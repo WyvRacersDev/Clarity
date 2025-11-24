@@ -138,13 +138,10 @@ export class Image extends Screen_Element
   override toJSON() 
   {
     return {  
-       ...super.toJSON(),
-      name: this.name,
-      x_pos: this.x_pos,
-      y_pos: this.y_pos,
-      //imagepath:this.imagepath,
+       ...super.toJSON(), // Includes: type, name, x_pos, y_pos, x_scale, y_scale
+      imagepath: this.imagepath, // Include the path (now points to local file URL)
       ImageDescription: this.imageDescription,
-      ImageBase64: this.imageFile||null,
+      ImageBase64: this.imageFile||null, // Keep for backward compatibility (base64 data)
     };
   }
 }
@@ -168,13 +165,10 @@ export class Video extends Screen_Element
   override toJSON() 
   {
     return {  
-       ...super.toJSON(),
-      name: this.name,
-      x_pos: this.x_pos,
-      y_pos: this.y_pos,
-      //VideoPath:this.VideoPath,
+       ...super.toJSON(), // Includes: type, name, x_pos, y_pos, x_scale, y_scale
+      VideoPath: this.VideoPath, // Include the path (now points to local file URL)
       VideoDescription: this.VideoDescription,
-      videoBase64: this.VideoFile ||null
+      videoBase64: this.VideoFile ||null // Keep for backward compatibility (base64 data)
     };
   }
 }
@@ -273,36 +267,114 @@ export class objects_builder
 
   static rebuild(obj: any): Screen_Element | scheduled_task | any 
   {
-    if (!obj || !obj.type) return obj;
+    if (!obj) return obj;
+
+    // Fallback: Detect elements by their fields if type is missing or wrong
+    // Check for ToDoLst first (by scheduled_tasks array)
+    if (obj.scheduled_tasks !== undefined && Array.isArray(obj.scheduled_tasks)) {
+      // This is a ToDoLst
+      const list = new ToDoLst(obj.name, obj.x_pos, obj.y_pos);
+      // Restore scale values if present
+      if (obj.x_scale !== undefined) list.x_scale = obj.x_scale;
+      if (obj.y_scale !== undefined) list.y_scale = obj.y_scale;
+      list.scheduled_tasks = obj.scheduled_tasks.map((t: any) => objects_builder.rebuild(t));
+      return list;
+    }
+
+    // Check for Text_document (by Text_field)
+    if (obj.Text_field !== undefined || obj.text_field !== undefined) {
+      // This is a Text_document
+      const textField = obj.Text_field || obj.text_field || '';
+      const textDoc = new Text_document(obj.name, obj.x_pos, obj.y_pos, textField);
+      // Restore scale values if present
+      if (obj.x_scale !== undefined) textDoc.x_scale = obj.x_scale;
+      if (obj.y_scale !== undefined) textDoc.y_scale = obj.y_scale;
+      return textDoc;
+    }
+
+    // Check for Image (by imagepath, imagePath, or ImageBase64)
+    if (obj.imagepath !== undefined || obj.imagePath !== undefined || obj.ImageBase64 !== undefined) {
+      // This is an Image
+      const imagePath = obj.imagepath || obj.imagePath || (obj.ImageBase64 ? `data:image/png;base64,${obj.ImageBase64}` : '');
+      const imageDesc = obj.ImageDescription || obj.imageDescription || '';
+      const img = new Image(imagePath, obj.x_pos, obj.y_pos, obj.name, imageDesc);
+      // Restore scale values if present
+      if (obj.x_scale !== undefined) img.x_scale = obj.x_scale;
+      if (obj.y_scale !== undefined) img.y_scale = obj.y_scale;
+      if (obj.ImageBase64) img.imageFile = Buffer.from(obj.ImageBase64, 'base64');
+      return img;
+    }
+
+    // Check for Video (by VideoPath, videoPath, or videoBase64)
+    if (obj.VideoPath !== undefined || obj.videoPath !== undefined || obj.videoBase64 !== undefined) {
+      // This is a Video
+      const videoPath = obj.VideoPath || obj.videoPath || (obj.videoBase64 ? `data:video/mp4;base64,${obj.videoBase64}` : '');
+      const videoDesc = obj.VideoDescription || obj.videoDescription || '';
+      const vid = new Video(videoPath, obj.x_pos, obj.y_pos, obj.name, videoDesc);
+      // Restore scale values if present
+      if (obj.x_scale !== undefined) vid.x_scale = obj.x_scale;
+      if (obj.y_scale !== undefined) vid.y_scale = obj.y_scale;
+      if (obj.videoBase64) vid.VideoFile = obj.videoBase64;
+      return vid;
+    }
+
+    if (!obj.type) return obj;
 
     switch(obj.type) {
       case 'Text_document':
-        return new Text_document(obj.name, obj.x_pos, obj.y_pos, obj.Text_field);
+        const textDoc = new Text_document(obj.name, obj.x_pos, obj.y_pos, obj.Text_field || obj.text_field || '');
+        // Restore scale values if present
+        if (obj.x_scale !== undefined) textDoc.x_scale = obj.x_scale;
+        if (obj.y_scale !== undefined) textDoc.y_scale = obj.y_scale;
+        return textDoc;
 
       case 'Image': 
       {
-        const img = new Image(obj.imagepath, obj.x_pos, obj.y_pos, obj.name, obj.imageDescription);
+        // Handle both new file path system and old base64 system
+        // Support both imagepath (new) and imagePath (alternative)
+        const imagePath = obj.imagepath || obj.imagePath || (obj.ImageBase64 ? `data:image/png;base64,${obj.ImageBase64}` : '');
+        // Support both ImageDescription (from toJSON) and imageDescription (alternative)
+        const imageDesc = obj.ImageDescription || obj.imageDescription || '';
+        const img = new Image(imagePath, obj.x_pos, obj.y_pos, obj.name, imageDesc);
+        // Restore scale values if present
+        if (obj.x_scale !== undefined) img.x_scale = obj.x_scale;
+        if (obj.y_scale !== undefined) img.y_scale = obj.y_scale;
+        // Keep base64 for backward compatibility if present
         if (obj.ImageBase64) img.imageFile = Buffer.from(obj.ImageBase64, 'base64');
         return img;
       }
 
       case 'Video': 
       {
-        const vid = new Video(obj.VideoPath, obj.x_pos, obj.y_pos, obj.name, obj.VideoDescription);
+        // Handle both new file path system and old base64 system
+        // Support both VideoPath (from toJSON) and videoPath (alternative)
+        const videoPath = obj.VideoPath || obj.videoPath || (obj.videoBase64 ? `data:video/mp4;base64,${obj.videoBase64}` : '');
+        // Support both VideoDescription (from toJSON) and videoDescription (alternative)
+        const videoDesc = obj.VideoDescription || obj.videoDescription || '';
+        const vid = new Video(videoPath, obj.x_pos, obj.y_pos, obj.name, videoDesc);
+        // Restore scale values if present
+        if (obj.x_scale !== undefined) vid.x_scale = obj.x_scale;
+        if (obj.y_scale !== undefined) vid.y_scale = obj.y_scale;
+        // Keep base64 for backward compatibility if present
         if (obj.videoBase64) vid.VideoFile = obj.videoBase64;
         return vid;
       }
 
       case 'scheduled_task': //not really an element but needs to be rebuilt too lol
       {
-        const t = new scheduled_task(obj.taskname, obj.priority, obj.time);
-        t.is_done = obj.is_done;
+        // Handle priority as both string and number (JSON might serialize numbers as strings)
+        const priority = typeof obj.priority === 'string' ? parseInt(obj.priority, 10) : (obj.priority || 2);
+        const t = new scheduled_task(obj.taskname, priority, obj.time || '');
+        t.is_done = obj.is_done !== undefined ? obj.is_done : false;
         return t;
       }
 
       case 'ToDoLst': 
       {
         const list = new ToDoLst(obj.name, obj.x_pos, obj.y_pos);
+        // Restore scale values if present
+        if (obj.x_scale !== undefined) list.x_scale = obj.x_scale;
+        if (obj.y_scale !== undefined) list.y_scale = obj.y_scale;
         list.scheduled_tasks = obj.scheduled_tasks.map((t: any) =>
           objects_builder.rebuild(t)
         );

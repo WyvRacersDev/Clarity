@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { firstValueFrom } from 'rxjs';
 import { DataService } from '../../../services/data.service';
 import { SocketService } from '../../../services/socket.service';
 import { User } from '../../../../../../shared_models/models/user.model';
@@ -232,41 +233,81 @@ export class ProjectDetailComponent implements OnInit {
     this.fileInput.click();
   }
 
-  handleImageUpload(): void {
+  async handleImageUpload(): Promise<void> {
     if (!this.fileInput || !this.fileInput.files || !this.project) return;
     
     const file = this.fileInput.files[0];
     const reader = new FileReader();
     
     reader.onload = async (e: any) => {
-      const imageUrl = e.target.result;
-      const element = new Image(imageUrl, 400, 300, 'New Image', '');
-      element.set_x_scale(300); // width
-      element.set_y_scale(200); // height
-      await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
-      this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
-      this.loadProject(); // Reload to see the changes
-      this.cdr.detectChanges();
+      try {
+        const imageDataUrl = e.target.result as string;
+        const projectType = (this.project as any).projectType || 'local';
+        
+        // Upload file to server and get local path
+        const uploadResponse = await firstValueFrom(
+          this.socketService.uploadFile(this.project!.name, projectType, file.name, imageDataUrl, 'image')
+        );
+        
+        if (uploadResponse.success && uploadResponse.filePath) {
+          // Create element with local file path (server serves from /projects, so path is relative to that)
+          const localPath = `http://localhost:3000/projects/${projectType}/${uploadResponse.filePath}`;
+          console.log(`[ProjectDetail] Image uploaded, using path: ${localPath}`);
+          const element = new Image(localPath, 400, 300, 'New Image', '');
+          element.set_x_scale(300); // width
+          element.set_y_scale(200); // height
+          await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+          this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
+          this.loadProject(); // Reload to see the changes
+          this.cdr.detectChanges();
+        } else {
+          console.error('Failed to upload image:', uploadResponse.message);
+          alert('Failed to upload image. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Error uploading image. Please try again.');
+      }
     };
     
     reader.readAsDataURL(file);
   }
 
-  handleVideoUpload(): void {
+  async handleVideoUpload(): Promise<void> {
     if (!this.fileInput || !this.fileInput.files || !this.project) return;
     
     const file = this.fileInput.files[0];
     const reader = new FileReader();
     
     reader.onload = async (e: any) => {
-      const videoUrl = e.target.result;
-      const element = new Video(videoUrl, 400, 300, 'New Video', '');
-      element.set_x_scale(400); // width
-      element.set_y_scale(300); // height
-      await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
-      this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
-      this.loadProject(); // Reload to see the changes
-      this.cdr.detectChanges();
+      try {
+        const videoDataUrl = e.target.result as string;
+        const projectType = (this.project as any).projectType || 'local';
+        
+        // Upload file to server and get local path
+        const uploadResponse = await firstValueFrom(
+          this.socketService.uploadFile(this.project!.name, projectType, file.name, videoDataUrl, 'video')
+        );
+        
+        if (uploadResponse.success && uploadResponse.filePath) {
+          // Create element with local file path (server serves from /projects, so path is relative to that)
+          const localPath = `http://localhost:3000/projects/${projectType}/${uploadResponse.filePath}`;
+          console.log(`[ProjectDetail] Video uploaded, using path: ${localPath}`);
+          const element = new Video(localPath, 400, 300, 'New Video', '');
+          element.set_x_scale(400); // width
+          element.set_y_scale(300); // height
+          await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+          this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
+          this.loadProject(); // Reload to see the changes
+          this.cdr.detectChanges();
+        } else {
+          console.error('Failed to upload video:', uploadResponse.message);
+          alert('Failed to upload video. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error uploading video:', error);
+        alert('Error uploading video. Please try again.');
+      }
     };
     
     reader.readAsDataURL(file);
@@ -362,8 +403,15 @@ export class ProjectDetailComponent implements OnInit {
 
   async deleteElement(elementIndex: number): Promise<void> {
     if (this.project && this.selectedGridIndex >= 0) {
+      // Get element before deletion to check if it's Image/Video
+      const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
+      console.log(`[ProjectDetail] Deleting element at index ${elementIndex}:`, element);
+      
+      // Remove from grid (this will also delete file and save)
       await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, elementIndex);
-      this.loadProject(); // Reload to see the changes
+      
+      // Reload to ensure sync with server
+      this.loadProject();
       this.cdr.detectChanges();
     }
   }
