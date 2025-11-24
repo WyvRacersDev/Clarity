@@ -390,11 +390,58 @@ export class DataService {
   async removeElementFromGrid(projectIndex: number, gridIndex: number, elementIndex: number): Promise<boolean> {
     const user = this.getCurrentUser();
     if (user && user.projects[projectIndex] && user.projects[projectIndex].grid[gridIndex]) {
-      const result = user.projects[projectIndex].grid[gridIndex].remove_element(elementIndex);
+      const grid = user.projects[projectIndex].grid[gridIndex];
+      const project = user.projects[projectIndex];
+      const projectType = (project as any).projectType || 'local';
+      
+      // Get element BEFORE removing from grid
+      const elementToDelete = grid.Screen_elements[elementIndex];
+      
+      console.log(`[DataService] removeElementFromGrid: elementToDelete=`, elementToDelete);
+      console.log(`[DataService] removeElementFromGrid: elementToDelete type=`, elementToDelete?.constructor?.name);
+      
+      // If it's an Image or Video, delete the file first
+      if (elementToDelete) {
+        const elementType = elementToDelete.constructor.name;
+        if (elementType === 'Image' || elementType === 'Video') {
+          const filePath = (elementToDelete as any).imagepath || (elementToDelete as any).VideoPath;
+          if (filePath) {
+            try {
+              console.log(`[DataService] Attempting to delete file for ${elementType}:`, filePath);
+              
+              // Extract the relative path from the full URL
+              // URL format: http://localhost:3000/projects/{type}/{projectName}_assets/{filename}
+              const urlMatch = filePath.match(/\/projects\/(local|hosted)\/(.+)$/);
+              if (urlMatch) {
+                const relativePath = urlMatch[2]; // e.g., "YOOO_assets/file.png"
+                console.log(`[DataService] Extracted relative path: ${relativePath}`);
+                
+                const deleteResponse = await firstValueFrom(
+                  this.socketService.deleteFile(project.name, projectType, relativePath)
+                );
+                
+                if (deleteResponse.success) {
+                  console.log(`[DataService] ✓ Successfully deleted file: ${relativePath}`);
+                } else {
+                  console.warn(`[DataService] ⚠ File deletion reported failure:`, deleteResponse.message);
+                }
+              } else {
+                console.warn(`[DataService] ⚠ Could not parse file path from URL: ${filePath}`);
+              }
+            } catch (error) {
+              console.error('[DataService] ✗ Error deleting file:', error);
+              // Continue with element deletion even if file deletion fails
+            }
+          } else {
+            console.warn(`[DataService] ⚠ No file path found for ${elementType} element`);
+          }
+        }
+      }
+      
+      // Remove element from grid
+      const result = grid.remove_element(elementIndex);
       if (result) {
         // Auto-save the project (don't trigger observable to avoid loops)
-        const project = user.projects[projectIndex];
-        const projectType = (project as any).projectType || 'local';
         await this.saveProject(project, projectType);
       }
       return result;

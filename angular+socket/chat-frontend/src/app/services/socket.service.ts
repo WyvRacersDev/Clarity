@@ -185,6 +185,73 @@ export class SocketService {
       });
     });
   }
+
+  /**
+   * Upload a file (image or video) for a project
+   * @param projectName Name of the project
+   * @param projectType 'local' or 'hosted'
+   * @param fileName Original file name
+   * @param fileData Base64 data URL of the file
+   * @param fileType 'image' or 'video'
+   * @returns Observable that emits the upload result with the local file path
+   */
+  uploadFile(projectName: string, projectType: 'local' | 'hosted', fileName: string, fileData: string, fileType: 'image' | 'video'): Observable<any> {
+    return new Observable(observer => {
+      const timeout = setTimeout(() => {
+        observer.error(new Error('File upload timeout'));
+        observer.complete();
+      }, 60000); // 60 second timeout for large files
+      
+      const eventName = `fileUploaded_${projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      
+      this.socket.once(eventName, (response: any) => {
+        clearTimeout(timeout);
+        observer.next(response);
+        observer.complete();
+      });
+      
+      this.socket.emit('uploadFile', { 
+        projectName, 
+        projectType, 
+        fileName, 
+        fileData, 
+        fileType,
+        eventName 
+      });
+    });
+  }
+
+  /**
+   * Delete a file (image or video) for a project
+   * @param projectName Name of the project
+   * @param projectType 'local' or 'hosted'
+   * @param filePath Relative path to the file (e.g., "projectname_assets/file.png")
+   * @returns Observable that emits the delete result
+   */
+  deleteFile(projectName: string, projectType: 'local' | 'hosted', filePath: string): Observable<any> {
+    // Delete file from server filesystem
+    return new Observable(observer => {
+      const timeout = setTimeout(() => {
+        observer.error(new Error('File delete timeout'));
+        observer.complete();
+      }, 10000); // 10 second timeout
+      
+      const eventName = `fileDeleted_${projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      
+      this.socket.once(eventName, (response: any) => {
+        clearTimeout(timeout);
+        observer.next(response);
+        observer.complete();
+      });
+      
+      this.socket.emit('deleteFile', { 
+        projectName, 
+        projectType, 
+        filePath,
+        eventName 
+      });
+    });
+  }
 }
 
 

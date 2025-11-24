@@ -28,7 +28,8 @@ const io = new Server(server, {
   cors: {
     origin: "http://localhost:4200", // Angular dev server
     methods: ["GET", "POST"]
-  }
+  },
+  maxHttpBufferSize: 1e8 // 100MB - maximum buffer size for file uploads
 });
 const allowedOrigins: RegExp[] = [
   /^http:\/\/localhost:\d+$/
@@ -92,6 +93,28 @@ if (!fs.existsSync(HOSTED_PROJECTS_PATH)) {
   fs.mkdirSync(HOSTED_PROJECTS_PATH, { recursive: true });
 }
 
+// Serve project assets (images/videos) statically
+app.use('/projects', express.static(PROJECTS_BASE_PATH, {
+  setHeaders: (res, filePath) => {
+    // Set appropriate content types
+    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (filePath.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (filePath.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (filePath.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+    } else if (filePath.endsWith('.mp4')) {
+      res.setHeader('Content-Type', 'video/mp4');
+    } else if (filePath.endsWith('.webm')) {
+      res.setHeader('Content-Type', 'video/webm');
+    } else if (filePath.endsWith('.ogg')) {
+      res.setHeader('Content-Type', 'video/ogg');
+    }
+  }
+}));
+
 // === Project Management Utilities ===
 
 /**
@@ -109,6 +132,22 @@ function sanitizeFilename(name: string): string {
  */
 function getProjectDirectory(projectType: 'local' | 'hosted'): string {
   return projectType === 'local' ? LOCAL_PROJECTS_PATH : HOSTED_PROJECTS_PATH;
+}
+
+/**
+ * Get the assets directory for a specific project (where images/videos are stored)
+ */
+function getProjectAssetsDirectory(projectName: string, projectType: 'local' | 'hosted'): string {
+  const projectDir = getProjectDirectory(projectType);
+  const safeProjectName = sanitizeFilename(projectName);
+  const assetsDir = path.join(projectDir, `${safeProjectName}_assets`);
+  
+  // Ensure directory exists
+  if (!fs.existsSync(assetsDir)) {
+    fs.mkdirSync(assetsDir, { recursive: true });
+  }
+  
+  return assetsDir;
 }
 
 /**
@@ -143,7 +182,11 @@ function serializeProject(project: any): any {
           x_scale: element.x_scale,
           y_scale: element.y_scale,
           ...(element.Text_field !== undefined && { Text_field: element.Text_field }),
+          // Include image path and description
+          ...(element.imagepath !== undefined && { imagepath: element.imagepath }),
           ...(element.imageDescription !== undefined && { imageDescription: element.imageDescription }),
+          // Include video path and description
+          ...(element.VideoPath !== undefined && { VideoPath: element.VideoPath }),
           ...(element.VideoDescription !== undefined && { VideoDescription: element.VideoDescription }),
           ...(element.scheduled_tasks !== undefined && { 
             scheduled_tasks: element.scheduled_tasks.map((t: any) => t.toJSON ? t.toJSON() : t)
@@ -390,6 +433,104 @@ io.on("connection", (socket:Socket) => {
         success: false, 
         projects: [], 
         message: `Error: ${error.message}` 
+      });
+    }
+  });
+
+  /**
+   * Upload a file (image or video) for a project
+   * Expected payload: { projectName: string, projectType: 'local' | 'hosted', fileName: string, fileData: string (base64), fileType: 'image' | 'video' }
+   */
+  socket.on("uploadFile", async (data: { projectName: string; projectType: 'local' | 'hosted'; fileName: string; fileData: string; fileType: 'image' | 'video'; eventName?: string }) => {
+    try {
+      const assetsDir = getProjectAssetsDirectory(data.projectName, data.projectType);
+      
+      // Generate a unique filename to avoid conflicts
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(7);
+      const fileExtension = data.fileType === 'image' 
+        ? (data.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'png')
+        : (data.fileName.match(/\.(mp4|webm|ogg)$/i)?.[1] || 'mp4');
+      
+      const safeFileName = sanitizeFilename(data.fileName.replace(/\.[^/.]+$/, '')) || 'file';
+      const uniqueFileName = `${safeFileName}_${timestamp}_${randomStr}.${fileExtension}`;
+      const filePath = path.join(assetsDir, uniqueFileName);
+      
+      // Convert base64 to buffer and save
+      const base64Data = data.fileData.replace(/^data:.*,/, ''); // Remove data URL prefix
+      const buffer = Buffer.from(base64Data, 'base64');
+      fs.writeFileSync(filePath, buffer);
+      
+      // Return relative path from project directory
+      const projectDir = getProjectDirectory(data.projectType);
+      const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/'); // Use forward slashes for web
+      
+      const eventName = data.eventName || `fileUploaded_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      socket.emit(eventName, {
+        success: true,
+        filePath: relativePath,
+        fileName: uniqueFileName,
+        message: `File uploaded successfully`
+      });
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      socket.emit("fileUploaded", {
+        success: false,
+        message: `Failed to upload file: ${error.message}`
+      });
+    }
+  });
+
+  /**
+   * Delete a file (image or video) for a project
+   * Expected payload: { projectName: string, projectType: 'local' | 'hosted', filePath: string (relative path) }
+   */
+  socket.on("deleteFile", async (data: { projectName: string; projectType: 'local' | 'hosted'; filePath: string; eventName?: string }) => {
+    try {
+      console.log(`[Server] deleteFile called: projectName="${data.projectName}", projectType="${data.projectType}", filePath="${data.filePath}"`);
+      
+      const projectDir = getProjectDirectory(data.projectType);
+      console.log(`[Server] Project directory: ${projectDir}`);
+      
+      const fullFilePath = path.join(projectDir, data.filePath);
+      console.log(`[Server] Full file path: ${fullFilePath}`);
+      
+      // Security check: ensure the file is within the project directory
+      const normalizedFilePath = path.normalize(fullFilePath);
+      const normalizedProjectDir = path.normalize(projectDir);
+      console.log(`[Server] Normalized file path: ${normalizedFilePath}`);
+      console.log(`[Server] Normalized project dir: ${normalizedProjectDir}`);
+      
+      if (!normalizedFilePath.startsWith(normalizedProjectDir)) {
+        console.error(`[Server] ✗ Security check failed: file path outside project directory`);
+        throw new Error('Invalid file path: outside project directory');
+      }
+      
+      // Check if file exists
+      if (fs.existsSync(normalizedFilePath)) {
+        console.log(`[Server] ✓ File exists, deleting...`);
+        fs.unlinkSync(normalizedFilePath);
+        console.log(`[Server] ✓ Successfully deleted file: ${normalizedFilePath}`);
+        
+        const eventName = data.eventName || `fileDeleted_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        socket.emit(eventName, {
+          success: true,
+          message: `File deleted successfully`
+        });
+      } else {
+        console.warn(`[Server] ⚠ File not found: ${normalizedFilePath}`);
+        const eventName = data.eventName || `fileDeleted_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        socket.emit(eventName, {
+          success: false,
+          message: `File not found: ${data.filePath}`
+        });
+      }
+    } catch (error: any) {
+      console.error(`[Server] ✗ Error deleting file:`, error);
+      const eventName = data.eventName || `fileDeleted_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      socket.emit(eventName, {
+        success: false,
+        message: `Failed to delete file: ${error.message}`
       });
     }
   });
