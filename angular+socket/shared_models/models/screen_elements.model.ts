@@ -179,6 +179,7 @@ export class scheduled_task
   priority:number;
   is_done:boolean;
   time:string; //will compare this with the dayjs thing on the fly
+  notified:boolean; //to check if notification has been sent for this task
 
   constructor(taskname:string,priority:number,time:string)
   {
@@ -186,6 +187,7 @@ export class scheduled_task
     this.priority=priority;
     this.time=time;
     this.is_done=false;
+    this.notified=false;
   }
   
   edit_priority(new_pr:number)
@@ -206,6 +208,15 @@ export class scheduled_task
   get_time():string
   {
     return this.time
+  }
+  get_notified():boolean
+  {
+    return this.notified
+  }
+
+  set_notified(status:boolean)
+  {
+    this.notified=status
   }
 
   get_status():boolean

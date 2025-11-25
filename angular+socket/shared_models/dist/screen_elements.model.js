@@ -112,6 +112,7 @@ export class scheduled_task {
         this.priority = priority;
         this.time = time;
         this.is_done = false;
+        this.notified = false;
     }
     edit_priority(new_pr) {
         this.priority = new_pr;
@@ -124,6 +125,12 @@ export class scheduled_task {
     }
     get_time() {
         return this.time;
+    }
+    get_notified() {
+        return this.notified;
+    }
+    set_notified(status) {
+        this.notified = status;
     }
     get_status() {
         return this.is_done;

@@ -4,6 +4,7 @@
     "dayjs": "^1.11.19",
     "express": "^5.1.0",
     "googleapis": "^166.0.0",
+    "node-cron": "^4.2.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
   },

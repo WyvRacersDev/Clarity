@@ -4,6 +4,7 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
+import { ProjectHandler } from "./utils/project_handler.ts";
 
 
 // const fs = require("fs");
@@ -11,13 +12,14 @@ import { Server } from "socket.io";
 // const { google } = require("googleapis");
 import fs from "fs";
 import path from "path";
-import { google } from "googleapis";
+import { checks_v1alpha, google } from "googleapis";
 
 import { Socket } from "socket.io";
 import {objects_builder} from '../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
 import { Project, Grid } from '../shared_models/dist/project.model.js';
 import cors from "cors";
 import type { CorsOptions } from "cors";
+import { checkUpcomingTasks } from "./utils/notification_service.ts";
 
 
 const app = express();
@@ -54,6 +56,8 @@ const corsOptions: CorsOptions = {
 
 app.use(cors(corsOptions));
 
+ checkUpcomingTasks();
+
 //   // Send history immediately
 //   socket.emit("chatHistory", messages);
 
@@ -75,26 +79,9 @@ app.use(cors(corsOptions));
 
 // === Paths ===
 
-import { fileURLToPath } from "url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECTS_BASE_PATH = path.join(__dirname, "projects");
-const LOCAL_PROJECTS_PATH = path.join(PROJECTS_BASE_PATH, "local");
-const HOSTED_PROJECTS_PATH = path.join(PROJECTS_BASE_PATH, "hosted");
+const project_handler=new ProjectHandler();
 
-// === Ensure project directories exist ===
-if (!fs.existsSync(PROJECTS_BASE_PATH)) {
-  fs.mkdirSync(PROJECTS_BASE_PATH, { recursive: true });
-}
-if (!fs.existsSync(LOCAL_PROJECTS_PATH)) {
-  fs.mkdirSync(LOCAL_PROJECTS_PATH, { recursive: true });
-}
-if (!fs.existsSync(HOSTED_PROJECTS_PATH)) {
-  fs.mkdirSync(HOSTED_PROJECTS_PATH, { recursive: true });
-}
-
-// Serve project assets (images/videos) statically
-app.use('/projects', express.static(PROJECTS_BASE_PATH, {
+app.use('/projects', express.static(project_handler.get_base_path(), {
   setHeaders: (res, filePath) => {
     // Set appropriate content types
     if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
@@ -114,242 +101,6 @@ app.use('/projects', express.static(PROJECTS_BASE_PATH, {
     }
   }
 }));
-
-// === Project Management Utilities ===
-
-/**
- * Sanitize filename to prevent directory traversal and invalid characters
- */
-function sanitizeFilename(name: string): string {
-  return name
-    .replace(/[^a-z0-9_\- ]/gi, '_')
-    .replace(/\s+/g, '_')
-    .substring(0, 100); // Limit length
-}
-
-/**
- * Get the project directory path based on type
- */
-function getProjectDirectory(projectType: 'local' | 'hosted'): string {
-  return projectType === 'local' ? LOCAL_PROJECTS_PATH : HOSTED_PROJECTS_PATH;
-}
-
-/**
- * Get the assets directory for a specific project (where images/videos are stored)
- */
-function getProjectAssetsDirectory(projectName: string, projectType: 'local' | 'hosted'): string {
-  const projectDir = getProjectDirectory(projectType);
-  const safeProjectName = sanitizeFilename(projectName);
-  const assetsDir = path.join(projectDir, `${safeProjectName}_assets`);
-  
-  // Ensure directory exists
-  if (!fs.existsSync(assetsDir)) {
-    fs.mkdirSync(assetsDir, { recursive: true });
-  }
-  
-  return assetsDir;
-}
-
-/**
- * Get the full file path for a project
- */
-function getProjectFilePath(projectName: string, projectType: 'local' | 'hosted'): string {
-  const dir = getProjectDirectory(projectType);
-  const safeName = sanitizeFilename(projectName);
-  return path.join(dir, `${safeName}.json`);
-}
-
-/**
- * Serialize a Project object to JSON
- */
-function serializeProject(project: any): any {
-  return {
-    owner_id: project.owner_id,
-    name: project.name,
-    projectType: project.projectType || 'local',
-    grid: project.grid.map((grid: any) => ({
-      name: grid.name,
-      Screen_elements: grid.Screen_elements.map((element: any) => {
-        // Use toJSON if available, otherwise serialize manually
-        if (element.toJSON) {
-          return element.toJSON();
-        }
-        return {
-          type: element.constructor?.name || 'Screen_Element',
-          name: element.name,
-          x_pos: element.x_pos,
-          y_pos: element.y_pos,
-          x_scale: element.x_scale,
-          y_scale: element.y_scale,
-          ...(element.Text_field !== undefined && { Text_field: element.Text_field }),
-          // Include image path and description
-          ...(element.imagepath !== undefined && { imagepath: element.imagepath }),
-          ...(element.imageDescription !== undefined && { imageDescription: element.imageDescription }),
-          // Include video path and description
-          ...(element.VideoPath !== undefined && { VideoPath: element.VideoPath }),
-          ...(element.VideoDescription !== undefined && { VideoDescription: element.VideoDescription }),
-          ...(element.scheduled_tasks !== undefined && { 
-            scheduled_tasks: element.scheduled_tasks.map((t: any) => t.toJSON ? t.toJSON() : t)
-          })
-        };
-      })
-    }))
-  };
-}
-
-/**
- * Deserialize JSON to a Project object
- */
-function deserializeProject(data: any): Project {
-  const project = new Project(data.name,data.owner_id);
-  (project as any).projectType = data.projectType || 'local';
-  
-  if (data.grid && Array.isArray(data.grid)) {
-    data.grid.forEach((gridData: any) => {
-      const grid = new Grid(gridData.name);
-      if (gridData.Screen_elements && Array.isArray(gridData.Screen_elements)) {
-        gridData.Screen_elements.forEach((elementData: any) => {
-          const element = objects_builder.rebuild(elementData);
-          if (element) {
-            grid.add_element(element as any);
-          }
-        });
-      }
-      project.grid.push(grid);
-    });
-  }
-  
-  return project;
-}
-
-/**
- * Save a project to file
- */
-function saveProject(project: any, projectType: 'local' | 'hosted'): { success: boolean; message: string; path?: string } {
-  try {
-    const filePath = getProjectFilePath(project.name, projectType);
-    const serialized = serializeProject(project);
-    serialized.projectType = projectType; // Ensure type is set
-    serialized.lastModified = new Date().toISOString();
-    
-    fs.writeFileSync(filePath, JSON.stringify(serialized, null, 2), 'utf-8');
-    return { success: true, message: `Project "${project.name}" saved successfully`, path: filePath };
-  } catch (error: any) {
-    console.error('Error saving project:', error);
-    return { success: false, message: `Failed to save project: ${error.message}` };
-  }
-}
-
-/**
- * Load a project from file - SIMPLE: search by project name in JSON, not filename
- */
-function loadProject(projectName: string, projectType: 'local' | 'hosted'): { success: boolean; project?: Project; message: string } {
-  try {
-    console.log(`[Server] loadProject called: projectName="${projectName}", projectType="${projectType}"`);
-    const dir = getProjectDirectory(projectType);
-    console.log(`[Server] Searching in directory: ${dir}`);
-    
-    if (!fs.existsSync(dir)) {
-      return { success: false, message: `Directory does not exist: ${dir}` };
-    }
-    
-    // Search through all files to find one with matching project name
-    const files = fs.readdirSync(dir).filter(file => file.endsWith('.json'));
-    console.log(`[Server] Found ${files.length} files in ${projectType} directory:`, files);
-    
-    for (const file of files) {
-      try {
-        const filePath = path.join(dir, file);
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const data = JSON.parse(fileContent);
-        
-        console.log(`[Server] Checking file ${file}: JSON name="${data.name}", looking for="${projectName}"`);
-        
-        // Match by the actual project name in the JSON, not the filename
-        if (data.name === projectName) {
-          console.log(`[Server] ✓ MATCH! Found project "${projectName}" in file ${file}`);
-          const project = deserializeProject(data);
-          console.log(`[Server] Deserialized project name: "${project.name}"`);
-          (project as any).projectType = projectType;
-          (project as any).isLocal = projectType === 'local';
-          console.log(`[Server] Returning project with name="${project.name}", type="${(project as any).projectType}"`);
-          return { success: true, project, message: `Project "${projectName}" loaded from ${projectType} directory` };
-        }
-      } catch (error) {
-        console.error(`[Server] Error reading file ${file}:`, error);
-        continue;
-      }
-    }
-    
-    console.error(`[Server] ✗ Project "${projectName}" NOT FOUND in ${projectType} directory after checking ${files.length} files`);
-    return { success: false, message: `Project "${projectName}" not found in ${projectType} directory` };
-  } catch (error: any) {
-    console.error(`Error loading ${projectType} project "${projectName}":`, error);
-    return { success: false, message: `Failed to load project: ${error.message}` };
-  }
-}
-
-/**
- * List all projects in a directory - SIMPLE: just read from the directory
- */
-function listProjects(projectType: 'local' | 'hosted'): { success: boolean; projects: any[]; message: string } {
-  try {
-    const dir = getProjectDirectory(projectType);
-    
-    if (!fs.existsSync(dir)) {
-      return { success: false, projects: [], message: `Directory does not exist: ${dir}` };
-    }
-    
-    const files = fs.readdirSync(dir).filter(file => file.endsWith('.json'));
-    const projects = files.map(file => {
-      try {
-        const filePath = path.join(dir, file);
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const data = JSON.parse(content);
-        
-        const projectInfo = {
-          name: data.name, // Use the actual project name from JSON, not the filename
-          owner_id: data.owner_id,
-          filename: file, // Store the actual filename so we can load it later
-          projectType: projectType,
-          gridCount: data.grid?.length || 0,
-          lastModified: data.lastModified || fs.statSync(filePath).mtime.toISOString()
-        };
-        console.log(`[Server] Found ${projectType} project: "${projectInfo.name}" from file: ${file}`);
-        return projectInfo;
-      } catch (error) {
-        console.error(`Error reading project file ${file}:`, error);
-        return null;
-      }
-    }).filter((p): p is any => p !== null);
-    
-    console.log(`[Server] Returning ${projects.length} ${projectType} projects:`, projects.map(p => p.name));
-    return { success: true, projects, message: `Found ${projects.length} ${projectType} projects` };
-  } catch (error: any) {
-    console.error(`Error listing ${projectType} projects:`, error);
-    return { success: false, projects: [], message: `Failed to list projects: ${error.message}` };
-  }
-}
-
-/**
- * Delete a project file
- */
-function deleteProject(projectName: string, projectType: 'local' | 'hosted'): { success: boolean; message: string } {
-  try {
-    const filePath = getProjectFilePath(projectName, projectType);
-    
-    if (!fs.existsSync(filePath)) {
-      return { success: false, message: `Project "${projectName}" not found` };
-    }
-    
-    fs.unlinkSync(filePath);
-    return { success: true, message: `Project "${projectName}" deleted successfully` };
-  } catch (error: any) {
-    console.error('Error deleting project:', error);
-    return { success: false, message: `Failed to delete project: ${error.message}` };
-  }
-}
-
 // === Socket Event Handlers ===
 
 io.on("connection", (socket:Socket) => {
@@ -375,7 +126,7 @@ io.on("connection", (socket:Socket) => {
   socket.on("saveProject", (data: { project: any; projectType: 'local' | 'hosted' }) => {
     try {
       console.log("💾 Saving project:", data.project?.name, "Type:", data.projectType);
-      const result = saveProject(data.project, data.projectType);
+      const result = project_handler.saveProject(data.project, data.projectType);
       
       if (result.success) {
         socket.emit("projectSaved", { success: true, message: result.message, projectName: data.project.name });
@@ -394,13 +145,13 @@ io.on("connection", (socket:Socket) => {
    */
   socket.on("loadProject", (data: { projectName: string; projectType: 'local' | 'hosted', eventName?: string }) => {
     try {
-      const result = loadProject(data.projectName, data.projectType);
+      const result = project_handler.loadProject(data.projectName, data.projectType);
       
       // Use the provided event name if available, otherwise use default
       const eventName = data.eventName || "projectLoaded";
       
       if (result.success && result.project) {
-        const serialized = serializeProject(result.project);
+        const serialized = project_handler.serializeProject(result.project);
         serialized.projectType = data.projectType; // Ensure type matches directory
         console.log(`[Server] Sending project over socket: name="${serialized.name}", type="${serialized.projectType}", event="${eventName}"`);
         socket.emit(eventName, { 
@@ -424,7 +175,7 @@ io.on("connection", (socket:Socket) => {
    */
   socket.on("listProjects", (data: { projectType: 'local' | 'hosted', requestId?: string }) => {
     try {
-      const result = listProjects(data.projectType);
+      const result = project_handler.listProjects(data.projectType);
       // Emit to a type-specific event to avoid mix-ups
       socket.emit(`projectsListed_${data.projectType}`, result);
     } catch (error: any) {
@@ -443,7 +194,7 @@ io.on("connection", (socket:Socket) => {
    */
   socket.on("uploadFile", async (data: { projectName: string; projectType: 'local' | 'hosted'; fileName: string; fileData: string; fileType: 'image' | 'video'; eventName?: string }) => {
     try {
-      const assetsDir = getProjectAssetsDirectory(data.projectName, data.projectType);
+      const assetsDir = project_handler.getProjectAssetsDirectory(data.projectName, data.projectType);
       
       // Generate a unique filename to avoid conflicts
       const timestamp = Date.now();
@@ -452,7 +203,7 @@ io.on("connection", (socket:Socket) => {
         ? (data.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'png')
         : (data.fileName.match(/\.(mp4|webm|ogg)$/i)?.[1] || 'mp4');
       
-      const safeFileName = sanitizeFilename(data.fileName.replace(/\.[^/.]+$/, '')) || 'file';
+      const safeFileName = project_handler.sanitizeFilename(data.fileName.replace(/\.[^/.]+$/, '')) || 'file';
       const uniqueFileName = `${safeFileName}_${timestamp}_${randomStr}.${fileExtension}`;
       const filePath = path.join(assetsDir, uniqueFileName);
       
@@ -462,7 +213,7 @@ io.on("connection", (socket:Socket) => {
       fs.writeFileSync(filePath, buffer);
       
       // Return relative path from project directory
-      const projectDir = getProjectDirectory(data.projectType);
+      const projectDir = project_handler.getProjectDirectory(data.projectType);
       const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/'); // Use forward slashes for web
       
       const eventName = data.eventName || `fileUploaded_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -489,7 +240,7 @@ io.on("connection", (socket:Socket) => {
     try {
       console.log(`[Server] deleteFile called: projectName="${data.projectName}", projectType="${data.projectType}", filePath="${data.filePath}"`);
       
-      const projectDir = getProjectDirectory(data.projectType);
+      const projectDir = project_handler.getProjectDirectory(data.projectType);
       console.log(`[Server] Project directory: ${projectDir}`);
       
       const fullFilePath = path.join(projectDir, data.filePath);
@@ -542,7 +293,7 @@ io.on("connection", (socket:Socket) => {
   socket.on("deleteProject", (data: { projectName: string; projectType: 'local' | 'hosted' }) => {
     try {
       console.log("🗑️ Deleting project:", data.projectName, "Type:", data.projectType);
-      const result = deleteProject(data.projectName, data.projectType);
+      const result = project_handler.deleteProject(data.projectName, data.projectType);
       socket.emit("projectDeleted", result);
     } catch (error: any) {
       console.error("Error in deleteProject handler:", error);
@@ -561,6 +312,8 @@ server.listen(3000, () => {
 });
 
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // === Additional Paths ===
 
 const CREDENTIALS_PATH = path.join(__dirname, "credentials.json");
@@ -654,6 +407,7 @@ app.listen(PORT, () => {
 });
 
 import { calendar_v3 } from "googleapis"; //needed because typescript hates me
+import { fileURLToPath } from "url";
 app.get("/test", async (req:any, res:any) => {
   try {
     const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
@@ -698,3 +452,9 @@ app.get("/test", async (req:any, res:any) => {
     res.status(500).send("❌ Failed to reuse tokens. Check console for details.");
   }
 });
+
+
+// //notification service
+// const current_local_projects: any[] = listProjects("local")?.projects ?? [];
+// const current_hosted_projects: any[] = listProjects("hosted")?.projects ?? [];
+
