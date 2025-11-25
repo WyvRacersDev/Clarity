@@ -39,17 +39,21 @@ export class Grid{
     }
 }
 
+type ProjectType = "local" | "hosted";
+
 export class Project{
     name:string;
-    owner_id?:number;
+    owner_name:string;
+    project_type:ProjectType;
 
     grid:Grid[]=[];  //list of grids (each project can have multiple grids)
     //each of which can be edited independently 
 
-    constructor(name:string, owner_id?:number)
+    constructor(name:string, owner_name:string, project_type:ProjectType)
     { 
         this.name=name;
-        this.owner_id = owner_id;
+        this.owner_name = owner_name;
+        this.project_type = project_type;
         console.log("Project object created")
     }
 
@@ -81,14 +85,17 @@ export class Project{
         }
     }
 
-    get_owner_id():number | undefined
+    get_owner_name():string
     {
-        return this.owner_id;
+        return this.owner_name;
     }
 
-    set_owner_id(owner_id:number)
+    set_owner_name(owner_name:string)
     {
-        this.owner_id=owner_id;
+        this.owner_name=owner_name;
     }   
+   get_project_type():ProjectType
+    {
+        return this.project_type;
+    }//setter not included as project type should not be changed after creation
 }
-

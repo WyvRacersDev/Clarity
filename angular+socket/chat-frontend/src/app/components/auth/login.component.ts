@@ -38,7 +38,7 @@ export class LoginComponent {
       // For login, we'll use a simple approach - in production, you'd have proper user lookup
       // For now, we'll create a user if they don't exist (demo mode)
       const userId = this.hashUserId(this.name);
-      if (this.authService.login(userId)) {
+      if (this.authService.login(this.name)) {
         this.router.navigate(['/dashboard']);
       } else {
         // Auto-register for demo purposes

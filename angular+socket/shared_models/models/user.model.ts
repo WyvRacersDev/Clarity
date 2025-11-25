@@ -9,7 +9,6 @@ dayjs.extend(isSameOrBefore);
 
 export class User
 {
-    user_id:number;
     name:string;
     //password:string; //ye to encrypt kerna parhay ga lol
     
@@ -19,10 +18,9 @@ export class User
     settings:settings; // 
     contacts:contact[]=[];  //gmail se is ka kuch ho ga later on currently idk
 
-    constructor(user_id:number,name:string,settings:settings)
+    constructor(name:string,settings:settings)
     {
         console.log("user created")
-        this.user_id=user_id;
         this.name=name;
         //this.password=password;
 
@@ -30,9 +28,9 @@ export class User
         this.settings = settings;
     }
 
-    create_project(name:string) //takes project name and adds to the list of the projects of the user
+    create_project(name:string, project_type: "local" | "hosted") //takes project name and adds to the list of the projects of the user
     {
-        this.projects.push(new Project(name));
+        this.projects.push(new Project(name, this.name, project_type));
     }
 
     delete_project(prj_index:number):boolean
