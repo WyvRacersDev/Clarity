@@ -4,6 +4,7 @@ import path from "path";
 import { objects_builder } from '../../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
 import { fileURLToPath } from "url";
 
+type ProjectType = "local" | "hosted";
 export class ProjectHandler {
 
     private __dirname: string;
@@ -38,17 +39,17 @@ export class ProjectHandler {
             .replace(/\s+/g, '_')
             .substring(0, 100); // Limit length
     }
-    getProjectFilePath(projectName: string, projectType: 'local' | 'hosted'): string {
-        const dir = this.getProjectDirectory(projectType);
+    getProjectFilePath(projectName: string, project_type:ProjectType): string {
+        const dir = this.getProjectDirectory(project_type);
         const safeName = this.sanitizeFilename(projectName);
         return path.join(dir, `${safeName}.json`);
     }
 
     serializeProject(project: any): any {
         return {
-            owner_id: project.owner_id,
+            owner_name: project.owner_name,
             name: project.name,
-            projectType: project.projectType || 'local',
+            projectType: project.project_type || 'local',
             grid: project.grid.map((grid: any) => ({
                 name: grid.name,
                 Screen_elements: grid.Screen_elements.map((element: any) => {
@@ -79,8 +80,8 @@ export class ProjectHandler {
      * Deserialize JSON to a Project object
      */
     deserializeProject(data: any): Project {
-        const project = new Project(data.name, data.owner_id);
-        (project as any).projectType = data.projectType || 'local';
+        const project = new Project(data.name, data.owner_name, data.projectType || 'local');
+//        (project as any).project_type = data.projectType || 'local';
 
         if (data.grid && Array.isArray(data.grid)) {
             data.grid.forEach((gridData: any) => {
@@ -103,7 +104,7 @@ export class ProjectHandler {
       try {
         const filePath = this.getProjectFilePath(project.name, projectType);
         const serialized = this.serializeProject(project);
-        serialized.projectType = projectType; // Ensure type is set
+        serialized.project_type = projectType; // Ensure type is set
         serialized.lastModified = new Date().toISOString();
         
         fs.writeFileSync(filePath, JSON.stringify(serialized, null, 2), 'utf-8');
@@ -143,7 +144,7 @@ export class ProjectHandler {
                         console.log(`[Server] ✓ MATCH! Found project "${projectName}" in file ${file}`);
                         const project = this.deserializeProject(data);
                         console.log(`[Server] Deserialized project name: "${project.name}"`);
-                        (project as any).projectType = projectType;
+                        (project as any).project_type = projectType;
                         (project as any).isLocal = projectType === 'local';
                         console.log(`[Server] Returning project with name="${project.name}", type="${(project as any).projectType}"`);
                         return { success: true, project, message: `Project "${projectName}" loaded from ${projectType} directory` };
@@ -182,7 +183,7 @@ export class ProjectHandler {
 
                     const projectInfo = {
                         name: data.name, // Use the actual project name from JSON, not the filename
-                        owner_id: data.owner_id,
+                        owner_name: data.owner_name,
                         filename: file, // Store the actual filename so we can load it later
                         projectType: projectType,
                         gridCount: data.grid?.length || 0,

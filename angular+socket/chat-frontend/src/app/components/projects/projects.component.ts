@@ -51,14 +51,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     
     // Subscribe to user changes
     this.userSubscription = this.dataService.currentUser$.subscribe(async user => {
-      const previousUserId = this.currentUser?.user_id;
+      const previousUserName = this.currentUser?.name;
       this.currentUser = user;
       
       // Only load projects if:
       // 1. User is set
       // 2. User actually changed (different user ID)
       // 3. Not already loading
-      if (user && !this.isLoadingProjects && previousUserId !== user.user_id) {
+      if (user && !this.isLoadingProjects && previousUserName !== user.name) {
         this.hasLoadedProjects = false;
         await this.loadProjectsFromServer();
       }

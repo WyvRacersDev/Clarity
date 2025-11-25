@@ -3,19 +3,18 @@ import dayjs from 'dayjs'; //for calender ki class (does require doing npm insta
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 dayjs.extend(isSameOrBefore);
 export class User {
-    constructor(user_id, name, settings) {
+    constructor(name, settings) {
         //password:string; //ye to encrypt kerna parhay ga lol
         this.projects = []; //projects jo user banaye ga to 
         this.contacts = []; //gmail se is ka kuch ho ga later on currently idk
         console.log("user created");
-        this.user_id = user_id;
         this.name = name;
         //this.password=password;
         //NEED TO FINISH
         this.settings = settings;
     }
-    create_project(name) {
-        this.projects.push(new Project(name));
+    create_project(name, project_type) {
+        this.projects.push(new Project(name, this.name, project_type));
     }
     delete_project(prj_index) {
         if (prj_index >= 0 && prj_index < this.projects.length) {

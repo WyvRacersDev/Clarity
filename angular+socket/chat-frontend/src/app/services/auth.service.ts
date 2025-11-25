@@ -18,8 +18,8 @@ export class AuthService {
     this.isAuthenticated = !!currentUser;
   }
 
-  login(userId: number): boolean {
-    const success = this.dataService.loginUser(userId);
+  login(userName: string): boolean {
+    const success = this.dataService.loginUser(userName);
     if (success) {
       this.isAuthenticated = true;
       return true;
@@ -29,7 +29,7 @@ export class AuthService {
 
   register(name: string, password: string): User {
     const user = this.dataService.createUser(name);
-    this.login(user.user_id);
+    this.login(user.name);
     return user;
   }
 

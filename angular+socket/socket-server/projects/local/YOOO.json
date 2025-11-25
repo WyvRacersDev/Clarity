@@ -1,5 +1,4 @@
 {
-  "owner_id": 123,
   "name": "YOOO",
   "projectType": "local",
   "grid": [
@@ -8,7 +7,7 @@
       "Screen_elements": [
         {
           "type": "ToDoLst",
-          "name": "Tasks",
+          "name": "object1",
           "x_pos": 200,
           "y_pos": 200,
           "x_scale": 1,
@@ -25,7 +24,7 @@
         },
         {
           "type": "ToDoLst",
-          "name": "Tasks",
+          "name": "Object",
           "x_pos": 200,
           "y_pos": 200,
           "x_scale": 1,
@@ -43,5 +42,5 @@
       ]
     }
   ],
-  "lastModified": "2025-11-25T19:00:00.015Z"
+  "lastModified": "2025-11-25T18:30:00.010Z"
 }

@@ -14,8 +14,8 @@ export class DataService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  private usersData: Map<number, User> = new Map();
-  private currentUserId: number | null = null;
+  private usersData: Map<string, User> = new Map();
+  private currentUserName: string | null = null;
 
   // Loading states
   private savingProjectSubject = new BehaviorSubject<boolean>(false);
@@ -47,12 +47,12 @@ export class DataService {
    if (!isPlatformBrowser(this.platformId)) return;
 
   const saved = localStorage.getItem("clarity_users");
-  const currentId = localStorage.getItem("current_user_id");
-  console.log("Loaded from storage:", saved, currentId);
-  if (saved && currentId) {
+  const currentName = localStorage.getItem("current_user_id");
+  console.log("Loaded from storage:", saved, currentName);
+  if (saved && currentName) {
     try {
       const users = JSON.parse(saved);
-      const userEntry = users.find((u: any[]) => u[0] === Number(currentId));
+      const userEntry = users.find((u: any[]) => u[0] === String(currentName));
 
       if (userEntry) {
         const user = userEntry[1];
@@ -80,30 +80,29 @@ export class DataService {
     const existingUser = this.findUserByName(name);
     if (existingUser) {
       // User exists, log them in
-      this.currentUserId = existingUser.user_id;
       this.currentUserSubject.next(existingUser);
       return existingUser;
     }
 
     // Create new user
-    const userId = Date.now(); // Simple ID generation
+    //const userId = Date.now(); // Simple ID generation
+    //const userName="l230757@lhr.nu.edu.pk"
     const userSettings = new settings();
-    const user = new User(userId, name, userSettings);
-    this.usersData.set(userId, user);
-    this.currentUserId = userId;
+    const user = new User( name, userSettings);
+    this.usersData.set(user.name, user);
     this.currentUserSubject.next(user);
     this.saveToStorage();
     return user;
   }
 
-  loginUser(userId: number): boolean {
-    const user = this.usersData.get(userId);
+  loginUser(userName: string): boolean {
+    const user = this.usersData.get(userName);
     if (user) {
-      this.currentUserId = userId;
+      this.currentUserName = userName;
       this.currentUserSubject.next(user);
 
           // 🔥 Persist login across reloads
-    localStorage.setItem("current_user_id", userId.toString());
+    localStorage.setItem("current_user_name", userName);
       return true;
     }
     return false;
@@ -120,9 +119,8 @@ export class DataService {
   createProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Project | null {
     const user = this.getCurrentUser();
     if (user) {
-      const project = new Project(projectName,user.user_id);
-      (project as any).projectType = projectType;
-      (project as any).isLocal = projectType === 'local';
+      const project = new Project(projectName,user.name,projectType);
+//      (project as any).isLocal = projectType === 'local';
       user.projects.push(project);
       this.currentUserSubject.next(user);
       return project;
@@ -309,9 +307,9 @@ export class DataService {
    */
   private deserializeProject(data: any): Project {
     console.log(`[DataService] deserializeProject called with data.name="${data.name}", data.projectType="${data.projectType}"`);
-    const project = new Project(data.name,data.owner_id);
+    const project = new Project(data.name,data.owner_name,data.projectType);
     console.log(`[DataService] Created project with name="${project.name}"`);
-    (project as any).projectType = data.projectType || 'local';
+   // (project as any).projectType = data.projectType || 'local';
     (project as any).isLocal = data.projectType !== 'hosted';
     
     if (data.grid && Array.isArray(data.grid)) {
@@ -468,10 +466,9 @@ export class DataService {
     }
 
     const user = this.getCurrentUser();
-    if (user && this.currentUserId) {
+    if (user && this.currentUserName) {
       // Save user data but not full project data (just project names/types for reference)
       const userData = {
-        userId: user.user_id,
         name: user.name,
         settings: user.settings,
         contacts: user.contacts,
@@ -481,7 +478,7 @@ export class DataService {
           gridCount: p.grid.length
         }))
       };
-      this.usersData.set(this.currentUserId, user);
+      this.usersData.set(this.currentUserName, user);
       localStorage.setItem('clarity_users', JSON.stringify(Array.from(this.usersData.entries())));
     }
   }
@@ -499,10 +496,10 @@ export class DataService {
 
   // Logout
   logout(): void {
-    this.currentUserId = null;
+    this.currentUserName = null;
     this.currentUserSubject.next(null);
       // 🔥 Clear login persistence
-  localStorage.removeItem("current_user_id");
+  localStorage.removeItem("current_user_name");
   }
 }
 
