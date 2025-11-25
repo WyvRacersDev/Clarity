@@ -7,7 +7,7 @@
       "name": "W",
       "Screen_elements": [
         {
-          "type": "Object",
+          "type": "ToDoLst",
           "name": "Tasks",
           "x_pos": 200,
           "y_pos": 200,
@@ -24,7 +24,7 @@
           "y_scale": 200
         },
         {
-          "type": "Object",
+          "type": "ToDoLst",
           "name": "Tasks",
           "x_pos": 200,
           "y_pos": 200,
@@ -36,12 +36,12 @@
               "taskname": "Gmail reminder",
               "priority": 1,
               "is_done": false,
-              "time": "2025-11-23T16:46:00.000Z"
+              "time": "2025-11-25T21:30:00.000Z"
             }
           ]
         }
       ]
     }
   ],
-  "lastModified": "2025-11-23T15:46:42.376Z"
+  "lastModified": "2025-11-25T19:00:00.015Z"
 }
