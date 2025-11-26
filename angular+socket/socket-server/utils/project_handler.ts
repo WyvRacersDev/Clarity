@@ -46,6 +46,7 @@ export class ProjectHandler {
     }
 
     serializeProject(project: any): any {
+        console.log(`[ProjectHandler] serializeProject called for project: ${project.name}`);
         return {
             owner_name: project.owner_name,
             name: project.name,
@@ -54,23 +55,57 @@ export class ProjectHandler {
                 name: grid.name,
                 Screen_elements: grid.Screen_elements.map((element: any) => {
                     // Use toJSON if available, otherwise serialize manually
-                    if (element.toJSON) {
-                        return element.toJSON();
+                    if (element.toJSON && typeof element.toJSON === 'function') {
+                        const serialized = element.toJSON();
+                        console.log(`[ProjectHandler] Element serialized via toJSON():`, serialized);
+                        return serialized;
                     }
-                    return {
-                        type: element.constructor?.name || 'Screen_Element',
+                    
+                    // Detect element type by properties if type is missing or wrong
+                    let elementType = element.type || element.constructor?.name || 'Screen_Element';
+                    
+                    // Fix type detection for plain objects
+                    if (elementType === 'Object' || elementType === 'Screen_Element') {
+                        if (element.imagepath !== undefined || element.imagePath !== undefined || element.ImageBase64 !== undefined) {
+                            elementType = 'Image';
+                            console.log(`[ProjectHandler] Detected Image element by properties`);
+                        } else if (element.VideoPath !== undefined || element.videoPath !== undefined || element.videoBase64 !== undefined) {
+                            elementType = 'Video';
+                            console.log(`[ProjectHandler] Detected Video element by properties`);
+                        } else if (element.Text_field !== undefined || element.text_field !== undefined) {
+                            elementType = 'Text_document';
+                        } else if (element.scheduled_tasks !== undefined && Array.isArray(element.scheduled_tasks)) {
+                            elementType = 'ToDoLst';
+                        }
+                    }
+                    
+                    const serialized: any = {
+                        type: elementType,
                         name: element.name,
                         x_pos: element.x_pos,
                         y_pos: element.y_pos,
                         x_scale: element.x_scale,
-                        y_scale: element.y_scale,
-                        ...(element.Text_field !== undefined && { Text_field: element.Text_field }),
-                        ...(element.imageDescription !== undefined && { imageDescription: element.imageDescription }),
-                        ...(element.VideoDescription !== undefined && { VideoDescription: element.VideoDescription }),
-                        ...(element.scheduled_tasks !== undefined && {
-                            scheduled_tasks: element.scheduled_tasks.map((t: any) => t.toJSON ? t.toJSON() : t)
-                        })
+                        y_scale: element.y_scale
                     };
+                    
+                    // Add type-specific properties - check all possible property names
+                    if (element.Text_field !== undefined || element.text_field !== undefined) {
+                        serialized.Text_field = element.Text_field || element.text_field;
+                    }
+                    if (element.imagepath !== undefined || element.imagePath !== undefined) {
+                        serialized.imagepath = element.imagepath || element.imagePath;
+                        console.log(`[ProjectHandler] Added imagepath: ${serialized.imagepath}`);
+                    }
+                    if (element.VideoPath !== undefined || element.videoPath !== undefined) {
+                        serialized.VideoPath = element.VideoPath || element.videoPath;
+                        console.log(`[ProjectHandler] Added VideoPath: ${serialized.VideoPath}`);
+                    }
+                    if (element.scheduled_tasks !== undefined) {
+                        serialized.scheduled_tasks = element.scheduled_tasks.map((t: any) => t.toJSON ? t.toJSON() : t);
+                    }
+                    
+                    console.log(`[ProjectHandler] Element serialized manually:`, serialized);
+                    return serialized;
                 })
             }))
         };
@@ -212,8 +247,23 @@ export class ProjectHandler {
           return { success: false, message: `Project "${projectName}" not found` };
         }
         
+        // Delete the project JSON file
         fs.unlinkSync(filePath);
-        return { success: true, message: `Project "${projectName}" deleted successfully` };
+        
+        // Delete the project's assets directory if it exists
+        const assetsDir = this.getProjectAssetsDirectory(projectName, projectType);
+        if (fs.existsSync(assetsDir)) {
+          try {
+            // Recursively delete the entire assets directory
+            fs.rmSync(assetsDir, { recursive: true, force: true });
+            console.log(`[ProjectHandler] Deleted assets directory: ${assetsDir}`);
+          } catch (assetsError: any) {
+            console.error(`[ProjectHandler] Error deleting assets directory:`, assetsError);
+            // Continue even if assets deletion fails - project JSON is already deleted
+          }
+        }
+        
+        return { success: true, message: `Project "${projectName}" and its assets deleted successfully` };
       } catch (error: any) {
         console.error('Error deleting project:', error);
         return { success: false, message: `Failed to delete project: ${error.message}` };

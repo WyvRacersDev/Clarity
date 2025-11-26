@@ -253,9 +253,14 @@ export class ProjectDetailComponent implements OnInit {
           // Create element with local file path (server serves from /projects, so path is relative to that)
           const localPath = `http://localhost:3000/projects/${projectType}/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Image uploaded, using path: ${localPath}`);
-          const element = new Image(localPath, 400, 300, 'New Image', '');
+          const element = new Image(localPath, 400, 300, 'New Image');
           element.set_x_scale(300); // width
           element.set_y_scale(200); // height
+          console.log(`[ProjectDetail] Created Image element:`, {
+            name: element.name,
+            imagepath: element.imagepath,
+            toJSON: element.toJSON()
+          });
           await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
           this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
           this.loadProject(); // Reload to see the changes
@@ -293,9 +298,14 @@ export class ProjectDetailComponent implements OnInit {
           // Create element with local file path (server serves from /projects, so path is relative to that)
           const localPath = `http://localhost:3000/projects/${projectType}/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Video uploaded, using path: ${localPath}`);
-          const element = new Video(localPath, 400, 300, 'New Video', '');
+          const element = new Video(localPath, 400, 300, 'New Video');
           element.set_x_scale(400); // width
           element.set_y_scale(300); // height
+          console.log(`[ProjectDetail] Created Video element:`, {
+            name: element.name,
+            VideoPath: element.VideoPath,
+            toJSON: element.toJSON()
+          });
           await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
           this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
           this.loadProject(); // Reload to see the changes
@@ -435,26 +445,12 @@ export class ProjectDetailComponent implements OnInit {
     return this.sanitizer.bypassSecurityTrustUrl('');
   }
 
-  getImageDescription(element: Screen_Element): string {
-    if (element.constructor.name === 'Image') {
-      return (element as any).imageDescription || '';
-    }
-    return '';
-  }
-
   getVideoPath(element: Screen_Element): SafeUrl {
     if (element.constructor.name === 'Video') {
       const path = (element as any).VideoPath || '';
       return this.sanitizer.bypassSecurityTrustUrl(path);
     }
     return this.sanitizer.bypassSecurityTrustUrl('');
-  }
-
-  getVideoDescription(element: Screen_Element): string {
-    if (element.constructor.name === 'Video') {
-      return (element as any).VideoDescription || '';
-    }
-    return '';
   }
 
 

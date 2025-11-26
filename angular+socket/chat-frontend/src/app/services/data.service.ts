@@ -100,6 +100,8 @@ export class DataService {
     if (user) {
       this.currentUserName = userName;
       this.currentUserSubject.next(user);
+      // Identify user to server
+      this.socketService.identifyUser(userName);
 
           // 🔥 Persist login across reloads
     localStorage.setItem("current_user_name", userName);
@@ -135,8 +137,11 @@ export class DataService {
     console.log('saveProject called, setting saving to true');
     this.savingProjectSubject.next(true);
     try {
+      // Ensure all elements are properly serialized before sending
+      // This ensures toJSON() is called on all elements
+      const serializedProject = this.serializeProjectForSaving(project);
       const response = await firstValueFrom(
-        this.socketService.saveProject(project, projectType)
+        this.socketService.saveProject(serializedProject, projectType)
       );
       
       console.log('Save response received:', response);
@@ -300,6 +305,84 @@ export class DataService {
       return result;
     }
     return false;
+  }
+
+  /**
+   * Serialize a project for saving (ensures toJSON() is called on all elements)
+   */
+  private serializeProjectForSaving(project: Project): any {
+    return {
+      owner_name: project.owner_name,
+      name: project.name,
+      project_type: (project as any).projectType || project.project_type || 'local',
+      grid: project.grid.map((grid: Grid) => ({
+        name: grid.name,
+        Screen_elements: grid.Screen_elements.map((element: Screen_Element) => {
+          const elem = element as any;
+          console.log(`[DataService] Serializing element:`, {
+            name: elem.name,
+            type: elem.type || elem.constructor?.name,
+            hasToJSON: typeof elem.toJSON === 'function',
+            imagepath: elem.imagepath,
+            VideoPath: elem.VideoPath,
+            allKeys: Object.keys(elem)
+          });
+          
+          // Call toJSON() if available, otherwise serialize manually
+          if (element && typeof elem.toJSON === 'function') {
+            const serialized = elem.toJSON();
+            console.log(`[DataService] Serialized element via toJSON():`, serialized);
+            return serialized;
+          }
+          
+          // Fallback: serialize manually - detect type by properties
+          let elementType = elem.constructor?.name || elem.type || 'Screen_Element';
+          
+          // Detect Image/Video by properties if type is wrong
+          if (elementType === 'Object' || elementType === 'Screen_Element') {
+            if (elem.imagepath !== undefined || elem.imagePath !== undefined || elem.ImageBase64 !== undefined) {
+              elementType = 'Image';
+            } else if (elem.VideoPath !== undefined || elem.videoPath !== undefined || elem.videoBase64 !== undefined) {
+              elementType = 'Video';
+            } else if (elem.Text_field !== undefined || elem.text_field !== undefined) {
+              elementType = 'Text_document';
+            } else if (elem.scheduled_tasks !== undefined && Array.isArray(elem.scheduled_tasks)) {
+              elementType = 'ToDoLst';
+            }
+          }
+          
+          const serialized: any = {
+            type: elementType,
+            name: element.name,
+            x_pos: element.x_pos,
+            y_pos: element.y_pos,
+            x_scale: element.x_scale,
+            y_scale: element.y_scale
+          };
+          
+          // Add type-specific properties - check all possible property names
+          if (elem.Text_field !== undefined || elem.text_field !== undefined) {
+            serialized.Text_field = elem.Text_field || elem.text_field;
+          }
+          if (elem.imagepath !== undefined || elem.imagePath !== undefined) {
+            serialized.imagepath = elem.imagepath || elem.imagePath;
+            console.log(`[DataService] Found imagepath: ${serialized.imagepath}`);
+          }
+          if (elem.VideoPath !== undefined || elem.videoPath !== undefined) {
+            serialized.VideoPath = elem.VideoPath || elem.videoPath;
+            console.log(`[DataService] Found VideoPath: ${serialized.VideoPath}`);
+          }
+          if (elem.scheduled_tasks !== undefined) {
+            serialized.scheduled_tasks = elem.scheduled_tasks.map((t: any) => 
+              (t && typeof t.toJSON === 'function') ? t.toJSON() : t
+            );
+          }
+          
+          console.log(`[DataService] Serialized element manually:`, serialized);
+          return serialized;
+        })
+      }))
+    };
   }
 
   /**

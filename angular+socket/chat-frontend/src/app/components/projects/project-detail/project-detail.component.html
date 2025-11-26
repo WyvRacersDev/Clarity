@@ -75,8 +75,7 @@
             <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
           </div>
           <div class="image-content">
-            <img [src]="getImagePath(element)" [alt]="getImageDescription(element)">
-            <p *ngIf="getImageDescription(element)">{{ getImageDescription(element) }}</p>
+            <img [src]="getImagePath(element)" [alt]="element.name">
           </div>
         </div>
 
@@ -99,7 +98,6 @@
             <video controls width="100%">
               <source [src]="getVideoPath(element)" type="video/mp4">
             </video>
-            <p *ngIf="getVideoDescription(element)">{{ getVideoDescription(element) }}</p>
           </div>
         </div>
 
