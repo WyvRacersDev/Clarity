@@ -8,6 +8,8 @@ import { ProjectHandler } from "./utils/project_handler.ts";
 import { SERVER_HOST, SERVER_PORT, FRONTEND_URL, ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN } from "./config.ts";
 
 
+
+
 // const fs = require("fs");
 // const path = require("path");
 // const { google } = require("googleapis");
@@ -20,7 +22,7 @@ import {objects_builder} from '../shared_models/dist/screen_elements.model.js'; 
 import { Project, Grid } from '../shared_models/dist/project.model.js';
 import cors from "cors";
 import type { CorsOptions } from "cors";
-import { checkUpcomingTasks } from "./utils/notification_service.ts";
+import { startNotificationService } from "./utils/notification_service.ts";
 
 
 const app = express();
@@ -61,7 +63,8 @@ const corsOptions: CorsOptions = {
 
 app.use(cors(corsOptions));
 
- checkUpcomingTasks();
+// checkUpcomingTasks();
+startNotificationService();
 
 //   // Send history immediately
 //   socket.emit("chatHistory", messages);
