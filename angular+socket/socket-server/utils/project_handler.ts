@@ -154,9 +154,9 @@ export class ProjectHandler {
 
     loadProject(projectName: string, projectType: 'local' | 'hosted'): { success: boolean; project?: Project; message: string } {
         try {
-            console.log(`[Server] loadProject called: projectName="${projectName}", projectType="${projectType}"`);
+          //  console.log(`[Server] loadProject called: projectName="${projectName}", projectType="${projectType}"`);
             const dir = this.getProjectDirectory(projectType);
-            console.log(`[Server] Searching in directory: ${dir}`);
+          //  console.log(`[Server] Searching in directory: ${dir}`);
 
             if (!fs.existsSync(dir)) {
                 return { success: false, message: `Directory does not exist: ${dir}` };
@@ -164,7 +164,7 @@ export class ProjectHandler {
 
             // Search through all files to find one with matching project name
             const files = fs.readdirSync(dir).filter(file => file.endsWith('.json'));
-            console.log(`[Server] Found ${files.length} files in ${projectType} directory:`, files);
+            //console.log(`[Server] Found ${files.length} files in ${projectType} directory:`, files);
 
             for (const file of files) {
                 try {
@@ -172,16 +172,16 @@ export class ProjectHandler {
                     const fileContent = fs.readFileSync(filePath, 'utf-8');
                     const data = JSON.parse(fileContent);
 
-                    console.log(`[Server] Checking file ${file}: JSON name="${data.name}", looking for="${projectName}"`);
+                    //console.log(`[Server] Checking file ${file}: JSON name="${data.name}", looking for="${projectName}"`);
 
                     // Match by the actual project name in the JSON, not the filename
                     if (data.name === projectName) {
-                        console.log(`[Server] ✓ MATCH! Found project "${projectName}" in file ${file}`);
+                       // console.log(`[Server] ✓ MATCH! Found project "${projectName}" in file ${file}`);
                         const project = this.deserializeProject(data);
-                        console.log(`[Server] Deserialized project name: "${project.name}"`);
+                      //  console.log(`[Server] Deserialized project name: "${project.name}"`);
                         (project as any).project_type = projectType;
                         (project as any).isLocal = projectType === 'local';
-                        console.log(`[Server] Returning project with name="${project.name}", type="${(project as any).projectType}"`);
+                       // console.log(`[Server] Returning project with name="${project.name}", type="${(project as any).projectType}"`);
                         return { success: true, project, message: `Project "${projectName}" loaded from ${projectType} directory` };
                     }
                 } catch (error) {
@@ -224,7 +224,7 @@ export class ProjectHandler {
                         gridCount: data.grid?.length || 0,
                         lastModified: data.lastModified || fs.statSync(filePath).mtime.toISOString()
                     };
-                    console.log(`[Server] Found ${projectType} project: "${projectInfo.name}" from file: ${file}`);
+                   // console.log(`[Server] Found ${projectType} project: "${projectInfo.name}" from file: ${file}`);
                     return projectInfo;
                 } catch (error) {
                     console.error(`Error reading project file ${file}:`, error);
@@ -232,7 +232,7 @@ export class ProjectHandler {
                 }
             }).filter((p): p is any => p !== null);
 
-            console.log(`[Server] Returning ${projects.length} ${projectType} projects:`, projects.map(p => p.name));
+            //console.log(`[Server] Returning ${projects.length} ${projectType} projects:`, projects.map(p => p.name));
             return { success: true, projects, message: `Found ${projects.length} ${projectType} projects` };
         } catch (error: any) {
             console.error(`Error listing ${projectType} projects:`, error);
