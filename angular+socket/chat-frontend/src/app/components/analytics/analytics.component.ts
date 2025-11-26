@@ -118,7 +118,7 @@ export class AnalyticsComponent implements OnInit {
         beginAtZero: true,
         max: 100,
         ticks: {
-          callback: function(value) {
+          callback: function(value: any) {
             return value + '%';
           }
         }

@@ -72,9 +72,8 @@ export class Text_document extends Screen_Element {
 }
 //TODO need to put all other screen element classes here as well
 export class Image extends Screen_Element {
-    constructor(image_path, x_pos, y_pos, image_name, image_desc) {
+    constructor(image_path, x_pos, y_pos, image_name) {
         super(image_name, x_pos, y_pos);
-        this.imageDescription = image_desc;
         this.imagepath = image_path;
         //this.imageFile = fs.readFileSync(image_path);
         console.log("Image object created");
@@ -83,17 +82,14 @@ export class Image extends Screen_Element {
         return {
             ...super.toJSON(), // Includes: type, name, x_pos, y_pos, x_scale, y_scale
             imagepath: this.imagepath, // Include the path (now points to local file URL)
-            ImageDescription: this.imageDescription,
             ImageBase64: this.imageFile || null, // Keep for backward compatibility (base64 data)
         };
     }
 }
 export class Video extends Screen_Element {
-    constructor(video_path, x_pos, y_pos, video_name, video_desc) {
+    constructor(video_path, x_pos, y_pos, video_name) {
         super(video_name, x_pos, y_pos);
-        this.VideoDescription = video_desc;
         this.VideoPath = video_path;
-        this.VideoFile = video_desc;
         //this.imageFile = fs.readFileSync(image_path);
         console.log("Video object created");
     }
@@ -101,7 +97,6 @@ export class Video extends Screen_Element {
         return {
             ...super.toJSON(), // Includes: type, name, x_pos, y_pos, x_scale, y_scale
             VideoPath: this.VideoPath, // Include the path (now points to local file URL)
-            VideoDescription: this.VideoDescription,
             videoBase64: this.VideoFile || null // Keep for backward compatibility (base64 data)
         };
     }
@@ -205,8 +200,7 @@ export class objects_builder {
         if (obj.imagepath !== undefined || obj.imagePath !== undefined || obj.ImageBase64 !== undefined) {
             // This is an Image
             const imagePath = obj.imagepath || obj.imagePath || (obj.ImageBase64 ? `data:image/png;base64,${obj.ImageBase64}` : '');
-            const imageDesc = obj.ImageDescription || obj.imageDescription || '';
-            const img = new Image(imagePath, obj.x_pos, obj.y_pos, obj.name, imageDesc);
+            const img = new Image(imagePath, obj.x_pos, obj.y_pos, obj.name);
             // Restore scale values if present
             if (obj.x_scale !== undefined)
                 img.x_scale = obj.x_scale;
@@ -220,8 +214,7 @@ export class objects_builder {
         if (obj.VideoPath !== undefined || obj.videoPath !== undefined || obj.videoBase64 !== undefined) {
             // This is a Video
             const videoPath = obj.VideoPath || obj.videoPath || (obj.videoBase64 ? `data:video/mp4;base64,${obj.videoBase64}` : '');
-            const videoDesc = obj.VideoDescription || obj.videoDescription || '';
-            const vid = new Video(videoPath, obj.x_pos, obj.y_pos, obj.name, videoDesc);
+            const vid = new Video(videoPath, obj.x_pos, obj.y_pos, obj.name);
             // Restore scale values if present
             if (obj.x_scale !== undefined)
                 vid.x_scale = obj.x_scale;
@@ -247,9 +240,7 @@ export class objects_builder {
                     // Handle both new file path system and old base64 system
                     // Support both imagepath (new) and imagePath (alternative)
                     const imagePath = obj.imagepath || obj.imagePath || (obj.ImageBase64 ? `data:image/png;base64,${obj.ImageBase64}` : '');
-                    // Support both ImageDescription (from toJSON) and imageDescription (alternative)
-                    const imageDesc = obj.ImageDescription || obj.imageDescription || '';
-                    const img = new Image(imagePath, obj.x_pos, obj.y_pos, obj.name, imageDesc);
+                    const img = new Image(imagePath, obj.x_pos, obj.y_pos, obj.name);
                     // Restore scale values if present
                     if (obj.x_scale !== undefined)
                         img.x_scale = obj.x_scale;
@@ -265,9 +256,7 @@ export class objects_builder {
                     // Handle both new file path system and old base64 system
                     // Support both VideoPath (from toJSON) and videoPath (alternative)
                     const videoPath = obj.VideoPath || obj.videoPath || (obj.videoBase64 ? `data:video/mp4;base64,${obj.videoBase64}` : '');
-                    // Support both VideoDescription (from toJSON) and videoDescription (alternative)
-                    const videoDesc = obj.VideoDescription || obj.videoDescription || '';
-                    const vid = new Video(videoPath, obj.x_pos, obj.y_pos, obj.name, videoDesc);
+                    const vid = new Video(videoPath, obj.x_pos, obj.y_pos, obj.name);
                     // Restore scale values if present
                     if (obj.x_scale !== undefined)
                         vid.x_scale = obj.x_scale;

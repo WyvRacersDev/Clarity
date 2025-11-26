@@ -1,33 +1,86 @@
-import { Injectable } from '@angular/core';
+import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { io, Socket } from 'socket.io-client';
 import { Observable } from 'rxjs';
 import { Screen_Element } from '../../../../shared_models/models/screen_elements.model';
+import { getServerConfig } from '../config/app.config';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SocketService {
-  private socket: Socket;
-  private readonly serverUrl = 'http://localhost:3000';
+  private socket: Socket | null = null;
+  private readonly isBrowser: boolean;
+  private serverUrl: string;
 
-  constructor() {
-    this.socket = io(this.serverUrl);
-    this.setupConnection();
+  constructor(@Inject(PLATFORM_ID) platformId: Object) {
+    this.isBrowser = isPlatformBrowser(platformId);
+    
+    // Get server URL (will be evaluated in browser context)
+    this.serverUrl = this.isBrowser ? getServerConfig() : 'http://localhost:3000';
+    
+    // Only initialize socket in browser environment (not during SSR)
+    if (this.isBrowser) {
+      this.socket = io(this.serverUrl);
+      this.setupConnection();
+    }
+  }
+
+  /**
+   * Check if socket is available (browser environment)
+   */
+  private isSocketAvailable(): boolean {
+    return this.isBrowser && this.socket !== null;
   }
 
   private setupConnection(): void {
-    this.socket.on('connect', () => {
-      console.log('Connected to server:', this.socket.id);
+    if (!this.isSocketAvailable()) return;
+    
+    this.socket!.on('connect', () => {
+      console.log('Connected to server:', this.socket!.id);
+      // Identify user when connected
+      const currentUser = this.getCurrentUser();
+      if (currentUser) {
+        this.identifyUser(currentUser);
+      }
     });
 
-    this.socket.on('disconnect', () => {
+    this.socket!.on('disconnect', () => {
       console.log('Disconnected from server');
     });
   }
 
+  /**
+   * Identify the current user to the server
+   */
+  identifyUser(username: string): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('identifyUser', { username });
+    console.log(`[SocketService] Identified user: ${username}`);
+  }
+
+  /**
+   * Get current user from localStorage (helper method)
+   * Safe for SSR - checks if localStorage is available
+   */
+  private getCurrentUser(): string | null {
+    try {
+      // Check if we're in a browser environment (localStorage is not available in SSR)
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+        return null;
+      }
+      const currentUserName = localStorage.getItem('current_user_name');
+      return currentUserName;
+    } catch (error) {
+      console.error('Error getting current user:', error);
+    }
+    return null;
+  }
+
   // Emit screen element updates
   emitElementUpdate(element: Screen_Element, projectId: string, gridId: string): void {
-    this.socket.emit('elementUpdate', {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('elementUpdate', {
       element: element.toJSON(),
       projectId,
       gridId
@@ -37,7 +90,11 @@ export class SocketService {
   // Listen for element updates
   onElementUpdate(): Observable<any> {
     return new Observable(observer => {
-      this.socket.on('elementUpdate', (data) => {
+      if (!this.isSocketAvailable()) {
+        observer.complete();
+        return;
+      }
+      this.socket!.on('elementUpdate', (data) => {
         observer.next(data);
       });
     });
@@ -45,18 +102,24 @@ export class SocketService {
 
   // Join a project room for collaboration
   joinProject(projectId: string, userId: number): void {
-    this.socket.emit('joinProject', { projectId, userId });
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('joinProject', { projectId, userId });
   }
 
   // Leave a project room
   leaveProject(projectId: string): void {
-    this.socket.emit('leaveProject', { projectId });
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('leaveProject', { projectId });
   }
 
   // Listen for user activity in project
   onUserActivity(): Observable<any> {
     return new Observable(observer => {
-      this.socket.on('userActivity', (data) => {
+      if (!this.isSocketAvailable()) {
+        observer.complete();
+        return;
+      }
+      this.socket!.on('userActivity', (data) => {
         observer.next(data);
       });
     });
@@ -64,13 +127,18 @@ export class SocketService {
 
   // Emit task updates
   emitTaskUpdate(task: any, projectId: string): void {
-    this.socket.emit('taskUpdate', { task, projectId });
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('taskUpdate', { task, projectId });
   }
 
   // Listen for task updates
   onTaskUpdate(): Observable<any> {
     return new Observable(observer => {
-      this.socket.on('taskUpdate', (data) => {
+      if (!this.isSocketAvailable()) {
+        observer.complete();
+        return;
+      }
+      this.socket!.on('taskUpdate', (data) => {
         observer.next(data);
       });
     });
@@ -78,12 +146,13 @@ export class SocketService {
 
   // Disconnect socket
   disconnect(): void {
-    this.socket.disconnect();
+    if (!this.isSocketAvailable()) return;
+    this.socket!.disconnect();
   }
 
   // Get socket instance
-  getSocket(): Socket {
-    return this.socket;
+  getSocket(): Socket | null {
+    return this.isSocketAvailable() ? this.socket : null;
   }
 
   // === Project Management Methods ===
@@ -96,14 +165,20 @@ export class SocketService {
    */
   saveProject(project: any, projectType: 'local' | 'hosted'): Observable<any> {
     return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      
       const timeout = setTimeout(() => {
         observer.error(new Error('Save project timeout'));
         observer.complete();
       }, 10000); // 10 second timeout
       
-      this.socket.emit('saveProject', { project, projectType });
+      this.socket!.emit('saveProject', { project, projectType });
       
-      this.socket.once('projectSaved', (response: any) => {
+      this.socket!.once('projectSaved', (response: any) => {
         clearTimeout(timeout);
         observer.next(response);
         observer.complete();
@@ -119,6 +194,12 @@ export class SocketService {
    */
   loadProject(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
     return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      
       const timeout = setTimeout(() => {
         observer.error(new Error('Load project timeout'));
         observer.complete();
@@ -133,14 +214,14 @@ export class SocketService {
         // Verify this is the correct project
         if (response && response.success && response.project && response.project.name === projectName) {
           clearTimeout(timeout);
-          this.socket.off(eventName, handler);
+          this.socket!.off(eventName, handler);
           observer.next(response);
           observer.complete();
         }
       };
       
-      this.socket.on(eventName, handler);
-      this.socket.emit('loadProject', { projectName, projectType, eventName });
+      this.socket!.on(eventName, handler);
+      this.socket!.emit('loadProject', { projectName, projectType, eventName });
     });
   }
 
@@ -151,6 +232,12 @@ export class SocketService {
    */
   listProjects(projectType: 'local' | 'hosted'): Observable<any> {
     return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      
       const timeout = setTimeout(() => {
         observer.error(new Error('List projects timeout'));
         observer.complete();
@@ -159,13 +246,13 @@ export class SocketService {
       // Use a unique event name per project type to avoid mix-ups when loading in parallel
       const eventName = `projectsListed_${projectType}`;
       
-      this.socket.once(eventName, (response: any) => {
+      this.socket!.once(eventName, (response: any) => {
         clearTimeout(timeout);
         observer.next(response);
         observer.complete();
       });
       
-      this.socket.emit('listProjects', { projectType });
+      this.socket!.emit('listProjects', { projectType });
     });
   }
 
@@ -177,9 +264,15 @@ export class SocketService {
    */
   deleteProject(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
     return new Observable(observer => {
-      this.socket.emit('deleteProject', { projectName, projectType });
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
       
-      this.socket.once('projectDeleted', (response: any) => {
+      this.socket!.emit('deleteProject', { projectName, projectType });
+      
+      this.socket!.once('projectDeleted', (response: any) => {
         observer.next(response);
         observer.complete();
       });
@@ -197,6 +290,12 @@ export class SocketService {
    */
   uploadFile(projectName: string, projectType: 'local' | 'hosted', fileName: string, fileData: string, fileType: 'image' | 'video'): Observable<any> {
     return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      
       const timeout = setTimeout(() => {
         observer.error(new Error('File upload timeout'));
         observer.complete();
@@ -204,13 +303,13 @@ export class SocketService {
       
       const eventName = `fileUploaded_${projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
-      this.socket.once(eventName, (response: any) => {
+      this.socket!.once(eventName, (response: any) => {
         clearTimeout(timeout);
         observer.next(response);
         observer.complete();
       });
       
-      this.socket.emit('uploadFile', { 
+      this.socket!.emit('uploadFile', { 
         projectName, 
         projectType, 
         fileName, 
@@ -231,6 +330,12 @@ export class SocketService {
   deleteFile(projectName: string, projectType: 'local' | 'hosted', filePath: string): Observable<any> {
     // Delete file from server filesystem
     return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      
       const timeout = setTimeout(() => {
         observer.error(new Error('File delete timeout'));
         observer.complete();
@@ -238,13 +343,13 @@ export class SocketService {
       
       const eventName = `fileDeleted_${projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
-      this.socket.once(eventName, (response: any) => {
+      this.socket!.once(eventName, (response: any) => {
         clearTimeout(timeout);
         observer.next(response);
         observer.complete();
       });
       
-      this.socket.emit('deleteFile', { 
+      this.socket!.emit('deleteFile', { 
         projectName, 
         projectType, 
         filePath,

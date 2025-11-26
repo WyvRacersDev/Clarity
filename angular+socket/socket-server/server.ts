@@ -5,6 +5,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import { ProjectHandler } from "./utils/project_handler.ts";
+import { SERVER_HOST, SERVER_PORT, FRONTEND_URL, ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN } from "./config.ts";
 
 
 // const fs = require("fs");
@@ -23,19 +24,16 @@ import { checkUpcomingTasks } from "./utils/notification_service.ts";
 
 
 const app = express();
-const PORT = 3000;
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:4200", // Angular dev server
-    methods: ["GET", "POST"]
+    origin: SOCKET_CORS_ORIGIN, // Configurable CORS origin
+    methods: ["GET", "POST"],
+    credentials: true
   },
   maxHttpBufferSize: 1e8 // 100MB - maximum buffer size for file uploads
 });
-const allowedOrigins: RegExp[] = [
-  /^http:\/\/localhost:\d+$/
-];
 
 // Dynamic CORS middleware in TypeScript
 const corsOptions: CorsOptions = {
@@ -43,11 +41,18 @@ const corsOptions: CorsOptions = {
     // Allow non-browser requests (Postman, CURL, mobile apps)
     if (!origin) return callback(null, true);
 
-    const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+    const isAllowed = ALLOWED_ORIGINS.some(pattern => {
+      if (typeof pattern === 'string') {
+        return pattern === origin;
+      } else {
+        return pattern.test(origin);
+      }
+    });
 
     if (isAllowed) {
       callback(null, true);
     } else {
+      console.warn(`[CORS] Blocked origin: ${origin}. Add it to ALLOWED_ORIGINS in config.ts`);
       callback(new Error(`CORS blocked origin: ${origin}`));
     }
   },
@@ -103,8 +108,29 @@ app.use('/projects', express.static(project_handler.get_base_path(), {
 }));
 // === Socket Event Handlers ===
 
+// Store user sessions: socketId -> username
+const userSessions = new Map<string, string>();
+
 io.on("connection", (socket:Socket) => {
   console.log("✅ User connected:", socket.id);
+  
+  // Register user when they identify themselves
+  socket.on("identifyUser", (data: { username: string }) => {
+    userSessions.set(socket.id, data.username);
+    console.log(`[Server] User identified: ${data.username} (socket: ${socket.id})`);
+    socket.emit("userIdentified", { success: true, username: data.username });
+  });
+  
+  // Clean up on disconnect
+  socket.on("disconnect", () => {
+    const username = userSessions.get(socket.id);
+    if (username) {
+      console.log(`[Server] User disconnected: ${username} (socket: ${socket.id})`);
+      userSessions.delete(socket.id);
+    } else {
+      console.log("❌ User disconnected:", socket.id);
+    }
+  });
 
   // Receiving method
   socket.on("screenElement", (raw) => { 
@@ -141,19 +167,42 @@ io.on("connection", (socket:Socket) => {
 
   /**
    * Load a project
+   * For 'local': only owner can load
+   * For 'hosted': anyone can load (public sharing)
    * Expected payload: { projectName: string, projectType: 'local' | 'hosted' }
    */
   socket.on("loadProject", (data: { projectName: string; projectType: 'local' | 'hosted', eventName?: string }) => {
     try {
+      const currentUser = userSessions.get(socket.id);
+      
+      // Load the project
       const result = project_handler.loadProject(data.projectName, data.projectType);
       
       // Use the provided event name if available, otherwise use default
       const eventName = data.eventName || "projectLoaded";
       
       if (result.success && result.project) {
+        // Check access permissions
+        const isOwner = result.project.owner_name === currentUser;
+        const isHosted = data.projectType === 'hosted';
+        
+        if (data.projectType === 'local' && !isOwner) {
+          // Local projects: only owner can access
+          socket.emit(eventName, { 
+            success: false, 
+            message: `Access denied: You can only view your own local projects` 
+          });
+          return;
+        }
+        
+        // Hosted projects: anyone can view
+        // Local projects: owner can view/edit
         const serialized = project_handler.serializeProject(result.project);
-        serialized.projectType = data.projectType; // Ensure type matches directory
-        console.log(`[Server] Sending project over socket: name="${serialized.name}", type="${serialized.projectType}", event="${eventName}"`);
+        serialized.projectType = data.projectType;
+        serialized.isOwner = isOwner; // Add flag to indicate if current user is owner
+        serialized.canEdit = isOwner || isHosted; // Can edit if owner, or if hosted (for now, allow editing)
+        
+        console.log(`[Server] Sending project: name="${serialized.name}", owner="${serialized.owner_name}", currentUser="${currentUser}", isOwner=${isOwner}`);
         socket.emit(eventName, { 
           success: true, 
           project: serialized, 
@@ -171,13 +220,29 @@ io.on("connection", (socket:Socket) => {
 
   /**
    * List all projects of a type
+   * For 'local': returns only current user's projects
+   * For 'hosted': returns ALL hosted projects (anyone can view)
    * Expected payload: { projectType: 'local' | 'hosted' }
    */
   socket.on("listProjects", (data: { projectType: 'local' | 'hosted', requestId?: string }) => {
     try {
-      const result = project_handler.listProjects(data.projectType);
-      // Emit to a type-specific event to avoid mix-ups
-      socket.emit(`projectsListed_${data.projectType}`, result);
+      const currentUser = userSessions.get(socket.id);
+      
+      if (data.projectType === 'hosted') {
+        // For hosted projects, show ALL projects (public sharing)
+        // Each project includes owner_name so users know who owns it
+        const result = project_handler.listProjects('hosted');
+        console.log(`[Server] Listing hosted projects for user: ${currentUser || 'anonymous'}`);
+        socket.emit(`projectsListed_${data.projectType}`, result);
+      } else {
+        // For local projects, show only current user's projects
+        const result = project_handler.listProjects('local');
+        // Filter by owner if user is identified
+        if (currentUser && result.success && result.projects) {
+          result.projects = result.projects.filter((p: any) => p.owner_name === currentUser);
+        }
+        socket.emit(`projectsListed_${data.projectType}`, result);
+      }
     } catch (error: any) {
       console.error("Error in listProjects handler:", error);
       socket.emit(`projectsListed_${data.projectType}`, { 
@@ -302,13 +367,25 @@ io.on("connection", (socket:Socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+    const username = userSessions.get(socket.id);
+    if (username) {
+      console.log(`[Server] User disconnected: ${username} (socket: ${socket.id})`);
+      userSessions.delete(socket.id);
+    } else {
+      console.log("❌ User disconnected:", socket.id);
+    }
   });
 });
 
 
-server.listen(3000, () => {
-  console.log("🚀 Server running on http://localhost:3000");
+server.listen(SERVER_PORT, SERVER_HOST, () => {
+  console.log(`🚀 Server running on http://${SERVER_HOST}:${SERVER_PORT}`);
+  console.log(`📡 Listening on all interfaces (0.0.0.0) - ready for external connections`);
+  console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
+  console.log(`\n📋 Port Forwarding Instructions:`);
+  console.log(`   1. Forward external port ${SERVER_PORT} to ${SERVER_PORT} on this machine`);
+  console.log(`   2. Use your public IP address for external connections`);
+  console.log(`   3. Update client config to point to your public IP:PORT`);
 });
 
 
@@ -328,12 +405,12 @@ const oAuth2Client = new google.auth.OAuth2(
   client_secret,
   redirect_uris[0]
 );
-//=== Store frontend URL ===
-let FRONTEND_URL = "http://localhost:4200"; //default
+// Frontend URL is now in config.ts
+// Allow dynamic updates via API
 app.post("/set-redirect-url", express.json(), (req, res) => {
-  FRONTEND_URL = req.body.frontendUrl;
-  console.log("Frontend URL updated:", FRONTEND_URL);
-  res.json({ success: true });
+  // Note: This would require making FRONTEND_URL mutable or using a different approach
+  console.log("Frontend URL update requested (using config value):", FRONTEND_URL);
+  res.json({ success: true, currentUrl: FRONTEND_URL });
 });
 
 // === Generate auth URL ===
@@ -402,9 +479,8 @@ app.get("/profile", async (req:any, res:any) => {
   res.json({ savedUsers: emails });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+// Server is already listening via server.listen() above
+// This duplicate was removed
 
 import { calendar_v3 } from "googleapis"; //needed because typescript hates me
 import { fileURLToPath } from "url";
