@@ -154,12 +154,28 @@ io.on("connection", (socket:Socket) => {
    */
   socket.on("saveProject", (data: { project: any; projectType: 'local' | 'hosted' }) => {
     try {
-      console.log("💾 Saving project:", data.project?.name, "Type:", data.projectType);
-      const result = project_handler.saveProject(data.project, data.projectType);
+      const projectType = data.projectType || data.project?.project_type || 'local';
+      console.log(`[Server] 💾 Saving project: "${data.project?.name}", Type: "${projectType}"`);
+      const result = project_handler.saveProject(data.project, projectType);
       
       if (result.success) {
+        // Send confirmation to the user who saved
         socket.emit("projectSaved", { success: true, message: result.message, projectName: data.project.name });
+        
+        // For hosted projects, broadcast the update to all connected clients
+        if (projectType === 'hosted') {
+          const connectedClients = io.sockets.sockets.size;
+          console.log(`[Server] 📡 Broadcasting hosted project update: "${data.project.name}" to ${connectedClients} connected clients`);
+          io.emit("hostedProjectUpdated", { 
+            projectName: data.project.name,
+            projectType: 'hosted'
+          });
+          console.log(`[Server] ✓ Broadcast sent for hosted project: "${data.project.name}"`);
+        } else {
+          console.log(`[Server] ℹ️ Project "${data.project.name}" is local, skipping broadcast`);
+        }
       } else {
+        console.error(`[Server] ✗ Failed to save project "${data.project?.name}":`, result.message);
         socket.emit("projectSaved", { success: false, message: result.message });
       }
     } catch (error: any) {
@@ -362,7 +378,18 @@ io.on("connection", (socket:Socket) => {
     try {
       console.log("🗑️ Deleting project:", data.projectName, "Type:", data.projectType);
       const result = project_handler.deleteProject(data.projectName, data.projectType);
+      
+      // Send confirmation to the user who deleted
       socket.emit("projectDeleted", result);
+      
+      // For hosted projects, broadcast the deletion to all connected clients
+      if (data.projectType === 'hosted' && result.success) {
+        console.log(`[Server] Broadcasting hosted project deletion: ${data.projectName}`);
+        io.emit("hostedProjectDeleted", { 
+          projectName: data.projectName,
+          projectType: 'hosted'
+        });
+      }
     } catch (error: any) {
       console.error("Error in deleteProject handler:", error);
       socket.emit("projectDeleted", { success: false, message: `Error: ${error.message}` });

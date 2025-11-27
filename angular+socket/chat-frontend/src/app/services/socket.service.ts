@@ -357,6 +357,68 @@ export class SocketService {
       });
     });
   }
+
+  /**
+   * Listen for hosted project updates (broadcasted to all clients)
+   * @returns Observable that emits when a hosted project is updated
+   */
+  onHostedProjectUpdated(): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        console.warn('[SocketService] Socket not available for hostedProjectUpdated listener');
+        observer.complete();
+        return;
+      }
+      
+      console.log('[SocketService] Setting up hostedProjectUpdated listener');
+      const handler = (data: any) => {
+        console.log('[SocketService] ✓ Received hostedProjectUpdated event:', data);
+        observer.next(data);
+      };
+      
+      this.socket!.on('hostedProjectUpdated', handler);
+      console.log('[SocketService] ✓ hostedProjectUpdated listener registered');
+      
+      // Return cleanup function
+      return () => {
+        if (this.isSocketAvailable()) {
+          console.log('[SocketService] Cleaning up hostedProjectUpdated listener');
+          this.socket!.off('hostedProjectUpdated', handler);
+        }
+      };
+    });
+  }
+
+  /**
+   * Listen for hosted project deletions (broadcasted to all clients)
+   * @returns Observable that emits when a hosted project is deleted
+   */
+  onHostedProjectDeleted(): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        console.warn('[SocketService] Socket not available for hostedProjectDeleted listener');
+        observer.complete();
+        return;
+      }
+      
+      console.log('[SocketService] Setting up hostedProjectDeleted listener');
+      const handler = (data: any) => {
+        console.log('[SocketService] ✓ Received hostedProjectDeleted event:', data);
+        observer.next(data);
+      };
+      
+      this.socket!.on('hostedProjectDeleted', handler);
+      console.log('[SocketService] ✓ hostedProjectDeleted listener registered');
+      
+      // Return cleanup function
+      return () => {
+        if (this.isSocketAvailable()) {
+          console.log('[SocketService] Cleaning up hostedProjectDeleted listener');
+          this.socket!.off('hostedProjectDeleted', handler);
+        }
+      };
+    });
+  }
 }
 
 
