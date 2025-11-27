@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { DataService } from '../../services/data.service';
+import { SocketService } from '../../services/socket.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
 import { isLocalhostServer } from '../../config/app.config';
@@ -30,9 +31,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   private isLoadingProjects = false;
   private hasLoadedProjects = false;
   private userSubscription: any;
+  private hostedProjectUpdateSubscription: any;
+  private hostedProjectDeleteSubscription: any;
 
   constructor(
     private dataService: DataService,
+    private socketService: SocketService,
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
@@ -82,11 +86,31 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       console.log('Loading projects state changed:', loading);
       this.cdr.detectChanges();
     });
+    
+    // Listen for hosted project updates (broadcasted to all clients)
+    this.hostedProjectUpdateSubscription = this.socketService.onHostedProjectUpdated().subscribe((data: any) => {
+      console.log('[ProjectsComponent] Hosted project updated by another user, reloading projects list...');
+      // Reload projects list to show updates
+      this.loadProjectsFromServer();
+    });
+    
+    // Listen for hosted project deletions
+    this.hostedProjectDeleteSubscription = this.socketService.onHostedProjectDeleted().subscribe((data: any) => {
+      console.log('[ProjectsComponent] Hosted project deleted by another user, reloading projects list...');
+      // Reload projects list to remove deleted project
+      this.loadProjectsFromServer();
+    });
   }
 
   ngOnDestroy(): void {
     if (this.userSubscription) {
       this.userSubscription.unsubscribe();
+    }
+    if (this.hostedProjectUpdateSubscription) {
+      this.hostedProjectUpdateSubscription.unsubscribe();
+    }
+    if (this.hostedProjectDeleteSubscription) {
+      this.hostedProjectDeleteSubscription.unsubscribe();
     }
   }
 

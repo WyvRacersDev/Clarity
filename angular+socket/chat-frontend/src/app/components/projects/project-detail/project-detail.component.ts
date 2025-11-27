@@ -1,6 +1,6 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, ActivatedRoute } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
@@ -18,7 +18,7 @@ import { Screen_Element, ToDoLst, Text_document, Image, Video, scheduled_task } 
   templateUrl: './project-detail.component.html',
   styleUrls: ['./project-detail.component.css']
 })
-export class ProjectDetailComponent implements OnInit {
+export class ProjectDetailComponent implements OnInit, OnDestroy {
   // Make Math available in template
   Math = Math;
   
@@ -92,10 +92,16 @@ export class ProjectDetailComponent implements OnInit {
   isSaving = false;
   isLoading = false;
 
+  // Subscriptions
+  private hostedProjectUpdateSubscription: any;
+  private hostedProjectDeleteSubscription: any;
+  private elementUpdateSubscription: any;
+
   constructor(
     private dataService: DataService,
     private socketService: SocketService,
     private route: ActivatedRoute,
+    private router: Router,
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
   ) {}
@@ -124,9 +130,38 @@ export class ProjectDetailComponent implements OnInit {
     });
 
     // Listen for real-time updates
-    this.socketService.onElementUpdate().subscribe((data: any) => {
+    this.elementUpdateSubscription = this.socketService.onElementUpdate().subscribe((data: any) => {
       if (this.project && data.projectId === this.project.name) {
         this.loadProject();
+      }
+    });
+
+    // Listen for hosted project updates (broadcasted to all clients)
+    this.hostedProjectUpdateSubscription = this.socketService.onHostedProjectUpdated().subscribe((data: any) => {
+      console.log('[ProjectDetail] Received hostedProjectUpdated event:', data);
+      if (this.project) {
+        console.log(`[ProjectDetail] Current project: name="${this.project.name}", type="${(this.project as any).projectType}"`);
+        if ((this.project as any).projectType === 'hosted' && 
+            data.projectName === this.project.name) {
+          console.log('[ProjectDetail] ✓ Hosted project updated by another user, reloading from server...');
+          this.reloadProjectFromServer();
+        } else {
+          console.log('[ProjectDetail] ✗ Update ignored - project type mismatch or name mismatch');
+        }
+      } else {
+        console.log('[ProjectDetail] ✗ Update ignored - no current project');
+      }
+    });
+
+    // Listen for hosted project deletions
+    this.hostedProjectDeleteSubscription = this.socketService.onHostedProjectDeleted().subscribe((data: any) => {
+      console.log('[ProjectDetail] Received hostedProjectDeleted event:', data);
+      if (this.project && 
+          (this.project as any).projectType === 'hosted' && 
+          data.projectName === this.project.name) {
+        console.log('[ProjectDetail] Hosted project deleted by another user');
+        alert('This project has been deleted by another user.');
+        this.router.navigate(['/projects']);
       }
     });
 
@@ -147,6 +182,48 @@ export class ProjectDetailComponent implements OnInit {
       if (this.project.grid.length > 0 && this.selectedGridIndex >= this.project.grid.length) {
         this.selectedGridIndex = 0;
       }
+    }
+  }
+
+  async reloadProjectFromServer(): Promise<void> {
+    if (!this.project || !this.currentUser) {
+      console.warn('[ProjectDetail] Cannot reload: project or user is null');
+      return;
+    }
+
+    const projectType = (this.project as any).projectType;
+    if (!projectType) {
+      console.error(`[ProjectDetail] Cannot reload project ${this.project.name} - projectType is missing!`);
+      return;
+    }
+
+    console.log(`[ProjectDetail] Reloading project "${this.project.name}" from server (type: ${projectType})...`);
+    
+    try {
+      const reloadedProject = await this.dataService.loadProject(this.project.name, projectType);
+      if (reloadedProject) {
+        // Find the project in the user's projects array and update it
+        const index = this.currentUser.projects.findIndex(p => p.name === this.project!.name);
+        if (index !== -1) {
+          this.currentUser.projects[index] = reloadedProject;
+          this.project = reloadedProject;
+          this.projectIndex = index;
+          
+          // Ensure selectedGridIndex is still valid
+          if (this.project.grid.length > 0 && this.selectedGridIndex >= this.project.grid.length) {
+            this.selectedGridIndex = 0;
+          }
+          
+          console.log(`[ProjectDetail] ✓ Successfully reloaded project "${this.project.name}"`);
+          this.cdr.detectChanges();
+        } else {
+          console.warn(`[ProjectDetail] Project "${this.project.name}" not found in user's projects array`);
+        }
+      } else {
+        console.error(`[ProjectDetail] Failed to reload project "${this.project.name}" from server`);
+      }
+    } catch (error) {
+      console.error(`[ProjectDetail] Error reloading project:`, error);
     }
   }
 
@@ -786,7 +863,7 @@ export class ProjectDetailComponent implements OnInit {
     this.draggedElement.style.zIndex = '1000';
   }
 
-  onDocumentMouseUp(event: MouseEvent): void {
+  async onDocumentMouseUp(event: MouseEvent): Promise<void> {
     // Clear long-press timer
     if (this.longPressTimer) {
       clearTimeout(this.longPressTimer);
@@ -812,19 +889,22 @@ export class ProjectDetailComponent implements OnInit {
     const x = Math.max(0, event.clientX - containerRect.left - this.elementDragOffsetX);
     const y = Math.max(0, event.clientY - containerRect.top - this.elementDragOffsetY);
 
-    // Save the position to the element
-    const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
-    if (element) {
-      if ((element as any).set_xpos) {
-        (element as any).set_xpos(x);
-        (element as any).set_ypos(y);
-      } else {
-        (element as any).x_pos = x;
-        (element as any).y_pos = y;
+      // Save the position to the element
+      const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
+      if (element) {
+        if ((element as any).set_xpos) {
+          (element as any).set_xpos(x);
+          (element as any).set_ypos(y);
+        } else {
+          (element as any).x_pos = x;
+          (element as any).y_pos = y;
+        }
+        // Save to backend
+        const projectType = (this.project as any).projectType;
+        if (projectType) {
+          await this.dataService.saveProject(this.project, projectType);
+        }
       }
-      // Save to backend
-      this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
-    }
 
     this.draggedElement.style.opacity = '1';
     this.draggedElement.style.cursor = 'grab';
@@ -1022,6 +1102,19 @@ export class ProjectDetailComponent implements OnInit {
     if ((event.target as HTMLElement).closest('.canvas-container') && 
         !(event.target as HTMLElement).closest('.canvas-element')) {
       this.onCanvasMouseDown(event);
+    }
+  }
+
+  ngOnDestroy(): void {
+    // Clean up subscriptions
+    if (this.hostedProjectUpdateSubscription) {
+      this.hostedProjectUpdateSubscription.unsubscribe();
+    }
+    if (this.hostedProjectDeleteSubscription) {
+      this.hostedProjectDeleteSubscription.unsubscribe();
+    }
+    if (this.elementUpdateSubscription) {
+      this.elementUpdateSubscription.unsubscribe();
     }
   }
 }

@@ -135,17 +135,21 @@ export class DataService {
    * Save a project to the server
    */
   async saveProject(project: Project, projectType: 'local' | 'hosted' = 'local'): Promise<boolean> {
-    console.log('saveProject called, setting saving to true');
+    // Ensure projectType is set correctly - use from project if available, otherwise use parameter
+    const finalProjectType = (project as any).projectType || projectType;
+    console.log(`[DataService] saveProject called: project="${project.name}", projectType="${finalProjectType}"`);
     this.savingProjectSubject.next(true);
     try {
       // Ensure all elements are properly serialized before sending
       // This ensures toJSON() is called on all elements
       const serializedProject = this.serializeProjectForSaving(project);
+      // Make sure projectType is included in serialized project
+      serializedProject.project_type = finalProjectType;
       const response = await firstValueFrom(
-        this.socketService.saveProject(serializedProject, projectType)
+        this.socketService.saveProject(serializedProject, finalProjectType)
       );
       
-      console.log('Save response received:', response);
+      console.log(`[DataService] Save response received for project "${project.name}":`, response);
       
       if (response && response.success) {
         // Update user's project list if needed
