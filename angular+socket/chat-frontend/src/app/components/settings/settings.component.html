@@ -131,6 +131,44 @@
       </div>
     </div>
 
+    <!-- Server Configuration -->
+    <div class="settings-section">
+      <h2>Server Configuration</h2>
+      <p class="section-description">Configure the server IP/URL where hosted projects are stored</p>
+      
+      <div class="server-config-item">
+        <div class="setting-info">
+          <div class="setting-label">Server URL</div>
+          <div class="setting-description">Enter the server address (e.g., http://192.168.1.100:3000 or http://yourdomain.com:3000)</div>
+        </div>
+        <div class="server-config-input-group">
+          <input 
+            type="text" 
+            [(ngModel)]="serverUrl"
+            placeholder="http://localhost:3000"
+            class="server-url-input"
+            [disabled]="isSavingServerConfig">
+          <div class="server-config-buttons">
+            <button 
+              class="save-btn"
+              (click)="saveServerConfig()"
+              [disabled]="isSavingServerConfig || !serverUrl.trim()">
+              {{ isSavingServerConfig ? 'Saving...' : 'Save' }}
+            </button>
+            <button 
+              class="reset-btn"
+              (click)="resetServerConfig()"
+              [disabled]="isSavingServerConfig">
+              Reset to Default
+            </button>
+          </div>
+        </div>
+        <div class="server-config-note">
+          <p><strong>Note:</strong> Changing the server URL will reload the page. Make sure the server is accessible at the specified address.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Account Info -->
     <div class="settings-section">
       <h2>Account Information</h2>

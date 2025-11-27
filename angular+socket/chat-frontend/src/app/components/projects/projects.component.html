@@ -66,10 +66,13 @@
         </div>
         <div class="form-group">
           <label>Project Type</label>
-          <select [(ngModel)]="projectType">
-            <option value="local">📁 Local Project</option>
+          <select [(ngModel)]="projectType" [disabled]="!isLocalProjectsAvailable() && projectType === 'local'">
+            <option value="local" [disabled]="!isLocalProjectsAvailable()">📁 Local Project {{ !isLocalProjectsAvailable() ? '(Only on localhost)' : '' }}</option>
             <option value="hosted">🌐 Hosted/Shared Project</option>
           </select>
+          <p *ngIf="!isLocalProjectsAvailable()" class="form-hint">
+            Local projects are only available when connected to localhost. Switch to hosted projects or connect to a local server.
+          </p>
         </div>
       </div>
       <div class="modal-footer">

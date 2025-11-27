@@ -428,6 +428,18 @@
   box-shadow: 0 0 15px rgba(0, 201, 255, 0.4), inset 0 0 10px rgba(0, 255, 136, 0.05);
 }
 
+.form-group select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-hint {
+  font-size: 0.85rem;
+  color: var(--text-gray);
+  margin-top: 4px;
+  font-style: italic;
+}
+
 /* Loading Spinner */
 .spinner-small {
   display: inline-block;

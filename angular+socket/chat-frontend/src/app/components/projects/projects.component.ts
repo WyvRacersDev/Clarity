@@ -5,6 +5,7 @@ import { Router, RouterModule } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
+import { isLocalhostServer } from '../../config/app.config';
 
 @Component({
   selector: 'app-projects',
@@ -104,14 +105,25 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.hasLoadedProjects = false; // Reset before loading
     try {
       console.log('Loading projects from server...');
-      // Load both local and hosted projects in parallel (much faster!)
-      const [localProjects, hostedProjects] = await Promise.all([
-        this.dataService.listProjects('local'),
+      const isLocalhost = isLocalhostServer();
+      console.log(`[ProjectsComponent] Server is localhost: ${isLocalhost}`);
+      
+      // Only load local projects if server is localhost
+      // Always load hosted projects
+      const loadPromises: Promise<Project[]>[] = [
         this.dataService.listProjects('hosted')
-      ]);
+      ];
+      
+      if (isLocalhost) {
+        loadPromises.push(this.dataService.listProjects('local'));
+      }
+      
+      const results = await Promise.all(loadPromises);
+      const hostedProjects = results[0];
+      const localProjects = isLocalhost ? results[1] : [];
       
       // SIMPLE: Just combine the projects - they're already correctly typed from their directories
-      console.log(`[ProjectsComponent] Local projects:`, localProjects.map(p => p.name));
+      console.log(`[ProjectsComponent] Local projects (only if localhost):`, localProjects.map(p => p.name));
       console.log(`[ProjectsComponent] Hosted projects:`, hostedProjects.map(p => p.name));
       const allProjects = [...localProjects, ...hostedProjects];
       console.log(`[ProjectsComponent] All projects:`, allProjects.map(p => ({ name: p.name, type: (p as any).projectType })));
@@ -144,6 +156,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   async createProject(): Promise<void> {
     if (this.newProjectName.trim()) {
+      const isLocalhost = isLocalhostServer();
+      
+      // Only allow creating local projects if server is localhost
+      if (this.projectType === 'local' && !isLocalhost) {
+        alert('Local projects can only be created when connected to a localhost server. Please switch to hosted projects or connect to localhost.');
+        return;
+      }
+      
       const newProject = this.dataService.createProject(this.newProjectName.trim(), this.projectType);
       
       if (newProject && this.currentUser) {
@@ -151,6 +171,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         const saved = await this.dataService.saveProject(newProject, this.projectType);
         if (saved) {
           console.log('Project created and saved successfully');
+          // Reload projects to show the new one
+          await this.loadProjectsFromServer();
         } else {
           console.error('Failed to save project to server');
         }
@@ -158,6 +180,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       
       this.closeCreateModal();
     }
+  }
+  
+  // Check if local projects are available (only on localhost)
+  isLocalProjectsAvailable(): boolean {
+    return isLocalhostServer();
   }
 
   isLocalProject(project: Project): boolean {
