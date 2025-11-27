@@ -7,12 +7,26 @@ import { ProjectHandler } from "./project_handler.ts";
 import fs from "fs";
 import { google } from "googleapis";
 
+
+
 const CREDENTIALS_PATH = "../credentials.json";
 const TOKENS_PATH = "../tokens.json";
 
 import nodemailer from "nodemailer";
+
 import { env, loadEnvFile } from "process";
-loadEnvFile("/home/thebestdev/Desktop/FAST/5sem/SDA/Project/Clarity-clean/angular+socket/socket-server/.env")
+
+import { fileURLToPath } from "url";
+import path from "path";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// console.log("DIRNAME:", __dirname);
+// console.log("RESOLVED PATH:", path.resolve(__dirname, "../.env"));
+
+loadEnvFile(path.resolve(__dirname, "../.env")); //dynamic to bana lete bilal bro
+
+//loadEnvFile("/home/thebestdev/Desktop/FAST/5sem/SDA/Project/Clarity-clean/angular+socket/socket-server/.env")
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -29,7 +43,6 @@ async function sendEmail(userEmail: string,projectName: string, taskName: string
   html: `<p>You have a task "${taskName}" due in project "${projectName}" in 24 hours.</p>`
 });
 }
-
 
 function getOAuthClient() {
   const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8")).installed;
