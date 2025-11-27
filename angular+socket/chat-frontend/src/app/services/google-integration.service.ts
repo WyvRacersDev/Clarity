@@ -60,14 +60,21 @@ export class GoogleIntegrationService {
   }
 
 // 
-async connectGmail(): Promise<void> {
+async connectGmail(): Promise<any>  {
     await this.saveFrontendUrl();
     localStorage.setItem("oauth_in_progress", "1");
   window.location.href = "http://localhost:3000/auth";
   this.isGmailConnectedStatus = true;
+  //send another api call to get allowed permissions and gmail
+
   this.saveConnectionStatus();
   this.updateUserSettings();
 }
+  getGmailInfo(): Promise<any> {
+    const id = localStorage.getItem("gmail_tokenIndex");
+  console.log("Gmail token ID from localStorage:", id);
+  return firstValueFrom(this.http.get<any>(`http://localhost:3000/gmail/user-info?id=${id}`));
+  }
 
   disconnectGmail(): void {
     this.isGmailConnectedStatus = false;
