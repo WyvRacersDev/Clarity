@@ -224,6 +224,103 @@ input:checked + .slider:before {
   background: #fdd;
 }
 
+/* Server Configuration */
+.server-config-item {
+  padding: 16px 0;
+}
+
+.server-config-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.server-url-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.server-url-input:focus {
+  outline: none;
+  border-color: #0099FF;
+  box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.1);
+}
+
+.server-url-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.server-config-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.save-btn, .reset-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%);
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 153, 255, 0.4);
+}
+
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reset-btn {
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #e0e0e0;
+}
+
+.reset-btn:hover:not(:disabled) {
+  background: #eeeeee;
+}
+
+.reset-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.server-config-note {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+}
+
+.server-config-note p {
+  margin: 0;
+  color: #856404;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.server-config-note strong {
+  color: #664d03;
+}
+
 /* Account Info */
 .account-info {
   display: flex;

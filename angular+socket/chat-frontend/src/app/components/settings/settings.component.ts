@@ -5,6 +5,7 @@ import { DataService } from '../../services/data.service';
 import { GoogleIntegrationService } from '../../services/google-integration.service';
 import { User, settings } from '../../../../../shared_models/models/user.model';
 import { ActivatedRoute } from '@angular/router';
+import { getCurrentServerConfig, saveServerConfig } from '../../config/app.config';
 
 @Component({
   selector: 'app-settings',
@@ -20,6 +21,10 @@ export class SettingsComponent implements OnInit {
   isConnectingCalendar = false;
   isConnectingContacts = false;
   isConnectingGmail = false;
+  
+  // Server configuration
+  serverUrl: string = '';
+  isSavingServerConfig = false;
 
   constructor(
     private dataService: DataService,
@@ -37,6 +42,9 @@ export class SettingsComponent implements OnInit {
         this.userSettings = user.settings;
       }
     });
+    
+    // Load current server URL
+    this.serverUrl = getCurrentServerConfig();
   }
 
   toggleNotifications(): void {
@@ -129,5 +137,47 @@ export class SettingsComponent implements OnInit {
 
   isGmailConnected(): boolean {
     return this.googleIntegration.isGmailConnected();
+  }
+  
+  // Server configuration methods
+  saveServerConfig(): void {
+    if (!this.serverUrl.trim()) {
+      alert('Please enter a valid server URL');
+      return;
+    }
+    
+    // Validate URL format
+    try {
+      const url = new URL(this.serverUrl);
+      // URL is valid
+    } catch (e) {
+      // Try adding http:// if protocol is missing
+      if (!this.serverUrl.startsWith('http://') && !this.serverUrl.startsWith('https://')) {
+        this.serverUrl = 'http://' + this.serverUrl;
+      } else {
+        alert('Please enter a valid server URL (e.g., http://192.168.1.100:3000)');
+        return;
+      }
+    }
+    
+    this.isSavingServerConfig = true;
+    try {
+      saveServerConfig(this.serverUrl);
+      alert('Server URL saved successfully! You may need to refresh the page for changes to take effect.');
+      // Reload the page to apply new server URL
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      console.error('Error saving server URL:', error);
+      alert('Failed to save server URL');
+    } finally {
+      this.isSavingServerConfig = false;
+    }
+  }
+  
+  resetServerConfig(): void {
+    this.serverUrl = 'http://localhost:3000';
+    this.saveServerConfig();
   }
 }
