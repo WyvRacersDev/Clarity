@@ -5,6 +5,7 @@ import { User, settings } from '../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../shared_models/models/project.model';
 import { Screen_Element, objects_builder } from '../../../../shared_models/models/screen_elements.model';
 import { SocketService } from './socket.service';
+import { getServerConfig } from '../config/app.config';
 
 @Injectable({
   providedIn: 'root'
@@ -386,6 +387,40 @@ export class DataService {
   }
 
   /**
+   * Convert localhost URLs to server URL for images/videos
+   */
+  private convertLocalhostUrls(element: Screen_Element): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    
+    const serverUrl = getServerConfig();
+    const elem = element as any;
+    
+    // Convert image paths
+    if (elem.imagepath && typeof elem.imagepath === 'string') {
+      if (elem.imagepath.startsWith('http://localhost:') || elem.imagepath.startsWith('https://localhost:')) {
+        // Extract the path part after /projects
+        const pathMatch = elem.imagepath.match(/\/projects\/(.+)$/);
+        if (pathMatch) {
+          elem.imagepath = `${serverUrl}/projects/${pathMatch[1]}`;
+          console.log(`[DataService] Converted image URL from localhost to: ${elem.imagepath}`);
+        }
+      }
+    }
+    
+    // Convert video paths
+    if (elem.VideoPath && typeof elem.VideoPath === 'string') {
+      if (elem.VideoPath.startsWith('http://localhost:') || elem.VideoPath.startsWith('https://localhost:')) {
+        // Extract the path part after /projects
+        const pathMatch = elem.VideoPath.match(/\/projects\/(.+)$/);
+        if (pathMatch) {
+          elem.VideoPath = `${serverUrl}/projects/${pathMatch[1]}`;
+          console.log(`[DataService] Converted video URL from localhost to: ${elem.VideoPath}`);
+        }
+      }
+    }
+  }
+
+  /**
    * Deserialize a project from JSON data
    */
   private deserializeProject(data: any): Project {
@@ -402,6 +437,8 @@ export class DataService {
           gridData.Screen_elements.forEach((elementData: any) => {
             const element = objects_builder.rebuild(elementData);
             if (element) {
+              // Convert localhost URLs to server URL
+              this.convertLocalhostUrls(element);
               grid.add_element(element as any);
             }
           });

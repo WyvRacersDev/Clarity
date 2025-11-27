@@ -6,6 +6,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { DataService } from '../../../services/data.service';
 import { SocketService } from '../../../services/socket.service';
+import { getServerConfig } from '../../../config/app.config';
 import { User } from '../../../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../../../shared_models/models/project.model';
 import { Screen_Element, ToDoLst, Text_document, Image, Video, scheduled_task } from '../../../../../../shared_models/models/screen_elements.model';
@@ -250,8 +251,9 @@ export class ProjectDetailComponent implements OnInit {
         );
         
         if (uploadResponse.success && uploadResponse.filePath) {
-          // Create element with local file path (server serves from /projects, so path is relative to that)
-          const localPath = `http://localhost:3000/projects/${projectType}/${uploadResponse.filePath}`;
+          // Create element with server file path (server serves from /projects, so path is relative to that)
+          const serverUrl = getServerConfig();
+          const localPath = `${serverUrl}/projects/${projectType}/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Image uploaded, using path: ${localPath}`);
           const element = new Image(localPath, 400, 300, 'New Image');
           element.set_x_scale(300); // width
@@ -295,8 +297,9 @@ export class ProjectDetailComponent implements OnInit {
         );
         
         if (uploadResponse.success && uploadResponse.filePath) {
-          // Create element with local file path (server serves from /projects, so path is relative to that)
-          const localPath = `http://localhost:3000/projects/${projectType}/${uploadResponse.filePath}`;
+          // Create element with server file path (server serves from /projects, so path is relative to that)
+          const serverUrl = getServerConfig();
+          const localPath = `${serverUrl}/projects/${projectType}/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Video uploaded, using path: ${localPath}`);
           const element = new Video(localPath, 400, 300, 'New Video');
           element.set_x_scale(400); // width
