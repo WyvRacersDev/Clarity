@@ -500,7 +500,6 @@ app.get("/oauth2callback", async (req:any, res:any) => {
         throw new Error("User email is missing");
     }
     tokenStore.entries[email] = {id:tokenStore.nextId++, ...tokens };
-    tokenStore.nextId++;
 
     // === Write back to file ===
 
@@ -516,8 +515,8 @@ function loadTokenStore(): TokenStore {
   return JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
 }
 
-app.get("/gmail/user-info/:id", (req, res) => {
-  const id = Number(req.params.id);
+app.get("/gmail/user-info", (req, res) => {
+  const id = Number(req.query.id);
   if (!id) return res.status(400).json({ error: "Missing id" });
 
   const tokenStore = loadTokenStore();
@@ -529,7 +528,7 @@ app.get("/gmail/user-info/:id", (req, res) => {
   const email = Object.keys(tokenStore.entries).find(
     (key) => tokenStore.entries?.[key]?.id === id
   );
-
+  console.log("Lookup for id:", id, "found email:", email);
   if (!email)
     return res.status(404).json({ error: "User not found for given id" });
 
