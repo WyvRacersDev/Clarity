@@ -1,0 +1,11 @@
+{
+  "type": "User",
+  "name": "Demo User",
+  "settings": {
+    "recieve_notifications": true,
+    "allow_invite": true,
+    "allow_google_calender": true
+  },
+  "contacts": [],
+  "projects": []
+}
