@@ -1,0 +1,18 @@
+{
+  "type": "User",
+  "name": "l230757@lhr.nu.edu.pk",
+  "settings": {
+    "type": "settings",
+    "recieve_notifications": false,
+    "allow_invite": true,
+    "allow_google_calender": true
+  },
+  "contacts": [
+    {
+      "type": "contact",
+      "contact_detail": "bilal2006kashif@gmail.com"
+    }
+  ],
+  "projectReferences": [],
+  "lastModified": "2025-11-28T16:30:15.333Z"
+}

@@ -45,25 +45,27 @@ export class DataService {
       return;
     }
 
-   if (!isPlatformBrowser(this.platformId)) return;
-
-  const saved = localStorage.getItem("clarity_users");
-  const currentName = localStorage.getItem("current_user_id");
-  console.log("Loaded from storage:", saved, currentName);
-  if (saved && currentName) {
-    try {
-      const users = JSON.parse(saved);
-      const userEntry = users.find((u: any[]) => u[0] === String(currentName));
-
-      if (userEntry) {
-        const user = userEntry[1];
-        console.log("Restoring user:", user);
-        this.currentUserSubject.next(user);   // <-- IMPORTANT
+const saved = localStorage.getItem("clarity_users");
+    // Try current_user_name first (the name), fallback to current_user_id for backward compatibility
+    const currentName = localStorage.getItem("current_user_name") || localStorage.getItem("current_user_id");
+    console.log("Loaded from storage:", saved, currentName);
+    
+    if (saved && currentName) {
+      try {
+        const users = JSON.parse(saved);
+        // Find user by name (the first element of each entry is the user name)
+        const userEntry = users.find((u: any[]) => u[0] === String(currentName));
+        if (userEntry) {
+          const user = userEntry[1];
+          console.log("Restoring user:", user);
+          this.currentUserName = user.name;
+          this.usersData.set(user.name, user);
+          this.currentUserSubject.next(user);
+        }
+      } catch (e) {
+        console.error("Error parsing user data:", e);
       }
-    } catch (e) {
-      console.error("Error parsing user data:", e);
     }
-  }
   }
 
   // User management
@@ -81,17 +83,24 @@ export class DataService {
     const existingUser = this.findUserByName(name);
     if (existingUser) {
       // User exists, log them in
+       this.currentUserName = existingUser.name;
       this.currentUserSubject.next(existingUser);
+            if (isPlatformBrowser(this.platformId)) {
+        localStorage.setItem("current_user_name", existingUser.name);
+      }
       return existingUser;
     }
 
     // Create new user
-    //const userId = Date.now(); // Simple ID generation
-    //const userName="l230757@lhr.nu.edu.pk"
+
     const userSettings = new settings();
     const user = new User( name, userSettings);
     this.usersData.set(user.name, user);
+    this.currentUserName = user.name;
     this.currentUserSubject.next(user);
+        if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem("current_user_name", user.name);
+    }
     this.saveToStorage();
     return user;
   }
