@@ -457,9 +457,20 @@ app.get("/auth", (req:any, res:any) => {
   res.redirect(authUrl);
 });
 
-interface TokenStore 
-{  //used to avoid TS from throwing a fit
-  [email: string]: any; // or a more specific type for tokens
+// interface TokenStore 
+// {  //used to avoid TS from throwing a fit
+//   [email: string]: any; // or a more specific type for tokens
+// }
+export interface TokenStore {
+  nextId: number;
+
+  // Normal entries object
+  entries: {
+    [email: string]: {id: number; [key: string]: any};
+  };
+
+  // Additional dynamic keys at top level
+  [email: string]: any;
 }
 
 // === Handle OAuth callback ===
@@ -475,7 +486,7 @@ app.get("/oauth2callback", async (req:any, res:any) => {
     const userInfo = await oauth2.userinfo.get();
 
     // === Read existing tokens ===
-    let tokenStore:TokenStore = {};
+    let tokenStore:TokenStore = { nextId: 0, entries: {} };
 
     if (fs.existsSync(TOKEN_PATH)) {
       tokenStore = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
@@ -488,14 +499,44 @@ app.get("/oauth2callback", async (req:any, res:any) => {
     {
         throw new Error("User email is missing");
     }
-    tokenStore[email] = tokens;
+    tokenStore.entries[email] = {id:tokenStore.nextId++, ...tokens };
+    tokenStore.nextId++;
+
+    // === Write back to file ===
 
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenStore, null, 2));
-      return res.redirect(`${FRONTEND_URL}/settings?oauth=success`);
+      return res.redirect(`${FRONTEND_URL}/settings?oauth=success&&id=${tokenStore.entries[email].id}`);
   } catch (err) {
     console.error("Error during OAuth callback:", err);
     res.status(500).send("Error retrieving access token");
   }
+});
+function loadTokenStore(): TokenStore {
+  if (!fs.existsSync(TOKEN_PATH)) return { nextId: 0, entries: {} };
+  return JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
+}
+
+app.get("/gmail/user-info/:id", (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: "Missing id" });
+
+  const tokenStore = loadTokenStore();
+
+  if (!tokenStore.entries)
+    return res.status(404).json({ error: "No tokens found" });
+
+  // Find email that matches the ID
+  const email = Object.keys(tokenStore.entries).find(
+    (key) => tokenStore.entries?.[key]?.id === id
+  );
+
+  if (!email)
+    return res.status(404).json({ error: "User not found for given id" });
+
+  return res.json({
+    email,
+    tokens: tokenStore.entries[email],
+  });
 });
 
 // === Example protected route ===

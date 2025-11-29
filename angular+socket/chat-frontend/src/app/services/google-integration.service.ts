@@ -4,7 +4,7 @@ import { User, settings } from '../../../../shared_models/models/user.model';
 import { DataService } from './data.service';
 import { firstValueFrom } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { provideHttpClient } from '@angular/common/http';
+import { getServerConfig } from '../config/app.config';
 
 
 @Injectable({
@@ -16,11 +16,15 @@ export class GoogleIntegrationService {
   private isGmailConnectedStatus = false;
 
   constructor(
-    private dataService: DataService,private http: HttpClient,
+    private dataService: DataService,
+    private http: HttpClient,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     // Load connection status from localStorage
     this.loadConnectionStatus();
+  }
+    private getServerUrl(): string {
+    return getServerConfig();
   }
 
   connectGoogleCalendar(): Promise<boolean> {
@@ -63,17 +67,16 @@ export class GoogleIntegrationService {
 async connectGmail(): Promise<any>  {
     await this.saveFrontendUrl();
     localStorage.setItem("oauth_in_progress", "1");
-  window.location.href = "http://localhost:3000/auth";
-  this.isGmailConnectedStatus = true;
-  //send another api call to get allowed permissions and gmail
+  window.location.href = `${this.getServerUrl()}/auth`;
+    this.isGmailConnectedStatus = true;
+    this.saveConnectionStatus();
+    this.updateUserSettings();
+  }
 
-  this.saveConnectionStatus();
-  this.updateUserSettings();
-}
-  getGmailInfo(): Promise<any> {
-    const id = localStorage.getItem("gmail_tokenIndex");
-  console.log("Gmail token ID from localStorage:", id);
-  return firstValueFrom(this.http.get<any>(`http://localhost:3000/gmail/user-info?id=${id}`));
+  getGmailInfo(tokenId?: string): Promise<any> {
+    const id = tokenId || localStorage.getItem("gmail_tokenIndex");
+    console.log("Gmail token ID:", id);
+    return firstValueFrom(this.http.get<any>(`${this.getServerUrl()}/gmail/user-info?id=${id}`));
   }
 
   disconnectGmail(): void {
@@ -136,11 +139,11 @@ async connectGmail(): Promise<any>  {
   saveFrontendUrl(): Promise<void> {
   const frontendUrl = window.location.origin;
 
-  return fetch("http://localhost:3000/set-redirect-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ frontendUrl })
-  }).then(() => {});
-}
+ return fetch(`${this.getServerUrl()}/set-redirect-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ frontendUrl })
+    }).then(() => {});
+  }
 }
 

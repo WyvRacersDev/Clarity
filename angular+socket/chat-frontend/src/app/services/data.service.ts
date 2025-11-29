@@ -47,7 +47,7 @@ export class DataService {
 
 const saved = localStorage.getItem("clarity_users");
     // Try current_user_name first (the name), fallback to current_user_id for backward compatibility
-    const currentName = localStorage.getItem("current_user_name") || localStorage.getItem("current_user_id");
+    const currentName = localStorage.getItem("current_user_name");
     console.log("Loaded from storage:", saved, currentName);
     
     if (saved && currentName) {
@@ -631,8 +631,90 @@ const saved = localStorage.getItem("clarity_users");
   logout(): void {
     this.currentUserName = null;
     this.currentUserSubject.next(null);
-      // 🔥 Clear login persistence
-  localStorage.removeItem("current_user_name");
+      // Clear login persistence
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem("current_user_name");
+    }
+  }
+
+  /**
+   * Update the current user's username to their email (after OAuth)
+   * This transfers user data to the new email-based username
+   */
+  updateUsernameToEmail(email: string): User | null {
+    if (!isPlatformBrowser(this.platformId)) {
+      return null;
+    }
+
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) {
+      // No current user, create a new one with email
+      return this.createUser(email);
+    }
+    const oldName = currentUser.name;
+    
+    // If already using this email, just return the user
+    if (oldName === email) {
+      console.log('[DataService] Username is already set to email:', email);
+      return currentUser;
+    }
+
+    console.log(`[DataService] Updating username from "${oldName}" to "${email}"`);
+
+    // Update the user's name
+    currentUser.name = email;
+    
+    // Remove old entry from usersData
+    this.usersData.delete(oldName);
+    
+    // Add new entry with email as key
+    this.usersData.set(email, currentUser);
+    this.currentUserName = email;
+    
+    // Update localStorage
+    localStorage.setItem("current_user_name", email);
+    localStorage.setItem('clarity_users', JSON.stringify(Array.from(this.usersData.entries())));
+    
+    // Emit updated user
+    this.currentUserSubject.next(currentUser);
+     // Identify to server with new username
+    this.socketService.identifyUser(email);
+    
+    console.log('[DataService] Username updated successfully to:', email);
+    return currentUser;
+  }
+
+  /**
+   * Load projects for the current user from the server
+   * Called after OAuth to load projects associated with the email
+   */
+  async loadUserProjects(): Promise<void> {
+    const user = this.getCurrentUser();
+    if (!user) {
+      console.error('[DataService] No user logged in');
+      return;
+    }
+
+    console.log(`[DataService] Loading projects for user: ${user.name}`);
+    
+    // Clear existing projects
+    user.projects = [];
+    
+    // Load local projects
+    const localProjects = await this.listProjects('local');
+    
+    // Load hosted projects
+    const hostedProjects = await this.listProjects('hosted');
+     // Combine and set projects
+    user.projects = [...localProjects, ...hostedProjects];
+    
+    console.log(`[DataService] Loaded ${user.projects.length} projects for user ${user.name}`);
+    
+    // Emit updated user
+    this.currentUserSubject.next(user);
+    
+    // Save to storage
+    this.saveUserDataToStorage();
   }
 }
 
