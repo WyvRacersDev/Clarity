@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { GoogleIntegrationService } from '../../services/google-integration.service';
 import { User, settings } from '../../../../../shared_models/models/user.model';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute , Router } from '@angular/router';
 import { getCurrentServerConfig, saveServerConfig } from '../../config/app.config';
 
 @Component({
@@ -21,6 +21,7 @@ export class SettingsComponent implements OnInit {
   isConnectingCalendar = false;
   isConnectingContacts = false;
   isConnectingGmail = false;
+  isProcessingOAuth = false;
   
   // Server configuration
   serverUrl: string = '';
@@ -29,13 +30,30 @@ export class SettingsComponent implements OnInit {
   constructor(
     private dataService: DataService,
     private route: ActivatedRoute,
+        private router: Router,
     private googleIntegration: GoogleIntegrationService
   ) {}
 
-  ngOnInit(): void {
-      if (this.route.snapshot.queryParamMap.has('oauth')) {
-    localStorage.removeItem("oauth_in_progress");
-  }
+ async ngOnInit(): Promise<void> {
+    // Handle OAuth callback
+    const oauthStatus = this.route.snapshot.queryParamMap.get('oauth');
+    const tokenId = this.route.snapshot.queryParamMap.get('id');
+    
+    if (oauthStatus === 'success' && tokenId) {
+      localStorage.removeItem("oauth_in_progress");
+      // Store the token ID for future use
+      localStorage.setItem("gmail_tokenIndex", tokenId);
+      console.log('[Settings] OAuth successful, token ID stored:', tokenId);
+      // Process OAuth: get email and update username
+      await this.processOAuthCallback(tokenId);
+      
+      // Clean the URL by removing query params
+      this.router.navigate(['/settings'], { replaceUrl: true });
+    } else if (this.route.snapshot.queryParamMap.has('oauth')) {
+      // OAuth failed or was cancelled
+      localStorage.removeItem("oauth_in_progress");
+      this.router.navigate(['/settings'], { replaceUrl: true });
+    }
     this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
       if (user) {
@@ -46,7 +64,42 @@ export class SettingsComponent implements OnInit {
     // Load current server URL
     this.serverUrl = getCurrentServerConfig();
   }
-
+/**
+   * Process OAuth callback: fetch Gmail user info, update username to email, and load projects
+   */
+  private async processOAuthCallback(tokenId: string): Promise<void> {
+    this.isProcessingOAuth = true;
+    
+    try {
+      console.log('[Settings] Processing OAuth callback with token ID:', tokenId);
+      
+      // Get Gmail user info
+      const gmailInfo = await this.googleIntegration.getGmailInfo(tokenId);
+      console.log('[Settings] Gmail user info:', gmailInfo);
+      
+      if (gmailInfo && gmailInfo.email) {
+        const email = gmailInfo.email;
+        console.log('[Settings] Updating username to email:', email);
+        
+        // Update the username to the email
+        const updatedUser = this.dataService.updateUsernameToEmail(email);
+        
+        if (updatedUser) {
+          console.log('[Settings] Username updated successfully. Loading projects...');
+          
+          // Load projects for the new email-based username
+          await this.dataService.loadUserProjects();
+          
+          console.log('[Settings] OAuth processing complete');
+        } } else {
+        console.error('[Settings] No email found in Gmail info:', gmailInfo);
+      }
+    } catch (error) {
+      console.error('[Settings] Error processing OAuth callback:', error);
+    } finally {
+      this.isProcessingOAuth = false;
+    }
+  }
   toggleNotifications(): void {
     if (this.userSettings) {
       this.userSettings.toggle_notif();
