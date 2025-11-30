@@ -1,7 +1,7 @@
-// import { Project } from "../models/project.model";
-// import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
-// import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-// dayjs.extend(isSameOrBefore);
+import { Project } from "../models/project.model";
+import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+dayjs.extend(isSameOrBefore);
 export class User {
     constructor(name, settings) {
         //password:string; //ye to encrypt kerna parhay ga lol
@@ -37,18 +37,6 @@ export class User {
             return false;
         }
     }
-    /**
-     * Serialize user to JSON
-     */
-    toJSON() {
-        return {
-            type: 'User',
-            name: this.name,
-            settings: this.settings ? this.settings.toJSON() : null,
-            contacts: this.contacts.map(c => c.toJSON()),
-            projects: this.projects.map(p => p.name) // Just store project names as references
-        };
-    }
 }
 //NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS
 export class settings {
@@ -75,32 +63,10 @@ export class settings {
     get_calender_status() {
         return this.allow_google_calender;
     }
-    /**
-     * Serialize settings to JSON
-     */
-    toJSON() {
-        return {
-            recieve_notifications: this.recieve_notifications,
-            allow_invite: this.allow_invite,
-            allow_google_calender: this.allow_google_calender
-        };
-    }
 }
-export class contact {
-    constructor(detail, name, phone) {
+class contact {
+    constructor(detail) {
         this.contact_detail = detail;
-        this.name = name;
-        this.phone = phone;
-    }
-    /**
-     * Serialize contact to JSON
-     */
-    toJSON() {
-        return {
-            contact_detail: this.contact_detail,
-            name: this.name,
-            phone: this.phone
-        };
     }
 }
 export class calender {
@@ -127,50 +93,6 @@ export class calender {
             const t = dayjs(task.get_time());
             return t.isBefore(now) && !task.get_status();
         });
-    }
-}
-/**
- * Builder class for reconstructing User objects from JSON data
- */
-export class user_builder {
-    /**
-     * Rebuild a User object from JSON data
-     */
-    static rebuild(data) {
-        if (!data) {
-            throw new Error('Cannot rebuild User from null/undefined data');
-        }
-        // Rebuild settings
-        const userSettings = user_builder.rebuildSettings(data.settings || {});
-        // Create user
-        const user = new User(data.name || '', userSettings);
-        // Rebuild contacts
-        if (data.contacts && Array.isArray(data.contacts)) {
-            user.contacts = data.contacts.map((c) => user_builder.rebuildContact(c));
-        }
-        else {
-            user.contacts = [];
-        }
-        // Projects are stored as references (names), not full objects
-        // They will be loaded separately from the server
-        user.projects = [];
-        return user;
-    }
-    /**
-     * Rebuild a settings object from JSON data
-     */
-    static rebuildSettings(obj) {
-        const s = new settings();
-        s.recieve_notifications = obj.recieve_notifications !== undefined ? obj.recieve_notifications : true;
-        s.allow_invite = obj.allow_invite !== undefined ? obj.allow_invite : true;
-        s.allow_google_calender = obj.allow_google_calender !== undefined ? obj.allow_google_calender : true;
-        return s;
-    }
-    /**
-     * Rebuild a contact object from JSON data
-     */
-    static rebuildContact(obj) {
-        return new contact(obj.contact_detail || obj.email || '', obj.name, obj.phone);
     }
 }
 //NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS

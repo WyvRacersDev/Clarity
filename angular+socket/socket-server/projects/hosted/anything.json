@@ -14,10 +14,19 @@
           "x_scale": 300,
           "y_scale": 200,
           "imagepath": "http://10.193.21.138:3000/projects/hosted/anything_assets/IMG_5565_1764324861190_22u2x6.webp"
+        },
+        {
+          "type": "ToDoLst",
+          "name": "Tasks",
+          "x_pos": 200,
+          "y_pos": 200,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": []
         }
       ]
     }
   ],
   "project_type": "hosted",
-  "lastModified": "2025-11-28T10:15:33.145Z"
+  "lastModified": "2025-11-30T10:15:46.628Z"
 }

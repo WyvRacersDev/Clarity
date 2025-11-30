@@ -19,9 +19,14 @@
               "taskname": "wakarimashita",
               "priority": 2,
               "is_done": false,
-              "time": "2025-11-29T17:47:00.000Z"
+              "time": "2025-11-29T17:47:00.000Z",
+              "creation_time": "2025-11-29T08:18:27.591Z",
+              "completion_time": null,
+              "completed_by": null
             }
-          ]
+          ],
+          "collaborators": [],
+          "tags": []
         }
       ]
     }

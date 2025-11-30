@@ -9,25 +9,27 @@
         {
           "type": "ToDoLst",
           "name": "object1",
-          "x_pos": 200,
-          "y_pos": 200,
+          "x_pos": 321.20001220703125,
+          "y_pos": 221.19998168945312,
           "x_scale": 1,
           "y_scale": 1,
-          "scheduled_tasks": []
+          "scheduled_tasks": [],
+          "collaborators": [],
+          "tags": []
         },
         {
           "type": "Object",
           "name": "New Image",
-          "x_pos": 400,
-          "y_pos": 300,
+          "x_pos": 694.6000366210938,
+          "y_pos": 244.60000610351562,
           "x_scale": 300,
           "y_scale": 200
         },
         {
           "type": "ToDoLst",
           "name": "Object",
-          "x_pos": 200,
-          "y_pos": 200,
+          "x_pos": 85.60000610351562,
+          "y_pos": 57.600006103515625,
           "x_scale": 1,
           "y_scale": 1,
           "scheduled_tasks": [
@@ -36,13 +38,21 @@
               "taskname": "Gmail reminder",
               "priority": 1,
               "is_done": false,
-              "time": "2025-11-27T12:30:00.000Z"
+              "time": "2025-11-27T12:30:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-11-30T11:19:48.409Z"
             }
+          ],
+          "collaborators": [],
+          "tags": [
+            "hi",
+            "hello"
           ]
         }
       ]
     }
   ],
   "project_type": "local",
-  "lastModified": "2025-11-26T19:26:52.571Z"
+  "lastModified": "2025-11-30T11:19:58.334Z"
 }
