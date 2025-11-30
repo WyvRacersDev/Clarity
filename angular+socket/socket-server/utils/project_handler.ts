@@ -47,7 +47,7 @@ export class ProjectHandler {
 
     serializeProject(project: any): any {
         console.log(`[ProjectHandler] serializeProject called for project: ${project.name}`);
-        return {
+            return {
             owner_name: project.owner_name,
             name: project.name,
             projectType: project.project_type || 'local',
@@ -102,6 +102,8 @@ export class ProjectHandler {
                     }
                     if (element.scheduled_tasks !== undefined) {
                         serialized.scheduled_tasks = element.scheduled_tasks.map((t: any) => t.toJSON ? t.toJSON() : t);
+                        serialized.collaborators = element.collaborators || [];
+                        serialized.tags = element.tags || [];
                     }
                     
                     console.log(`[ProjectHandler] Element serialized manually:`, serialized);

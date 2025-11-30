@@ -21,7 +21,7 @@ import { Screen_Element, ToDoLst, Text_document, Image, Video, scheduled_task } 
 export class ProjectDetailComponent implements OnInit, OnDestroy {
   // Make Math available in template
   Math = Math;
-  
+
   currentUser: User | null = null;
   project: Project | null = null;
   projectIndex: number = -1;
@@ -42,21 +42,25 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   isEditingText = false;
   editingTextIndex = -1;
   editingTextContent = '';
-  
+
   // Full-screen todo list view
   showFullScreenTodo = false;
   fullScreenTodoElement: ToDoLst | null = null;
   fullScreenTodoElementIndex = -1;
   fullScreenTodoGridIndex = -1;
   showCompletedTasks = true;
-  
+
+  // Tag editing
+  editingTagInput: string = '';
+  selectedTodoForTagEdit: any = null;
+
   // Element selection and editing
   selectedElementIndex = -1;
   editingElementIndex = -1;
   editingElementName = '';
   editingElementNameIndex = -1;
   editingElementNameGridIndex = -1;
-  
+
   // Canvas dragging
   draggedElement: HTMLElement | null = null;
   draggedElementIndex: number = -1;
@@ -75,11 +79,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   startResizeY: number = 0;
   startWidth: number = 0;
   startHeight: number = 0;
-  
+
   // New element on canvas
   showElementTypeSelector = false;
   fileInput: HTMLInputElement | null = null;
-  
+
   // Canvas properties
   canvasZoom: number = 1;
   canvasPanX: number = 0;
@@ -104,7 +108,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     private router: Router,
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
@@ -123,7 +127,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       console.log('Project detail - Saving state changed:', loading);
       this.cdr.detectChanges();
     });
-    
+
     this.dataService.loadingProject$.subscribe(loading => {
       this.isLoading = loading;
       this.cdr.detectChanges();
@@ -141,8 +145,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       console.log('[ProjectDetail] Received hostedProjectUpdated event:', data);
       if (this.project) {
         console.log(`[ProjectDetail] Current project: name="${this.project.name}", type="${(this.project as any).projectType}"`);
-        if ((this.project as any).projectType === 'hosted' && 
-            data.projectName === this.project.name) {
+        if ((this.project as any).projectType === 'hosted' &&
+          data.projectName === this.project.name) {
           console.log('[ProjectDetail] ✓ Hosted project updated by another user, reloading from server...');
           this.reloadProjectFromServer();
         } else {
@@ -156,9 +160,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // Listen for hosted project deletions
     this.hostedProjectDeleteSubscription = this.socketService.onHostedProjectDeleted().subscribe((data: any) => {
       console.log('[ProjectDetail] Received hostedProjectDeleted event:', data);
-      if (this.project && 
-          (this.project as any).projectType === 'hosted' && 
-          data.projectName === this.project.name) {
+      if (this.project &&
+        (this.project as any).projectType === 'hosted' &&
+        data.projectName === this.project.name) {
         console.log('[ProjectDetail] Hosted project deleted by another user');
         alert('This project has been deleted by another user.');
         this.router.navigate(['/projects']);
@@ -198,7 +202,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
 
     console.log(`[ProjectDetail] Reloading project "${this.project.name}" from server (type: ${projectType})...`);
-    
+
     try {
       const reloadedProject = await this.dataService.loadProject(this.project.name, projectType);
       if (reloadedProject) {
@@ -208,12 +212,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           this.currentUser.projects[index] = reloadedProject;
           this.project = reloadedProject;
           this.projectIndex = index;
-          
+
           // Ensure selectedGridIndex is still valid
           if (this.project.grid.length > 0 && this.selectedGridIndex >= this.project.grid.length) {
             this.selectedGridIndex = 0;
           }
-          
+
           console.log(`[ProjectDetail] ✓ Successfully reloaded project "${this.project.name}"`);
           this.cdr.detectChanges();
         } else {
@@ -266,7 +270,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   selectElementType(type: 'ToDoLst' | 'Image' | 'Video' | 'Text_document'): void {
     this.newElementType = type;
     this.showElementTypeSelector = false;
-    
+
     if (type === 'Image') {
       this.triggerImageUpload();
     } else if (type === 'Video') {
@@ -280,7 +284,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async createTodoElement(): Promise<void> {
     if (!this.project || this.selectedGridIndex < 0) return;
-    
+
     const element = new ToDoLst('Tasks', 200, 200);
     await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
     this.loadProject(); // Reload to see the changes
@@ -292,10 +296,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (this.fileInput) {
       this.fileInput.remove();
     }
-      this.fileInput = document.createElement('input');
-      this.fileInput.type = 'file';
-      this.fileInput.accept = 'image/*';
-      this.fileInput.onchange = () => this.handleImageUpload();
+    this.fileInput = document.createElement('input');
+    this.fileInput.type = 'file';
+    this.fileInput.accept = 'image/*';
+    this.fileInput.onchange = () => this.handleImageUpload();
     this.fileInput.click();
   }
 
@@ -304,29 +308,29 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (this.fileInput) {
       this.fileInput.remove();
     }
-      this.fileInput = document.createElement('input');
-      this.fileInput.type = 'file';
-      this.fileInput.accept = 'video/*';
-      this.fileInput.onchange = () => this.handleVideoUpload();
+    this.fileInput = document.createElement('input');
+    this.fileInput.type = 'file';
+    this.fileInput.accept = 'video/*';
+    this.fileInput.onchange = () => this.handleVideoUpload();
     this.fileInput.click();
   }
 
   async handleImageUpload(): Promise<void> {
     if (!this.fileInput || !this.fileInput.files || !this.project) return;
-    
+
     const file = this.fileInput.files[0];
     const reader = new FileReader();
-    
+
     reader.onload = async (e: any) => {
       try {
         const imageDataUrl = e.target.result as string;
         const projectType = (this.project as any).projectType || 'local';
-        
+
         // Upload file to server and get local path
         const uploadResponse = await firstValueFrom(
           this.socketService.uploadFile(this.project!.name, projectType, file.name, imageDataUrl, 'image')
         );
-        
+
         if (uploadResponse.success && uploadResponse.filePath) {
           // Create element with server file path (server serves from /projects, so path is relative to that)
           const serverUrl = getServerConfig();
@@ -353,26 +357,26 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         alert('Error uploading image. Please try again.');
       }
     };
-    
+
     reader.readAsDataURL(file);
   }
 
   async handleVideoUpload(): Promise<void> {
     if (!this.fileInput || !this.fileInput.files || !this.project) return;
-    
+
     const file = this.fileInput.files[0];
     const reader = new FileReader();
-    
+
     reader.onload = async (e: any) => {
       try {
         const videoDataUrl = e.target.result as string;
         const projectType = (this.project as any).projectType || 'local';
-        
+
         // Upload file to server and get local path
         const uploadResponse = await firstValueFrom(
           this.socketService.uploadFile(this.project!.name, projectType, file.name, videoDataUrl, 'video')
         );
-        
+
         if (uploadResponse.success && uploadResponse.filePath) {
           // Create element with server file path (server serves from /projects, so path is relative to that)
           const serverUrl = getServerConfig();
@@ -399,11 +403,15 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         alert('Error uploading video. Please try again.');
       }
     };
-    
+
     reader.readAsDataURL(file);
   }
 
   async onTaskToggle(task: any): Promise<void> {
+    if (task.get_status()) {
+      task.mark_incomplete();
+    } else
+      task.mark_complete(this.currentUser);
     task.toggle_done_status();
     this.dataService.updateCurrentUser();
     // Save the project to persist changes
@@ -429,7 +437,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async saveTextEdit(): Promise<void> {
     if (!this.project || this.editingTextIndex === -1) return;
-    
+
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.editingTextIndex];
     if (element && element.constructor.name === 'Text_document') {
       (element as any).set_field(this.editingTextContent);
@@ -444,7 +452,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.loadProject(); // Reload to see the changes
       this.cdr.detectChanges();
     }
-    
+
     this.isEditingText = false;
     this.editingTextIndex = -1;
     this.editingTextContent = '';
@@ -477,7 +485,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async submitAddTextDocument(): Promise<void> {
     if (!this.project || this.selectedGridIndex < 0 || !this.newTextDocumentName.trim()) return;
-    
+
     const element = new Text_document(
       this.newTextDocumentName.trim(),
       200,
@@ -496,10 +504,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       // Get element before deletion to check if it's Image/Video
       const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
       console.log(`[ProjectDetail] Deleting element at index ${elementIndex}:`, element);
-      
+
       // Remove from grid (this will also delete file and save)
       await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, elementIndex);
-      
+
       // Reload to ensure sync with server
       this.loadProject();
       this.cdr.detectChanges();
@@ -536,7 +544,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   addTaskToTodoList(elementIndex: number): void {
     if (!this.project || this.selectedGridIndex < 0) return;
-    
+
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
     if (element && element.constructor.name === 'ToDoLst') {
       // Set the task column index to the selected grid index and use the element as the todo list
@@ -557,9 +565,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async submitAddTask(): Promise<void> {
     if (!this.project || this.taskColumnIndex === -1 || !this.newTaskName.trim()) return;
-    
+
     let todoList: ToDoLst | null = null;
-    
+
     // If we have a specific element index (from grid view), use that
     if (this.taskElementIndex >= 0 && this.project.grid[this.taskColumnIndex]) {
       const element = this.project.grid[this.taskColumnIndex].Screen_elements[this.taskElementIndex];
@@ -567,7 +575,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         todoList = element as ToDoLst;
       }
     }
-    
+
     // Find the first todo list in the column if no specific element index
     if (!todoList && this.project.grid[this.taskColumnIndex]) {
       const element = this.project.grid[this.taskColumnIndex].Screen_elements.find(
@@ -577,13 +585,13 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         todoList = element as ToDoLst;
       }
     }
-    
+
     if (!todoList) {
       // Create new todo list
       todoList = new ToDoLst('Tasks', 0, 0);
       await this.dataService.addElementToGrid(this.projectIndex, this.taskColumnIndex, todoList);
     }
-    
+
     // Create new task
     const task = new scheduled_task(this.newTaskName.trim(), this.newTaskPriority, new Date().toISOString());
     todoList.add_task(task);
@@ -603,9 +611,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.justFinishedDragging = false;
       return;
     }
-    
+
     if (!this.project || this.selectedGridIndex < 0) return;
-    
+
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
     if (element && element.constructor.name === 'ToDoLst') {
       this.fullScreenTodoElement = element as ToDoLst;
@@ -624,7 +632,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async addTaskToFullScreenTodo(): Promise<void> {
     if (!this.fullScreenTodoElement || !this.newTaskName.trim()) return;
-    
+
     // Convert datetime-local format to ISO string
     let taskTime = new Date().toISOString();
     if (this.newTaskTime) {
@@ -634,7 +642,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         taskTime = localDate.toISOString();
       }
     }
-    
+
     const task = new scheduled_task(this.newTaskName.trim(), this.newTaskPriority, taskTime);
     this.fullScreenTodoElement.add_task(task);
     await this.saveFullScreenTodo();
@@ -661,7 +669,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async deleteTaskFromFullScreenTodo(task: scheduled_task): Promise<void> {
     if (!this.fullScreenTodoElement) return;
-    
+
     const taskIndex = this.fullScreenTodoElement.scheduled_tasks.findIndex(t => t === task);
     if (taskIndex !== -1) {
       this.fullScreenTodoElement.delete_task(taskIndex);
@@ -671,14 +679,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async toggleTaskStatusInFullScreen(task: scheduled_task): Promise<void> {
     if (!this.fullScreenTodoElement) return;
-    
+
     task.toggle_done_status();
     await this.saveFullScreenTodo();
   }
 
   async updateTaskPriorityInFullScreen(task: scheduled_task, priority: number): Promise<void> {
     if (!this.fullScreenTodoElement) return;
-    
+
     task.edit_priority(priority);
     await this.saveFullScreenTodo();
   }
@@ -692,10 +700,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async saveFullScreenTodo(): Promise<void> {
     if (!this.project || this.fullScreenTodoGridIndex < 0 || this.fullScreenTodoElementIndex < 0) return;
-    
+
     await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
     this.loadProject();
-    
+
     // Reload the full-screen todo element
     if (this.project && this.project.grid[this.fullScreenTodoGridIndex]) {
       const element = this.project.grid[this.fullScreenTodoGridIndex].Screen_elements[this.fullScreenTodoElementIndex];
@@ -753,7 +761,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   async saveElementName(): Promise<void> {
     if (!this.project || this.editingElementNameIndex < 0 || this.editingElementNameGridIndex < 0) return;
-    
+
     const element = this.project.grid[this.editingElementNameGridIndex].Screen_elements[this.editingElementNameIndex];
     if (element && this.editingElementName.trim()) {
       element.set_name(this.editingElementName.trim());
@@ -765,7 +773,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       await this.dataService.saveProject(this.project, projectType);
       this.loadProject();
     }
-    
+
     this.cancelElementNameEdit();
   }
 
@@ -804,7 +812,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const tasks = this.fullScreenTodoElement.scheduled_tasks;
     const draggedTask = tasks[this.draggedFullScreenTaskIndex];
     const targetIndex = tasks.findIndex(t => t === targetTask);
-    
+
     if (targetIndex === -1 || this.draggedFullScreenTaskIndex === targetIndex) {
       this.draggedFullScreenTaskIndex = -1;
       return;
@@ -821,7 +829,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   onElementMouseDown(event: MouseEvent, index: number): void {
     const target = event.target as HTMLElement;
     const card = event.currentTarget as HTMLElement;
-    
+
     // Don't start drag if clicking on buttons
     if (target.tagName === 'BUTTON' || target.closest('button')) {
       return;
@@ -833,14 +841,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
     // Start long-press timer for dragging (500ms)
     this.longPressTimer = setTimeout(() => {
-      
+
       this.isDraggingEnabled = true;
       const rect = card.getBoundingClientRect();
       this.elementDragOffsetX = event.clientX - rect.left;
       this.elementDragOffsetY = event.clientY - rect.top;
       this.draggedElementIndex = index;
       this.draggedElement = card;
-      
+
       card.style.opacity = '0.7';
       card.style.cursor = 'grabbing';
       card.classList.add('dragging-active');
@@ -889,22 +897,22 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const x = Math.max(0, event.clientX - containerRect.left - this.elementDragOffsetX);
     const y = Math.max(0, event.clientY - containerRect.top - this.elementDragOffsetY);
 
-      // Save the position to the element
-      const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
-      if (element) {
-        if ((element as any).set_xpos) {
-          (element as any).set_xpos(x);
-          (element as any).set_ypos(y);
-        } else {
-          (element as any).x_pos = x;
-          (element as any).y_pos = y;
-        }
-        // Save to backend
-        const projectType = (this.project as any).projectType;
-        if (projectType) {
-          await this.dataService.saveProject(this.project, projectType);
-        }
+    // Save the position to the element
+    const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
+    if (element) {
+      if ((element as any).set_xpos) {
+        (element as any).set_xpos(x);
+        (element as any).set_ypos(y);
+      } else {
+        (element as any).x_pos = x;
+        (element as any).y_pos = y;
       }
+      // Save to backend
+      const projectType = (this.project as any).projectType;
+      if (projectType) {
+        await this.dataService.saveProject(this.project, projectType);
+      }
+    }
 
     this.draggedElement.style.opacity = '1';
     this.draggedElement.style.cursor = 'grab';
@@ -914,7 +922,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.draggedElementIndex = -1;
     this.isDraggingEnabled = false;
     this.justFinishedDragging = true;
-    
+
     // Reset flag after a short delay to allow click event
     setTimeout(() => {
       this.justFinishedDragging = false;
@@ -935,7 +943,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const ypos = (element as any).get_ypos ? (element as any).get_ypos() : ((element as any).y_pos || 0);
     const xscale = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
     const yscale = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
-    
+
     return {
       'left.px': xpos,
       'top.px': ypos,
@@ -965,14 +973,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (this.isResizing && this.resizingElement) {
       const deltaX = event.clientX - this.startResizeX;
       const deltaY = event.clientY - this.startResizeY;
-      
+
       let newWidth = this.startWidth + deltaX;
       let newHeight = this.startHeight + deltaY;
-      
+
       // Minimum size constraints
       newWidth = Math.max(100, newWidth);
       newHeight = Math.max(50, newHeight);
-      
+
       if ((this.resizingElement as any).set_x_scale) {
         (this.resizingElement as any).set_x_scale(newWidth);
         (this.resizingElement as any).set_y_scale(newHeight);
@@ -987,11 +995,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (this.isDraggingEnabled && this.draggedElement) {
       const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
       if (!canvasContainer) return;
-      
+
       const rect = canvasContainer.getBoundingClientRect();
       const x = (event.clientX - rect.left - this.elementDragOffsetX - this.canvasPanX) / this.canvasZoom;
       const y = (event.clientY - rect.top - this.elementDragOffsetY - this.canvasPanY) / this.canvasZoom;
-      
+
       // Update the data model
       if (this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
         const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
@@ -1015,14 +1023,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
       if (element) {
         const projectType = (this.project as any).projectType;
-      if (!projectType) {
-        console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
-        return;
-      }
-      await this.dataService.saveProject(this.project, projectType);
+        if (!projectType) {
+          console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
+          return;
+        }
+        await this.dataService.saveProject(this.project, projectType);
       }
     }
-    
+
     if (this.isResizing && this.resizingElement && this.project) {
       // Save size changes
       const projectType = (this.project as any).projectType;
@@ -1032,7 +1040,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
       await this.dataService.saveProject(this.project, projectType);
     }
-    
+
     this.isPanning = false;
     this.isResizing = false;
     this.resizingElement = null;
@@ -1050,7 +1058,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   onCanvasElementMouseDown(event: MouseEvent, element: Screen_Element, gridIndex: number, elementIndex: number): void {
     const target = event.target as HTMLElement;
-    
+
     // Don't drag if clicking on controls or resize handle
     if (target.closest('.element-controls') || target.closest('.resize-handle')) {
       return;
@@ -1062,13 +1070,13 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
 
     event.stopPropagation();
-    
+
     const elementEl = event.currentTarget as HTMLElement;
     this.draggedElement = elementEl;
     this.draggedElementIndex = elementIndex;
     this.draggedElementGridIndex = gridIndex;
     this.isDraggingEnabled = true;
-    
+
     const rect = elementEl.getBoundingClientRect();
     const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
     if (canvasContainer) {
@@ -1099,11 +1107,69 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   onDocumentMouseDown(event: MouseEvent): void {
     // Handle canvas panning
-    if ((event.target as HTMLElement).closest('.canvas-container') && 
-        !(event.target as HTMLElement).closest('.canvas-element')) {
+    if ((event.target as HTMLElement).closest('.canvas-container') &&
+      !(event.target as HTMLElement).closest('.canvas-element')) {
       this.onCanvasMouseDown(event);
     }
   }
+  async addTagToTodoList(todo: any) {
+    const tag = this.editingTagInput.trim();
+    if (!tag) return;
+
+    if (!todo.tags.includes(tag)) {
+      todo.tags.push(tag);
+      console.log('Added tag:', tag, 'to todo:', todo);
+      if (this.project) {
+        await this.dataService.saveProject(this.project, this.project.project_type);
+      }
+    }
+
+    this.editingTagInput = '';
+  }
+
+  async removeTagFromTodoList(todo: any, tag: string) {
+    const i = todo.tags.indexOf(tag);
+    if (i !== -1) {
+      todo.tags.splice(i, 1);
+      console.log('Removed tag:', tag, 'from todo:', todo);
+      // await this.dataService.saveProject(this.project, (this.project as any).projectType);
+      if (this.project) {
+        await this.dataService.saveProject(this.project, this.project.project_type);
+      }
+    }
+  }
+  async addTagToFullScreen() {
+    if (!this.fullScreenTodoElement) return;
+    const tag = this.editingTagInput.trim();
+    if (!tag) return;
+
+    if (!this.fullScreenTodoElement.tags.includes(tag)) {
+      this.fullScreenTodoElement.tags.push(tag);
+      console.log('Added tag:', tag, 'to element:', this.fullScreenTodoElement);
+      if (this.project) {
+        await this.dataService.saveProject(this.project, this.project.project_type);
+      }
+    }
+
+    this.editingTagInput = '';
+  }
+
+  async removeTagFromFullScreen(tag: string) {
+    const el = this.fullScreenTodoElement;
+    if (!el) return;
+    const i = el.tags.indexOf(tag);
+    if (i !== -1) {
+      el.tags.splice(i, 1);
+      console.log('Removed tag:', tag, 'from element:', el);
+      if (this.project) {
+        await this.dataService.saveProject(this.project, this.project.project_type);
+      }
+    }
+  }
+  getTags(element: any): string[] {
+    console.log('Getting tags for element:', element);
+  return element?.tags ?? [];
+}
 
   ngOnDestroy(): void {
     // Clean up subscriptions
@@ -1117,5 +1183,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.elementUpdateSubscription.unsubscribe();
     }
   }
+
+
+
 }
 
