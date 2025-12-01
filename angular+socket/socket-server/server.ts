@@ -499,8 +499,14 @@ app.get("/oauth2callback", async (req:any, res:any) => {
     {
         throw new Error("User email is missing");
     }
-    tokenStore.entries[email] = {id:tokenStore.nextId++, ...tokens };
-
+    if(tokenStore.entries[email]){
+      tokenStore.entries[email]={id:tokenStore.entries[email].id, ...tokens };
+    }else{
+      tokenStore.entries[email] = {id:tokenStore.nextId, ...tokens };
+    }
+    tokenStore.nextId += 1;
+    
+    //console.log("Saved tokens:", tokenStore);
     // === Write back to file ===
 
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenStore, null, 2));
