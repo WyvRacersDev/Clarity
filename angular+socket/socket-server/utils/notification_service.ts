@@ -128,7 +128,7 @@ export function checkUpcomingTasks(): void {
 
 }
 export function startNotificationService(): void {  
-    //cron.schedule("*/1 * * * *", checkUpcomingTasks);
-    checkUpcomingTasks();
+    cron.schedule("*/15 * * * *", checkUpcomingTasks);
+   // checkUpcomingTasks();
 }
-// runs every hour
+// runs every 15 minutes

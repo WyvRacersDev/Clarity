@@ -38,7 +38,12 @@ export class SettingsComponent implements OnInit {
     // Handle OAuth callback
     const oauthStatus = this.route.snapshot.queryParamMap.get('oauth');
     const tokenId = this.route.snapshot.queryParamMap.get('id');
-    
+        this.dataService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+      if (user) {
+        this.userSettings = user.settings;
+      }
+    });
     if (oauthStatus === 'success' && tokenId) {
       localStorage.removeItem("oauth_in_progress");
       // Store the token ID for future use
@@ -54,12 +59,6 @@ export class SettingsComponent implements OnInit {
       localStorage.removeItem("oauth_in_progress");
       this.router.navigate(['/settings'], { replaceUrl: true });
     }
-    this.dataService.currentUser$.subscribe(user => {
-      this.currentUser = user;
-      if (user) {
-        this.userSettings = user.settings;
-      }
-    });
     
     // Load current server URL
     this.serverUrl = getCurrentServerConfig();
