@@ -11,7 +11,7 @@ import { getServerConfig } from '../config/app.config';
   providedIn: 'root'
 })
 export class DataService {
-  
+
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
@@ -34,7 +34,7 @@ export class DataService {
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
     private socketService: SocketService
-    
+
   ) {
     this.loadInitialData();
   }
@@ -45,19 +45,23 @@ export class DataService {
       return;
     }
 
-const saved = localStorage.getItem("clarity_users");
+    const saved = localStorage.getItem("clarity_users");
     // Try current_user_name first (the name), fallback to current_user_id for backward compatibility
     const currentName = localStorage.getItem("current_user_name");
     console.log("Loaded from storage:", saved, currentName);
-    
+
     if (saved && currentName) {
       try {
         const users = JSON.parse(saved);
         // Find user by name (the first element of each entry is the user name)
         const userEntry = users.find((u: any[]) => u[0] === String(currentName));
         if (userEntry) {
-          const user = userEntry[1];
-          console.log("Restoring user:", user);
+ const userData = userEntry[1];
+          console.log("Restoring user:", userData);
+          
+          // Reconstruct the user with proper class instances
+          const user = this.reconstructUser(userData);
+          
           this.currentUserName = user.name;
           this.usersData.set(user.name, user);
           this.currentUserSubject.next(user);
@@ -67,11 +71,50 @@ const saved = localStorage.getItem("clarity_users");
       }
     }
   }
+  /**
+   * Reconstruct a User object from plain JSON data
+   * Ensures settings is a proper class instance with methods
+   */
+  private reconstructUser(userData: any): User {
+    // Reconstruct settings as a proper class instance
+    const userSettings = new settings();
+    if (userData.settings) {
+      userSettings.recieve_notifications = userData.settings.recieve_notifications !== undefined 
+        ? userData.settings.recieve_notifications : true;
+      userSettings.allow_invite = userData.settings.allow_invite !== undefined 
+        ? userData.settings.allow_invite : true;
+      userSettings.allow_google_calender = userData.settings.allow_google_calender !== undefined 
+        ? userData.settings.allow_google_calender : true;
+    }
+    
+    // Create user with proper settings instance
+    const user = new User(userData.name, userSettings);
+    
+    // Copy over projects if they exist (they're just references anyway)
+    if (userData.projects && Array.isArray(userData.projects)) {
+      user.projects = userData.projects;
+    }
+      
+    // Copy over contacts if they exist
+    if (userData.contacts && Array.isArray(userData.contacts)) {
+      user.contacts = userData.contacts;
+    }
+    
+    return user;
+  }
+
 
   // User management
   findUserByName(name: string): User | null {
     for (const [userId, user] of this.usersData.entries()) {
       if (user.name === name) {
+        // Ensure the user has proper class instances (settings with methods)
+        if (user.settings && typeof user.settings.toggle_notif !== 'function') {
+          // Settings is a plain object, reconstruct the user
+          const reconstructed = this.reconstructUser(user);
+          this.usersData.set(userId, reconstructed);
+          return reconstructed;
+        }
         return user;
       }
     }
@@ -79,13 +122,13 @@ const saved = localStorage.getItem("clarity_users");
   }
 
   createUser(name: string): User {
-    // Check if user already exists
+      // Check if user already exists in memory
     const existingUser = this.findUserByName(name);
     if (existingUser) {
       // User exists, log them in
-       this.currentUserName = existingUser.name;
+      this.currentUserName = existingUser.name;
       this.currentUserSubject.next(existingUser);
-            if (isPlatformBrowser(this.platformId)) {
+      if (isPlatformBrowser(this.platformId)) {
         localStorage.setItem("current_user_name", existingUser.name);
       }
       return existingUser;
@@ -94,14 +137,64 @@ const saved = localStorage.getItem("clarity_users");
     // Create new user
 
     const userSettings = new settings();
-    const user = new User( name, userSettings);
+    const user = new User(name, userSettings);
     this.usersData.set(user.name, user);
     this.currentUserName = user.name;
     this.currentUserSubject.next(user);
-        if (isPlatformBrowser(this.platformId)) {
+    if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem("current_user_name", user.name);
     }
     this.saveToStorage();
+     
+    // Save user to backend
+    this.saveUserToBackend(user);
+    
+    return user;
+  }
+
+  /**
+   * Create user with async backend loading
+   * Tries to load from backend first, creates new if not found
+   */
+  async createUserAsync(name: string): Promise<User> {
+    // Check if user already exists in memory
+    const existingUser = this.findUserByName(name);
+    if (existingUser) {
+      this.currentUserName = existingUser.name;
+      this.currentUserSubject.next(existingUser);
+      if (isPlatformBrowser(this.platformId)) {
+        localStorage.setItem("current_user_name", existingUser.name);
+      }
+      return existingUser;
+    }
+     // Try to load from backend
+    const backendUser = await this.loadUserFromBackend(name);
+    if (backendUser) {
+      this.usersData.set(backendUser.name, backendUser);
+      this.currentUserName = backendUser.name;
+      this.currentUserSubject.next(backendUser);
+      if (isPlatformBrowser(this.platformId)) {
+        localStorage.setItem("current_user_name", backendUser.name);
+      }
+      this.saveToStorage();
+      console.log(`[DataService] Loaded existing user "${name}" from backend`);
+      return backendUser;
+    }
+
+    // Create new user if not found
+    const userSettings = new settings();
+    const user = new User(name, userSettings);
+    this.usersData.set(user.name, user);
+    this.currentUserName = user.name;
+    this.currentUserSubject.next(user);
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem("current_user_name", user.name);
+    }
+    this.saveToStorage();
+      // Save new user to backend
+    await this.saveUserToBackend(user);
+    console.log(`[DataService] Created new user "${name}" and saved to backend`);
+    
     return user;
   }
 
@@ -113,15 +206,23 @@ const saved = localStorage.getItem("clarity_users");
       // Identify user to server
       this.socketService.identifyUser(userName);
 
-          // 🔥 Persist login across reloads
-    localStorage.setItem("current_user_name", userName);
+      // 🔥 Persist login across reloads
+      localStorage.setItem("current_user_name", userName);
       return true;
     }
     return false;
   }
 
   getCurrentUser(): User | null {
-    return this.currentUserSubject.value;
+const user = this.currentUserSubject.value;
+    if (user && user.settings && typeof user.settings.toggle_notif !== 'function') {
+      // Settings is a plain object, reconstruct the user
+      const reconstructed = this.reconstructUser(user);
+      this.usersData.set(user.name, reconstructed);
+      this.currentUserSubject.next(reconstructed);
+      return reconstructed;
+    }
+    return user;
   }
 
   // Project management
@@ -131,8 +232,8 @@ const saved = localStorage.getItem("clarity_users");
   createProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Project | null {
     const user = this.getCurrentUser();
     if (user) {
-      const project = new Project(projectName,user.name,projectType);
-//      (project as any).isLocal = projectType === 'local';
+      const project = new Project(projectName, user.name, projectType);
+      //      (project as any).isLocal = projectType === 'local';
       user.projects.push(project);
       this.currentUserSubject.next(user);
       return project;
@@ -157,9 +258,9 @@ const saved = localStorage.getItem("clarity_users");
       const response = await firstValueFrom(
         this.socketService.saveProject(serializedProject, finalProjectType)
       );
-      
+
       console.log(`[DataService] Save response received for project "${project.name}":`, response);
-      
+
       if (response && response.success) {
         // Update user's project list if needed
         const user = this.getCurrentUser();
@@ -197,7 +298,7 @@ const saved = localStorage.getItem("clarity_users");
       const response = await firstValueFrom(
         this.socketService.loadProject(projectName, projectType)
       );
-      
+
       if (response.success && response.project) {
         const project = this.deserializeProject(response.project);
         // Ensure projectType is set correctly
@@ -225,11 +326,11 @@ const saved = localStorage.getItem("clarity_users");
       const response = await firstValueFrom(
         this.socketService.listProjects(projectType)
       );
-      
+
       if (response && response.success && response.projects) {
         const projectInfos = response.projects;
         console.log(`[DataService] ${projectType} projects to load:`, projectInfos.map((p: any) => ({ name: p.name, filename: p.filename })));
-        
+
         // Load all projects in parallel
         const loadPromises = projectInfos.map(async (projectInfo: any) => {
           try {
@@ -237,7 +338,7 @@ const saved = localStorage.getItem("clarity_users");
             const loadResponse = await firstValueFrom(
               this.socketService.loadProject(projectInfo.name, projectType)
             );
-            
+
             if (loadResponse && loadResponse.success && loadResponse.project) {
               console.log(`[DataService] Received project from server:`, loadResponse.project);
               const project = this.deserializeProject(loadResponse.project);
@@ -256,15 +357,15 @@ const saved = localStorage.getItem("clarity_users");
             return null;
           }
         });
-        
+
         const loadedProjects = await Promise.all(loadPromises);
         const validProjects = loadedProjects.filter(p => p !== null) as Project[];
         console.log(`[DataService] Returning ${validProjects.length} ${projectType} projects:`, validProjects.map(p => p.name));
-        
+
         this.listingProjectsSubject.next(false);
         return validProjects;
       }
-      
+
       this.listingProjectsSubject.next(false);
       return [];
     } catch (error) {
@@ -283,7 +384,7 @@ const saved = localStorage.getItem("clarity_users");
       const response = await firstValueFrom(
         this.socketService.deleteProject(projectName, projectType)
       );
-      
+
       if (response.success) {
         // Remove from user's project list (but don't trigger observable to avoid loops)
         const user = this.getCurrentUser();
@@ -341,17 +442,17 @@ const saved = localStorage.getItem("clarity_users");
             VideoPath: elem.VideoPath,
             allKeys: Object.keys(elem)
           });
-          
+
           // Call toJSON() if available, otherwise serialize manually
           if (element && typeof elem.toJSON === 'function') {
             const serialized = elem.toJSON();
             console.log(`[DataService] Serialized element via toJSON():`, serialized);
             return serialized;
           }
-          
+
           // Fallback: serialize manually - detect type by properties
           let elementType = elem.constructor?.name || elem.type || 'Screen_Element';
-          
+
           // Detect Image/Video by properties if type is wrong
           if (elementType === 'Object' || elementType === 'Screen_Element') {
             if (elem.imagepath !== undefined || elem.imagePath !== undefined || elem.ImageBase64 !== undefined) {
@@ -364,7 +465,7 @@ const saved = localStorage.getItem("clarity_users");
               elementType = 'ToDoLst';
             }
           }
-          
+
           const serialized: any = {
             type: elementType,
             name: element.name,
@@ -373,7 +474,7 @@ const saved = localStorage.getItem("clarity_users");
             x_scale: element.x_scale,
             y_scale: element.y_scale
           };
-          
+
           // Add type-specific properties - check all possible property names
           if (elem.Text_field !== undefined || elem.text_field !== undefined) {
             serialized.Text_field = elem.Text_field || elem.text_field;
@@ -387,11 +488,11 @@ const saved = localStorage.getItem("clarity_users");
             console.log(`[DataService] Found VideoPath: ${serialized.VideoPath}`);
           }
           if (elem.scheduled_tasks !== undefined) {
-            serialized.scheduled_tasks = elem.scheduled_tasks.map((t: any) => 
+            serialized.scheduled_tasks = elem.scheduled_tasks.map((t: any) =>
               (t && typeof t.toJSON === 'function') ? t.toJSON() : t
             );
           }
-          
+
           console.log(`[DataService] Serialized element manually:`, serialized);
           return serialized;
         })
@@ -404,10 +505,10 @@ const saved = localStorage.getItem("clarity_users");
    */
   private convertLocalhostUrls(element: Screen_Element): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    
+
     const serverUrl = getServerConfig();
     const elem = element as any;
-    
+
     // Convert image paths
     if (elem.imagepath && typeof elem.imagepath === 'string') {
       if (elem.imagepath.startsWith('http://localhost:') || elem.imagepath.startsWith('https://localhost:')) {
@@ -419,7 +520,7 @@ const saved = localStorage.getItem("clarity_users");
         }
       }
     }
-    
+
     // Convert video paths
     if (elem.VideoPath && typeof elem.VideoPath === 'string') {
       if (elem.VideoPath.startsWith('http://localhost:') || elem.VideoPath.startsWith('https://localhost:')) {
@@ -438,11 +539,11 @@ const saved = localStorage.getItem("clarity_users");
    */
   private deserializeProject(data: any): Project {
     console.log(`[DataService] deserializeProject called with data.name="${data.name}", data.projectType="${data.projectType}"`);
-    const project = new Project(data.name,data.owner_name,data.projectType);
+    const project = new Project(data.name, data.owner_name, data.projectType);
     console.log(`[DataService] Created project with name="${project.name}"`);
-   // (project as any).projectType = data.projectType || 'local';
+    // (project as any).projectType = data.projectType || 'local';
     (project as any).isLocal = data.projectType !== 'hosted';
-    
+
     if (data.grid && Array.isArray(data.grid)) {
       data.grid.forEach((gridData: any) => {
         const grid = new Grid(gridData.name);
@@ -459,7 +560,7 @@ const saved = localStorage.getItem("clarity_users");
         project.grid.push(grid);
       });
     }
-    
+
     return project;
   }
 
@@ -524,13 +625,13 @@ const saved = localStorage.getItem("clarity_users");
       const grid = user.projects[projectIndex].grid[gridIndex];
       const project = user.projects[projectIndex];
       const projectType = (project as any).projectType || 'local';
-      
+
       // Get element BEFORE removing from grid
       const elementToDelete = grid.Screen_elements[elementIndex];
-      
+
       console.log(`[DataService] removeElementFromGrid: elementToDelete=`, elementToDelete);
       console.log(`[DataService] removeElementFromGrid: elementToDelete type=`, elementToDelete?.constructor?.name);
-      
+
       // If it's an Image or Video, delete the file first
       if (elementToDelete) {
         const elementType = elementToDelete.constructor.name;
@@ -539,18 +640,18 @@ const saved = localStorage.getItem("clarity_users");
           if (filePath) {
             try {
               console.log(`[DataService] Attempting to delete file for ${elementType}:`, filePath);
-              
+
               // Extract the relative path from the full URL
               // URL format: http://localhost:3000/projects/{type}/{projectName}_assets/{filename}
               const urlMatch = filePath.match(/\/projects\/(local|hosted)\/(.+)$/);
               if (urlMatch) {
                 const relativePath = urlMatch[2]; // e.g., "YOOO_assets/file.png"
                 console.log(`[DataService] Extracted relative path: ${relativePath}`);
-                
+
                 const deleteResponse = await firstValueFrom(
                   this.socketService.deleteFile(project.name, projectType, relativePath)
                 );
-                
+
                 if (deleteResponse.success) {
                   console.log(`[DataService] ✓ Successfully deleted file: ${relativePath}`);
                 } else {
@@ -568,7 +669,7 @@ const saved = localStorage.getItem("clarity_users");
           }
         }
       }
-      
+
       // Remove element from grid
       const result = grid.remove_element(elementIndex);
       if (result) {
@@ -585,8 +686,11 @@ const saved = localStorage.getItem("clarity_users");
     const user = this.getCurrentUser();
     if (user) {
       user.settings = settings;
-      // Save user data to localStorage (but not projects - those are on server)
+      // Save user data to localStorage and backend
       this.saveUserDataToStorage();
+      this.saveUserToBackend(user);
+
+
       this.currentUserSubject.next(user);
     }
   }
@@ -615,6 +719,114 @@ const saved = localStorage.getItem("clarity_users");
       localStorage.setItem('clarity_users', JSON.stringify(Array.from(this.usersData.entries())));
     }
   }
+  /**
+  * Save user to the backend server
+  */
+  async saveUserToBackend(user: User): Promise<boolean> {
+    try {
+      console.log(`[DataService] Saving user "${user.name}" to backend...`);
+
+      // Serialize user using toJSON if available
+      const serializedUser = this.serializeUserForSaving(user);
+
+      const response = await firstValueFrom(
+        this.socketService.saveUser(serializedUser)
+      );
+
+      if (response && response.success) {
+        console.log(`[DataService] ✓ User "${user.name}" saved to backend successfully`);
+        return true;
+      }
+
+      console.error(`[DataService] Failed to save user to backend:`, response?.message);
+      return false;
+    } catch (error) {
+      console.error('[DataService] Error saving user to backend:', error);
+      return false;
+    }
+  }
+  /**
+  * Load user from the backend server
+  */
+  async loadUserFromBackend(username: string): Promise<User | null> {
+    try {
+      console.log(`[DataService] Loading user "${username}" from backend...`);
+
+      const response = await firstValueFrom(
+        this.socketService.loadUser(username)
+      );
+
+      if (response && response.success && response.user) {
+        console.log(`[DataService] ✓ User "${username}" loaded from backend`);
+        // Deserialize user
+        const user = this.deserializeUser(response.user);
+        return user;
+      }
+
+      console.log(`[DataService] User "${username}" not found on backend`);
+      return null;
+    } catch (error) {
+      console.error('[DataService] Error loading user from backend:', error);
+      return null;
+    }
+  }
+  /**
+   * Serialize user for saving to backend
+   */
+  private serializeUserForSaving(user: User): any {
+    // Use toJSON if available
+    if (user.toJSON && typeof user.toJSON === 'function') {
+      return user.toJSON();
+    }
+
+    // Manual serialization fallback
+    return {
+      type: 'User',
+      name: user.name,
+      settings: this.serializeSettings(user.settings),
+      contacts: user.contacts.map((c: any) => ({
+        type: 'contact',
+        contact_detail: c.contact_detail
+      })),
+      projectReferences: user.projects.map(p => ({
+        name: p.name,
+        projectType: (p as any).projectType || p.project_type || 'local'
+      }))
+    };
+  }
+  /**
+  * Serialize settings for saving
+  */
+  private serializeSettings(s: settings): any {
+    if (s.toJSON && typeof s.toJSON === 'function') {
+      return s.toJSON();
+    }
+    return {
+      type: 'settings',
+      recieve_notifications: s.recieve_notifications,
+      allow_invite: s.allow_invite,
+      allow_google_calender: s.allow_google_calender
+    };
+  }
+
+  /**
+   * Deserialize user from backend data
+   */
+  private deserializeUser(data: any): User {
+    const userSettings = new settings();
+    if (data.settings) {
+      userSettings.recieve_notifications = data.settings.recieve_notifications !== undefined ? data.settings.recieve_notifications : true;
+      userSettings.allow_invite = data.settings.allow_invite !== undefined ? data.settings.allow_invite : true;
+      userSettings.allow_google_calender = data.settings.allow_google_calender !== undefined ? data.settings.allow_google_calender : true;
+    }
+
+    const user = new User(data.name, userSettings);
+
+    // Note: contacts and projects will be loaded separately
+    // Projects are stored separately in projects folder
+
+    return user;
+  }
 
   // Legacy method for backward compatibility (now just saves user data)
   private saveToStorage(): void {
@@ -631,7 +843,7 @@ const saved = localStorage.getItem("clarity_users");
   logout(): void {
     this.currentUserName = null;
     this.currentUserSubject.next(null);
-      // Clear login persistence
+    // Clear login persistence
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem("current_user_name");
     }
@@ -642,7 +854,7 @@ const saved = localStorage.getItem("clarity_users");
    * This transfers user data to the new email-based username
    */
   updateUsernameToEmail(email: string): User | null {
-    if (!isPlatformBrowser(this.platformId)) {
+    if (!isPlatformBrowser(this.platformId)) {  
       return null;
     }
 
@@ -652,7 +864,7 @@ const saved = localStorage.getItem("clarity_users");
       return this.createUser(email);
     }
     const oldName = currentUser.name;
-    
+
     // If already using this email, just return the user
     if (oldName === email) {
       console.log('[DataService] Username is already set to email:', email);
@@ -663,23 +875,24 @@ const saved = localStorage.getItem("clarity_users");
 
     // Update the user's name
     currentUser.name = email;
-    
+
     // Remove old entry from usersData
     this.usersData.delete(oldName);
-    
+
     // Add new entry with email as key
     this.usersData.set(email, currentUser);
     this.currentUserName = email;
-    
+
     // Update localStorage
     localStorage.setItem("current_user_name", email);
     localStorage.setItem('clarity_users', JSON.stringify(Array.from(this.usersData.entries())));
-    
+
     // Emit updated user
     this.currentUserSubject.next(currentUser);
-     // Identify to server with new username
+    // Identify to server with new username
     this.socketService.identifyUser(email);
-    
+    // Save updated user to backend
+    this.saveUserToBackend(currentUser);
     console.log('[DataService] Username updated successfully to:', email);
     return currentUser;
   }
@@ -696,23 +909,23 @@ const saved = localStorage.getItem("clarity_users");
     }
 
     console.log(`[DataService] Loading projects for user: ${user.name}`);
-    
+
     // Clear existing projects
     user.projects = [];
-    
+
     // Load local projects
     const localProjects = await this.listProjects('local');
-    
+
     // Load hosted projects
     const hostedProjects = await this.listProjects('hosted');
-     // Combine and set projects
+    // Combine and set projects
     user.projects = [...localProjects, ...hostedProjects];
-    
+
     console.log(`[DataService] Loaded ${user.projects.length} projects for user ${user.name}`);
-    
+
     // Emit updated user
     this.currentUserSubject.next(user);
-    
+
     // Save to storage
     this.saveUserDataToStorage();
   }

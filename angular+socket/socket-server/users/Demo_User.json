@@ -1,11 +1,13 @@
 {
   "type": "User",
   "name": "Demo User",
+  "contacts": [],
   "settings": {
+    "type": "settings",
     "recieve_notifications": true,
     "allow_invite": true,
-    "allow_google_calender": true
+    "allow_google_calender": false
   },
-  "contacts": [],
-  "projects": []
+  "projectReferences": [],
+  "lastModified": "2025-12-02T17:52:51.728Z"
 }

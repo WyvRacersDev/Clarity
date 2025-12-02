@@ -5,6 +5,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import { ProjectHandler } from "./utils/project_handler.ts";
+import { UserHandler } from "./utils/user_handler.ts";
 import { SERVER_HOST, SERVER_PORT, FRONTEND_URL, ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN } from "./config.ts";
 
 
@@ -88,7 +89,7 @@ startNotificationService();
 // === Paths ===
 
 const project_handler=new ProjectHandler();
-
+const user_handler = new UserHandler();
 app.use('/projects', express.static(project_handler.get_base_path(), {
   setHeaders: (res, filePath) => {
     // Set appropriate content types
@@ -267,6 +268,108 @@ io.on("connection", (socket:Socket) => {
       socket.emit(`projectsListed_${data.projectType}`, { 
         success: false, 
         projects: [], 
+        message: `Error: ${error.message}` 
+      });
+    }
+  });
+   // === User Management Socket Events ===
+
+  /**
+   * Save a user to the backend
+   * Expected payload: { user: User object }
+   */
+  socket.on("saveUser", (data: { user: any }) => {
+    try {
+      console.log(`[Server] 💾 Saving user: "${data.user?.name}"`);
+      const result = user_handler.saveUser(data.user);
+      
+      socket.emit("userSaved", { 
+        success: result.success, 
+        message: result.message, 
+        username: data.user?.name 
+      });
+    } catch (error: any) {
+      console.error("Error in saveUser handler:", error);
+      socket.emit("userSaved", { success: false, message: `Error: ${error.message}` });
+    }
+  });
+  /**
+   * Load a user from the backend
+   * Expected payload: { username: string }
+   */
+  socket.on("loadUser", (data: { username: string; eventName?: string }) => {
+    try {
+      console.log(`[Server] 📂 Loading user: "${data.username}"`);
+      const result = user_handler.loadUser(data.username);
+      
+      const eventName = data.eventName || "userLoaded";
+      
+      if (result.success && result.user) {
+        // Serialize the user for transmission
+        const serialized = user_handler.serializeUser(result.user);
+        socket.emit(eventName, { 
+          success: true, 
+          user: serialized, 
+          message: result.message 
+        });
+      } else {
+        socket.emit(eventName, { success: false, message: result.message });
+      }
+    } catch (error: any) {
+      console.error("Error in loadUser handler:", error);
+      const eventName = data.eventName || "userLoaded";
+      socket.emit(eventName, { success: false, message: `Error: ${error.message}` });
+    }
+  });
+   /**
+   * List all users
+   */
+  socket.on("listUsers", (data: { requestId?: string }) => {
+    try {
+      const result = user_handler.listUsers();
+      socket.emit("usersListed", result);
+    } catch (error: any) {
+      console.error("Error in listUsers handler:", error);
+      socket.emit("usersListed", { 
+        success: false, 
+        users: [], 
+        message: `Error: ${error.message}` 
+      });
+    }
+  });
+
+  /**
+   * Delete a user
+   * Expected payload: { username: string }
+   */
+   socket.on("deleteUser", (data: { username: string }) => {
+    try {
+      console.log(`[Server] 🗑️ Deleting user: "${data.username}"`);
+      const result = user_handler.deleteUser(data.username);
+      socket.emit("userDeleted", result);
+    } catch (error: any) {
+      console.error("Error in deleteUser handler:", error);
+      socket.emit("userDeleted", { success: false, message: `Error: ${error.message}` });
+    }
+  });
+
+  /**
+   * Check if a user exists
+   * Expected payload: { username: string }
+   */
+  socket.on("checkUserExists", (data: { username: string }) => {
+    try {
+      const exists = user_handler.userExists(data.username);
+      socket.emit("userExistsResult", { 
+        success: true, 
+        exists, 
+        username: data.username 
+      });
+       } catch (error: any) {
+      console.error("Error in checkUserExists handler:", error);
+      socket.emit("userExistsResult", { 
+        success: false, 
+        exists: false, 
         message: `Error: ${error.message}` 
       });
     }
