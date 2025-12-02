@@ -349,6 +349,165 @@ input:checked + .slider:before {
   font-weight: 600;
   color: #333;
 }
+/* Import Contacts Section */
+.import-contacts-section {
+  padding: 16px 0;
+}
+
+.import-info {
+  margin-bottom: 16px;
+}
+
+.warning-text {
+  color: #e67e22;
+  background: #fef5e7;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 0;
+}
+
+.info-text {
+  color: #666;
+  margin: 0;
+}
+
+.success-text {
+  color: #27ae60;
+  font-weight: 600;
+  margin: 0;
+}
+
+.import-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: linear-gradient(135deg, #9b59b6 0%, #3498db 100%);
+  color: white;
+}
+
+.import-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+}
+
+.import-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.import-message {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.import-message.success {
+  background: #e8f5e9;
+  color: #27ae60;
+  border-left: 4px solid #27ae60;
+}
+
+.import-message.error {
+  background: #fee;
+  color: #e74c3c;
+  border-left: 4px solid #e74c3c;
+}
+
+/* Contacts List */
+.contacts-list {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 2px solid #f0f0f0;
+}
+
+.contacts-list h3 {
+  font-size: 1.1rem;
+  color: #333;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+}
+
+.contacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.contact-item:hover {
+  background: #e9ecef;
+}
+
+.contact-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-email {
+  color: #666;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Scrollbar styling for contacts list */
+.contacts-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.contacts-grid::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.contacts-grid::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.contacts-grid::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
 
 @media (max-width: 768px) {
   .settings-container {
@@ -366,4 +525,8 @@ input:checked + .slider:before {
     justify-content: space-between;
   }
 }
+
+  .contacts-grid {
+    grid-template-columns: 1fr;
+  }
 

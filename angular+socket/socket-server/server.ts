@@ -508,8 +508,145 @@ io.on("connection", (socket:Socket) => {
       console.log("❌ User disconnected:", socket.id);
     }
   });
+  /**
+   * Import Google Contacts for a user
+   * Expected payload: { username: string }
+   * Only works if user has allow_invite set to true
+   */
+  socket.on("importGoogleContacts", async (data: { username: string }) => {
+    console.log(`[Server] 📇 Import Google Contacts requested for: ${data.username}`);
+    
+    try {
+      // First, load the user to check if allow_invite is true
+      const userResult = user_handler.loadUser(data.username);
+      
+      if (!userResult.success || !userResult.user) {
+        socket.emit("contactsImported", { 
+          success: false, 
+          message: `User "${data.username}" not found` 
+        });
+        return;
+      }
+      
+      const user = userResult.user;
+      
+      // Check if allow_invite is true
+      if (!user.settings?.allow_invite) {
+        socket.emit("contactsImported", { 
+          success: false, 
+          message: "Contact import is disabled. Enable 'Allow Invites' in settings first." 
+        });
+              return;
+      }
+      
+      // Check if tokens exist for this user
+      if (!fs.existsSync(TOKEN_PATH)) {
+        socket.emit("contactsImported", { 
+          success: false, 
+          message: "No OAuth tokens found. Please connect to Google first." 
+        });
+        return;
+      }
+      
+      const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
+      const tokens = allTokens.entries[data.username];
+      
+      if (!tokens) {
+        socket.emit("contactsImported", { 
+          success: false, 
+          message: `No OAuth tokens found for ${data.username}. Please connect to Google first.` 
+        });
+        return;
+      }
+        
+      // Create OAuth client with user's tokens
+      const userOAuthClient = new google.auth.OAuth2(
+        credentials.web.client_id,
+        credentials.web.client_secret,
+        credentials.web.redirect_uris[0]
+      );
+      userOAuthClient.setCredentials(tokens);
+      
+      // Use People API to fetch contacts
+      const people = google.people({ version: "v1", auth: userOAuthClient });
+      
+      console.log(`[Server] Fetching Google Contacts for ${data.username}...`);
+      
+      const response = await people.people.connections.list({
+        resourceName: "people/me",
+        pageSize: 1000,
+        personFields: "names,emailAddresses,phoneNumbers",
+      });
+      
+      const connections = response.data.connections || [];
+      console.log(`[Server] Found ${connections.length} raw contacts`);
+      
+      // Extract contacts with emails
+      const importedContacts = connections
+        .filter((person: any) => person.emailAddresses && person.emailAddresses.length > 0)
+        .map((person: any) => ({
+          contact_detail: person.emailAddresses?.[0]?.value || "",
+          name: person.names?.[0]?.displayName || "Unknown",
+          phone: person.phoneNumbers?.[0]?.value || ""
+        }))
+              .filter((contact: any) => contact.contact_detail);
+      
+      console.log(`[Server] Extracted ${importedContacts.length} contacts with emails`);
+      
+      // Load current user data and update contacts
+      const currentUserResult = user_handler.loadUser(data.username);
+      if (currentUserResult.success && currentUserResult.user) {
+        // Merge contacts (avoid duplicates based on email)
+        const existingEmails = new Set(
+          (currentUserResult.user.contacts || []).map((c: any) => c.contact_detail?.toLowerCase())
+        );
+        
+        const newContacts = importedContacts.filter(
+          (c: any) => !existingEmails.has(c.contact_detail?.toLowerCase())
+        );
+        
+        // Prepare updated user data
+        const updatedUserData = {
+          ...user_handler.serializeUser(currentUserResult.user),
+          contacts: [
+            ...(currentUserResult.user.contacts || []),
+            ...newContacts
+          ]
+        };
+        
+        // Save updated user
+        const saveResult = user_handler.saveUser(updatedUserData);
+          if (saveResult.success) {
+          console.log(`[Server] ✓ Imported ${newContacts.length} new contacts for ${data.username}`);
+          socket.emit("contactsImported", { 
+            success: true, 
+            message: `Successfully imported ${newContacts.length} new contacts`,
+            totalContacts: updatedUserData.contacts.length,
+            newContacts: newContacts.length
+          });
+        } else {
+          socket.emit("contactsImported", { 
+            success: false, 
+            message: `Failed to save contacts: ${saveResult.message}` 
+          });
+        }
+      } else {
+        socket.emit("contactsImported", { 
+          success: false, 
+          message: "Failed to load user data for contact update" 
+        });
+      }
+      
+    } catch (error: any) {
+      console.error("[Server] Error importing Google Contacts:", error);
+      socket.emit("contactsImported", { 
+        success: false, 
+        message: `Failed to import contacts: ${error.message}` 
+      });
+    }
+      });
 });
-
+ 
 
 server.listen(SERVER_PORT, SERVER_HOST, () => {
   console.log(`🚀 Server running on http://${SERVER_HOST}:${SERVER_PORT}`);
@@ -555,6 +692,7 @@ app.get("/auth", (req:any, res:any) => {
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/drive.metadata.readonly", // add any scopes you want
+            "https://www.googleapis.com/auth/contacts.readonly", // Google Contacts read access
     ],
   });
   res.redirect(authUrl);
@@ -705,6 +843,73 @@ app.get("/test", async (req:any, res:any) => {
   } catch (error:any) {
     console.error("Error reusing tokens:", error);
     res.status(500).send("❌ Failed to reuse tokens. Check console for details.");
+  }
+});
+
+// === Fetch Google Contacts for a user ===
+app.get("/contacts", async (req: any, res: any) => {
+  const userEmail = req.query.email;
+  
+  if (!userEmail) {
+    return res.status(400).json({ success: false, message: "Email parameter required" });
+  }
+  
+  console.log(`[Server] Fetching Google Contacts for: ${userEmail}`);
+  
+  try {
+    if (!fs.existsSync(TOKEN_PATH)) {
+      return res.status(401).json({ success: false, message: "No tokens found. Please authenticate first." });
+    }
+    
+    const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
+    const tokens = allTokens[userEmail];
+    
+    if (!tokens) {
+      return res.status(401).json({ success: false, message: `No tokens found for user: ${userEmail}` });
+    }
+      // Create OAuth client with user's tokens
+    const userOAuthClient = new google.auth.OAuth2(
+      credentials.web.client_id,
+      credentials.web.client_secret,
+      credentials.web.redirect_uris[0]
+    );
+    userOAuthClient.setCredentials(tokens);
+    
+    // Use People API to fetch contacts
+    const people = google.people({ version: "v1", auth: userOAuthClient });
+    
+    const response = await people.people.connections.list({
+      resourceName: "people/me",
+      pageSize: 1000, // Max contacts to fetch
+      personFields: "names,emailAddresses,phoneNumbers",
+    });
+    
+    const connections = response.data.connections || [];
+    console.log(`[Server] Found ${connections.length} contacts for ${userEmail}`);
+    // Extract email addresses from contacts
+    const contacts = connections
+      .filter((person: any) => person.emailAddresses && person.emailAddresses.length > 0)
+      .map((person: any) => ({
+        name: person.names?.[0]?.displayName || "Unknown",
+        email: person.emailAddresses?.[0]?.value || "",
+        phone: person.phoneNumbers?.[0]?.value || ""
+      }))
+      .filter((contact: any) => contact.email); // Only contacts with valid emails
+    
+    console.log(`[Server] Extracted ${contacts.length} contacts with emails`);
+    
+    res.json({ 
+      success: true, 
+      contacts,
+      message: `Found ${contacts.length} contacts with email addresses`
+    });
+    
+  } catch (error: any) {
+    console.error("[Server] Error fetching Google Contacts:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Failed to fetch contacts: ${error.message}` 
+    });
   }
 });
 

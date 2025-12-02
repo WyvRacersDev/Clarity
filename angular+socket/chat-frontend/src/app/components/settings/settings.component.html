@@ -11,13 +11,16 @@
       <div class="setting-item">
         <div class="setting-info">
           <div class="setting-label">Receive Notifications</div>
-          <div class="setting-description">Get notified about task deadlines and project updates</div>
+          <div class="setting-description">
+            Get notified about task deadlines and project updates
+          </div>
         </div>
         <label class="toggle-switch">
-          <input 
-            type="checkbox" 
+          <input
+            type="checkbox"
             [checked]="userSettings?.recieve_notifications"
-            (change)="toggleNotifications()">
+            (change)="toggleNotifications()"
+          />
           <span class="slider"></span>
         </label>
       </div>
@@ -32,10 +35,11 @@
           <div class="setting-description">Allow others to invite you to projects</div>
         </div>
         <label class="toggle-switch">
-          <input 
-            type="checkbox" 
+          <input
+            type="checkbox"
             [checked]="userSettings?.allow_invite"
-            (change)="toggleInvites()">
+            (change)="toggleInvites()"
+          />
           <span class="slider"></span>
         </label>
       </div>
@@ -44,7 +48,9 @@
     <!-- Google Integrations -->
     <div class="settings-section">
       <h2>Google Integrations</h2>
-      <p class="section-description">Connect your Google services to sync calendars, contacts, and emails</p>
+      <p class="section-description">
+        Connect your Google services to sync calendars, contacts, and emails
+      </p>
 
       <!-- Google Calendar -->
       <div class="integration-item">
@@ -57,18 +63,22 @@
         </div>
         <div class="integration-actions">
           <span *ngIf="isGoogleCalendarConnected()" class="status-badge connected">Connected</span>
-          <span *ngIf="!isGoogleCalendarConnected()" class="status-badge disconnected">Not Connected</span>
-          <button 
+          <span *ngIf="!isGoogleCalendarConnected()" class="status-badge disconnected"
+            >Not Connected</span
+          >
+          <button
             *ngIf="!isGoogleCalendarConnected()"
             class="connect-btn"
             (click)="connectGoogleCalendar()"
-            [disabled]="isConnectingCalendar">
+            [disabled]="isConnectingCalendar"
+          >
             {{ isConnectingCalendar ? 'Connecting...' : 'Connect' }}
           </button>
-          <button 
+          <button
             *ngIf="isGoogleCalendarConnected()"
             class="disconnect-btn"
-            (click)="disconnectGoogleCalendar()">
+            (click)="disconnectGoogleCalendar()"
+          >
             Disconnect
           </button>
         </div>
@@ -80,23 +90,29 @@
           <div class="integration-icon">👥</div>
           <div class="integration-details">
             <div class="integration-name">Google Contacts</div>
-            <div class="integration-description">Access your contacts for project collaboration</div>
+            <div class="integration-description">
+              Access your contacts for project collaboration
+            </div>
           </div>
         </div>
         <div class="integration-actions">
           <span *ngIf="isGoogleContactsConnected()" class="status-badge connected">Connected</span>
-          <span *ngIf="!isGoogleContactsConnected()" class="status-badge disconnected">Not Connected</span>
-          <button 
+          <span *ngIf="!isGoogleContactsConnected()" class="status-badge disconnected"
+            >Not Connected</span
+          >
+          <button
             *ngIf="!isGoogleContactsConnected()"
             class="connect-btn"
             (click)="connectGoogleContacts()"
-            [disabled]="isConnectingContacts">
+            [disabled]="isConnectingContacts"
+          >
             {{ isConnectingContacts ? 'Connecting...' : 'Connect' }}
           </button>
-          <button 
+          <button
             *ngIf="isGoogleContactsConnected()"
             class="disconnect-btn"
-            (click)="disconnectGoogleContacts()">
+            (click)="disconnectGoogleContacts()"
+          >
             Disconnect
           </button>
         </div>
@@ -114,57 +130,118 @@
         <div class="integration-actions">
           <span *ngIf="isGmailConnected()" class="status-badge connected">Connected</span>
           <span *ngIf="!isGmailConnected()" class="status-badge disconnected">Not Connected</span>
-          <button 
+          <button
             *ngIf="!isGmailConnected()"
             class="connect-btn"
             (click)="connectGmail()"
-            [disabled]="isConnectingGmail">
+            [disabled]="isConnectingGmail"
+          >
             {{ isConnectingGmail ? 'Connecting...' : 'Connect' }}
           </button>
-          <button 
-            *ngIf="isGmailConnected()"
-            class="disconnect-btn"
-            (click)="disconnectGmail()">
+          <button *ngIf="isGmailConnected()" class="disconnect-btn" (click)="disconnectGmail()">
             Disconnect
           </button>
         </div>
       </div>
     </div>
+    <!-- Import Contacts Section -->
+    <div class="settings-section" *ngIf="isGmailConnected()">
+      <h2>Import Contacts</h2>
+      <p class="section-description">
+        Import your Google Contacts to easily collaborate with others
+      </p>
 
+      <div class="import-contacts-section">
+        <div class="import-info">
+          <p *ngIf="!userSettings?.allow_invite" class="warning-text">
+            ⚠️ Enable "Allow Invites" above to import contacts
+          </p>
+          <p *ngIf="userSettings?.allow_invite && userContacts.length === 0" class="info-text">
+            No contacts imported yet. Click the button below to import from Google.
+          </p>
+          <p *ngIf="userContacts.length > 0" class="success-text">
+            ✓ {{ userContacts.length }} contacts imported
+          </p>
+        </div>
+
+        <button
+          class="import-btn"
+          (click)="importGoogleContacts()"
+          [disabled]="isImportingContacts || !userSettings?.allow_invite"
+        >
+          {{ isImportingContacts ? 'Importing...' : 'Import Google Contacts' }}
+        </button>
+
+        <div
+          *ngIf="importMessage"
+          class="import-message"
+          [class.success]="importSuccess"
+          [class.error]="!importSuccess"
+        >
+          {{ importMessage }}
+        </div>
+
+        <!-- Contacts List -->
+        <div *ngIf="userContacts.length > 0" class="contacts-list">
+          <h3>Imported Contacts ({{ userContacts.length }})</h3>
+          <div class="contacts-grid">
+            <div *ngFor="let contact of userContacts" class="contact-item">
+              <div class="contact-avatar">{{ contact.name?.charAt(0)?.toUpperCase() || '?' }}</div>
+              <div class="contact-info">
+                <div class="contact-name">{{ contact.name || 'Unknown' }}</div>
+                <div class="contact-email">
+                  {{ contact.contact_detail || contact.email || 'No email' }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Server Configuration -->
     <div class="settings-section">
       <h2>Server Configuration</h2>
-      <p class="section-description">Configure the server IP/URL where hosted projects are stored</p>
-      
+      <p class="section-description">
+        Configure the server IP/URL where hosted projects are stored
+      </p>
+
       <div class="server-config-item">
         <div class="setting-info">
           <div class="setting-label">Server URL</div>
-          <div class="setting-description">Enter the server address (e.g., http://192.168.1.100:3000 or http://yourdomain.com:3000)</div>
+          <div class="setting-description">
+            Enter the server address (e.g., http://192.168.1.100:3000 or http://yourdomain.com:3000)
+          </div>
         </div>
         <div class="server-config-input-group">
-          <input 
-            type="text" 
+          <input
+            type="text"
             [(ngModel)]="serverUrl"
             placeholder="http://localhost:3000"
             class="server-url-input"
-            [disabled]="isSavingServerConfig">
+            [disabled]="isSavingServerConfig"
+          />
           <div class="server-config-buttons">
-            <button 
+            <button
               class="save-btn"
               (click)="saveServerConfig()"
-              [disabled]="isSavingServerConfig || !serverUrl.trim()">
+              [disabled]="isSavingServerConfig || !serverUrl.trim()"
+            >
               {{ isSavingServerConfig ? 'Saving...' : 'Save' }}
             </button>
-            <button 
+            <button
               class="reset-btn"
               (click)="resetServerConfig()"
-              [disabled]="isSavingServerConfig">
+              [disabled]="isSavingServerConfig"
+            >
               Reset to Default
             </button>
           </div>
         </div>
         <div class="server-config-note">
-          <p><strong>Note:</strong> Changing the server URL will reload the page. Make sure the server is accessible at the specified address.</p>
+          <p>
+            <strong>Note:</strong> Changing the server URL will reload the page. Make sure the
+            server is accessible at the specified address.
+          </p>
         </div>
       </div>
     </div>

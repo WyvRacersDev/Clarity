@@ -13,9 +13,23 @@
           "y_pos": 221.19998168945312,
           "x_scale": 1,
           "y_scale": 1,
-          "scheduled_tasks": [],
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "meow",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-02T07:24:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-02T18:24:37.794Z"
+            }
+          ],
           "collaborators": [],
-          "tags": []
+          "tags": [
+            "bingo",
+            "bebe"
+          ]
         },
         {
           "type": "Object",
@@ -41,7 +55,7 @@
               "time": "2025-11-27T12:30:00.000Z",
               "completion_time": null,
               "completed_by": null,
-              "creation_time": "2025-12-01T15:14:57.000Z"
+              "creation_time": "2025-12-02T18:23:54.884Z"
             },
             {
               "type": "scheduled_task",
@@ -51,7 +65,7 @@
               "time": "2025-12-01T15:56:00.000Z",
               "completion_time": null,
               "completed_by": null,
-              "creation_time": "2025-12-01T15:14:57.000Z"
+              "creation_time": "2025-12-02T18:23:54.884Z"
             },
             {
               "type": "scheduled_task",
@@ -61,7 +75,7 @@
               "time": "2025-12-01T16:56:00.000Z",
               "completion_time": null,
               "completed_by": null,
-              "creation_time": "2025-12-01T15:14:57.000Z"
+              "creation_time": "2025-12-02T18:23:54.884Z"
             }
           ],
           "collaborators": [],
@@ -75,5 +89,5 @@
     }
   ],
   "project_type": "local",
-  "lastModified": "2025-12-01T15:14:57.007Z"
+  "lastModified": "2025-12-02T18:24:37.804Z"
 }
