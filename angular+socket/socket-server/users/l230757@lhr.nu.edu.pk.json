@@ -5,9 +5,22 @@
   "settings": {
     "type": "settings",
     "recieve_notifications": true,
-    "allow_invite": false,
+    "allow_invite": true,
     "allow_google_calender": true
   },
-  "projectReferences": [],
-  "lastModified": "2025-12-02T18:00:56.415Z"
+  "projectReferences": [
+    {
+      "name": "YOOO",
+      "projectType": "local"
+    },
+    {
+      "name": "hi",
+      "projectType": "local"
+    },
+    {
+      "name": "anything",
+      "projectType": "hosted"
+    }
+  ],
+  "lastModified": "2025-12-02T18:23:41.068Z"
 }

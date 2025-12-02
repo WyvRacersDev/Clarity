@@ -929,5 +929,62 @@ const user = this.currentUserSubject.value;
     // Save to storage
     this.saveUserDataToStorage();
   }
+   /**
+   * Import Google Contacts for the current user
+   * Only works if allow_invite is enabled
+   */
+  async importGoogleContacts(): Promise<{ success: boolean; message: string; newContacts?: number }> {
+    const user = this.getCurrentUser();
+    if (!user) {
+      return { success: false, message: 'No user logged in' };
+    }
+
+    // Check if allow_invite is enabled
+    if (!user.settings?.allow_invite) {
+      return { 
+        success: false, 
+        message: 'Contact import is disabled. Enable "Allow Invites" in settings first.' 
+      };
+    }
+
+    console.log(`[DataService] Importing Google Contacts for: ${user.name}`);
+
+    try {
+      const response = await firstValueFrom(
+        this.socketService.importGoogleContacts(user.name)
+      );
+          if (response.success) {
+        console.log(`[DataService] ✓ Successfully imported contacts:`, response);
+        
+        // Reload user data from backend to get updated contacts
+        const updatedUser = await this.loadUserFromBackend(user.name);
+        if (updatedUser) {
+          // Update local user with new contacts
+          user.contacts = updatedUser.contacts || [];
+          this.currentUserSubject.next(user);
+          this.saveUserDataToStorage();
+        }
+        
+        return { 
+          success: true, 
+          message: response.message,
+          newContacts: response.newContacts
+        };
+      } else {
+        console.error(`[DataService] Failed to import contacts:`, response.message);
+        return { success: false, message: response.message };
+      }
+    } catch (error: any) {
+      console.error('[DataService] Error importing contacts:', error);
+      return { success: false, message: `Error: ${error.message}` };
+    }
+  }
+   /**
+   * Get current user's contacts
+   */
+  getUserContacts(): any[] {
+    const user = this.getCurrentUser();
+    return user?.contacts || [];
+  }
 }
 

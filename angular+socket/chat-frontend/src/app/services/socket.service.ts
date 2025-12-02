@@ -552,6 +552,38 @@ export class SocketService {
       };
     });
   }
+   /**
+   * Import Google Contacts for a user
+   * @param username Username to import contacts for
+   * @returns Observable that emits the import result
+   */
+  importGoogleContacts(username: string): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      
+      console.log('[SocketService] Importing Google Contacts for:', username);
+      
+      const timeout = setTimeout(() => {
+        console.error('[SocketService] Import contacts timeout');
+        observer.error(new Error('Import contacts timeout'));
+        observer.complete();
+      }, 30000); // 30 second timeout for contact import
+      
+      this.socket!.once('contactsImported', (response: any) => {
+        console.log('[SocketService] Received contactsImported response:', response);
+        clearTimeout(timeout);
+        observer.next(response);
+        observer.complete();
+      });
+         
+      this.socket!.emit('importGoogleContacts', { username });
+      console.log('[SocketService] Emitted importGoogleContacts event');
+    });
+  }
 }
 
 

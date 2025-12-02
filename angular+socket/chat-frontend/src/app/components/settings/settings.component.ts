@@ -22,6 +22,12 @@ export class SettingsComponent implements OnInit {
   isConnectingContacts = false;
   isConnectingGmail = false;
   isProcessingOAuth = false;
+    isImportingContacts = false;
+  
+  // Contacts
+  userContacts: any[] = [];
+  importMessage: string = '';
+  importSuccess: boolean = false;
 
   // Server configuration
   serverUrl: string = '';
@@ -47,6 +53,9 @@ export class SettingsComponent implements OnInit {
         console.log('[Settings] Initial userSettings set with methods');
       }
     }
+            
+        // Load user contacts
+        this.loadUserContacts();
     
     // Handle OAuth callback
     const oauthStatus = this.route.snapshot.queryParamMap.get('oauth');
@@ -292,4 +301,44 @@ export class SettingsComponent implements OnInit {
     this.serverUrl = 'http://localhost:3000';
     this.saveServerConfig();
   }
+   // Contact import methods
+  async importGoogleContacts(): Promise<void> {
+    if (!this.userSettings?.allow_invite) {
+      this.importMessage = 'Enable "Allow Invites" to import contacts';
+      this.importSuccess = false;
+      return;
+    }
+
+    this.isImportingContacts = true;
+    this.importMessage = '';
+    
+    try {
+      console.log('[Settings] Starting Google Contacts import...');
+      const result = await this.dataService.importGoogleContacts();
+      
+      this.importSuccess = result.success;
+      this.importMessage = result.message;
+      
+      if (result.success) {
+        // Refresh contacts list
+        this.loadUserContacts();
+      }
+    } catch (error: any) {
+      console.error('[Settings] Error importing contacts:', error);
+      this.importSuccess = false;
+      this.importMessage = `Error: ${error.message}`;
+    } finally {
+         this.isImportingContacts = false;
+    }
+  }
+
+  loadUserContacts(): void {
+    this.userContacts = this.dataService.getUserContacts();
+    console.log('[Settings] Loaded contacts:', this.userContacts);
+  }
+
+  canImportContacts(): boolean {
+    return this.userSettings?.allow_invite === true && this.isGmailConnected();
+  }
+  
 }
