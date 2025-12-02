@@ -1,7 +1,7 @@
-import { Project } from "../models/project.model";
-import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
-import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-dayjs.extend(isSameOrBefore);
+// import { Project } from "../models/project.model";
+// import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
+// import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+// dayjs.extend(isSameOrBefore);
 export class User {
     constructor(name, settings) {
         //password:string; //ye to encrypt kerna parhay ga lol
@@ -37,6 +37,20 @@ export class User {
             return false;
         }
     }
+    toJSON() {
+        return {
+            type: 'User',
+            name: this.name,
+            settings: this.settings.toJSON(),
+            contacts: this.contacts.map(c => c.toJSON()),
+            // Store project references (names and types) - actual projects are stored separately
+            projectReferences: this.projects.map(p => ({
+                name: p.name,
+                projectType: p.projectType || p.project_type || 'local'
+            })),
+            lastModified: new Date().toISOString()
+        };
+    }
 }
 //NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS
 export class settings {
@@ -63,10 +77,24 @@ export class settings {
     get_calender_status() {
         return this.allow_google_calender;
     }
+    toJSON() {
+        return {
+            type: 'settings',
+            recieve_notifications: this.recieve_notifications,
+            allow_invite: this.allow_invite,
+            allow_google_calender: this.allow_google_calender
+        };
+    }
 }
-class contact {
+export class contact {
     constructor(detail) {
         this.contact_detail = detail;
+    }
+    toJSON() {
+        return {
+            type: 'contact',
+            contact_detail: this.contact_detail
+        };
     }
 }
 export class calender {
@@ -96,3 +124,58 @@ export class calender {
     }
 }
 //NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS//NEED TO FINISH AFTER DISCUSSIONS
+/**
+ * Builder class for reconstructing User objects from JSON
+ */
+export class user_builder {
+    /**
+     * Rebuild a User object from JSON data
+     */
+    static rebuild(obj) {
+        if (!obj)
+            return obj;
+        // Handle settings object
+        if (obj.type === 'settings' || (obj.recieve_notifications !== undefined && obj.allow_invite !== undefined)) {
+            const s = new settings();
+            s.recieve_notifications = obj.recieve_notifications !== undefined ? obj.recieve_notifications : true;
+            s.allow_invite = obj.allow_invite !== undefined ? obj.allow_invite : true;
+            s.allow_google_calender = obj.allow_google_calender !== undefined ? obj.allow_google_calender : true;
+            return s;
+        }
+        // Handle contact object
+        if (obj.type === 'contact' || (obj.contact_detail !== undefined && !obj.name)) {
+            return new contact(obj.contact_detail || '');
+        }
+        // Handle User object
+        if (obj.type === 'User' || (obj.name !== undefined && obj.settings !== undefined)) {
+            const userSettings = user_builder.rebuild(obj.settings);
+            const user = new User(obj.name, userSettings);
+            // Rebuild contacts
+            if (obj.contacts && Array.isArray(obj.contacts)) {
+                user.contacts = obj.contacts.map((c) => user_builder.rebuild(c));
+            }
+            // Note: projects are stored separately, projectReferences are just metadata
+            // The actual projects will be loaded separately by the DataService
+            return user;
+        }
+        return obj;
+    }
+    /**
+    * Rebuild settings from JSON
+    */
+    static rebuildSettings(obj) {
+        const s = new settings();
+        if (obj) {
+            s.recieve_notifications = obj.recieve_notifications !== undefined ? obj.recieve_notifications : true;
+            s.allow_invite = obj.allow_invite !== undefined ? obj.allow_invite : true;
+            s.allow_google_calender = obj.allow_google_calender !== undefined ? obj.allow_google_calender : true;
+        }
+        return s;
+    }
+    /**
+     * Rebuild contact from JSON
+     */
+    static rebuildContact(obj) {
+        return new contact(obj?.contact_detail || '');
+    }
+}

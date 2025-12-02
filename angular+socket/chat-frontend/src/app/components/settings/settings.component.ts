@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { GoogleIntegrationService } from '../../services/google-integration.service';
 import { User, settings } from '../../../../../shared_models/models/user.model';
-import { ActivatedRoute , Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { getCurrentServerConfig, saveServerConfig } from '../../config/app.config';
 
 @Component({
@@ -16,13 +16,13 @@ import { getCurrentServerConfig, saveServerConfig } from '../../config/app.confi
 })
 export class SettingsComponent implements OnInit {
   currentUser: User | null = null;
-    userSettings: settings | null = null;
-  
+  userSettings: settings | null = null;
+
   isConnectingCalendar = false;
   isConnectingContacts = false;
   isConnectingGmail = false;
   isProcessingOAuth = false;
-  
+
   // Server configuration
   serverUrl: string = '';
   isSavingServerConfig = false;
@@ -30,18 +30,41 @@ export class SettingsComponent implements OnInit {
   constructor(
     private dataService: DataService,
     private route: ActivatedRoute,
-        private router: Router,
+    private router: Router,
     private googleIntegration: GoogleIntegrationService
-  ) {}
+  ) { }
 
- async ngOnInit(): Promise<void> {
+  async ngOnInit(): Promise<void> {
+        console.log('[Settings] ngOnInit started');
+    
+    // First, try to get the current user immediately
+    const initialUser = this.dataService.getCurrentUser();
+    console.log('[Settings] Initial user from getCurrentUser:', initialUser);
+    if (initialUser) {
+      this.currentUser = initialUser;
+      if (initialUser.settings && typeof initialUser.settings.toggle_notif === 'function') {
+        this.userSettings = initialUser.settings;
+        console.log('[Settings] Initial userSettings set with methods');
+      }
+    }
+    
     // Handle OAuth callback
     const oauthStatus = this.route.snapshot.queryParamMap.get('oauth');
     const tokenId = this.route.snapshot.queryParamMap.get('id');
-        this.dataService.currentUser$.subscribe(user => {
+    this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
-      if (user) {
-        this.userSettings = user.settings;
+      if (user && user.settings) {
+        // Ensure settings has methods (is a class instance, not plain object)
+        if (typeof user.settings.toggle_notif === 'function') {
+          this.userSettings = user.settings;
+        } else {
+          // Settings is a plain object, need to get properly reconstructed user
+          const reconstructedUser = this.dataService.getCurrentUser();
+          if (reconstructedUser) {
+            this.currentUser = reconstructedUser;
+            this.userSettings = reconstructedUser.settings;
+          }
+        }
       }
     });
     if (oauthStatus === 'success' && tokenId) {
@@ -51,7 +74,7 @@ export class SettingsComponent implements OnInit {
       console.log('[Settings] OAuth successful, token ID stored:', tokenId);
       // Process OAuth: get email and update username
       await this.processOAuthCallback(tokenId);
-      
+
       // Clean the URL by removing query params
       this.router.navigate(['/settings'], { replaceUrl: true });
     } else if (this.route.snapshot.queryParamMap.has('oauth')) {
@@ -59,39 +82,57 @@ export class SettingsComponent implements OnInit {
       localStorage.removeItem("oauth_in_progress");
       this.router.navigate(['/settings'], { replaceUrl: true });
     }
-    
+
     // Load current server URL
     this.serverUrl = getCurrentServerConfig();
   }
-/**
-   * Process OAuth callback: fetch Gmail user info, update username to email, and load projects
-   */
+  /**
+       * Process OAuth callback: update username to email and load projects
+     * The tokenId parameter is now the email itself (URL encoded)
+    
+     */
   private async processOAuthCallback(tokenId: string): Promise<void> {
     this.isProcessingOAuth = true;
-    
+
     try {
       console.log('[Settings] Processing OAuth callback with token ID:', tokenId);
-      
-      // Get Gmail user info
-      const gmailInfo = await this.googleIntegration.getGmailInfo(tokenId);
-      console.log('[Settings] Gmail user info:', gmailInfo);
-      
-      if (gmailInfo && gmailInfo.email) {
-        const email = gmailInfo.email;
-        console.log('[Settings] Updating username to email:', email);
-        
+
+      // The tokenId is now the email directly (URL decoded by Angular)
+      const email = decodeURIComponent(tokenId);
+
+
+      // Check if it looks like an email
+      if (email && email.includes('@')) {
+        console.log('[Settings] Using email from OAuth callback:', email);
+
         // Update the username to the email
         const updatedUser = this.dataService.updateUsernameToEmail(email);
-        
+
         if (updatedUser) {
           console.log('[Settings] Username updated successfully. Loading projects...');
-          
+
           // Load projects for the new email-based username
           await this.dataService.loadUserProjects();
-          
+
           console.log('[Settings] OAuth processing complete');
-        } } else {
-        console.error('[Settings] No email found in Gmail info:', gmailInfo);
+        }
+      } else {
+        // Fallback: try to get Gmail info from backend (legacy support)
+        console.log('[Settings] Token ID is not an email, trying backend lookup...');
+        try {
+          const gmailInfo = await this.googleIntegration.getGmailInfo(tokenId);
+          if (gmailInfo && gmailInfo.email) {
+            const fetchedEmail = gmailInfo.email;
+            console.log('[Settings] Got email from backend:', fetchedEmail);
+
+            const updatedUser = this.dataService.updateUsernameToEmail(fetchedEmail);
+            if (updatedUser) {
+              await this.dataService.loadUserProjects();
+            }
+          }
+        } catch (backendError) {
+          console.error('[Settings] Backend lookup failed:', backendError);
+        }
       }
     } catch (error) {
       console.error('[Settings] Error processing OAuth callback:', error);
@@ -174,8 +215,27 @@ export class SettingsComponent implements OnInit {
   }
 
   private saveSettings(): void {
+    console.log('[Settings] saveSettings called');
+    console.log('[Settings] userSettings:', this.userSettings);
+    console.log('[Settings] currentUser:', this.currentUser);
+
     if (this.userSettings && this.currentUser) {
+       console.log('[Settings] Calling dataService.updateSettings');
       this.dataService.updateSettings(this.userSettings);
+    }else {
+      console.warn('[Settings] Cannot save settings - userSettings or currentUser is null');
+      
+      // Try to get the current user if it's null
+      if (!this.currentUser) {
+        this.currentUser = this.dataService.getCurrentUser();
+        console.log('[Settings] Retrieved currentUser:', this.currentUser);
+      }
+      
+      // Try again after getting user
+      if (this.userSettings && this.currentUser) {
+        console.log('[Settings] Retrying dataService.updateSettings');
+        this.dataService.updateSettings(this.userSettings);
+      }
     }
   }
 
@@ -190,14 +250,14 @@ export class SettingsComponent implements OnInit {
   isGmailConnected(): boolean {
     return this.googleIntegration.isGmailConnected();
   }
-  
+
   // Server configuration methods
   saveServerConfig(): void {
     if (!this.serverUrl.trim()) {
       alert('Please enter a valid server URL');
       return;
     }
-    
+
     // Validate URL format
     try {
       const url = new URL(this.serverUrl);
@@ -211,7 +271,7 @@ export class SettingsComponent implements OnInit {
         return;
       }
     }
-    
+
     this.isSavingServerConfig = true;
     try {
       saveServerConfig(this.serverUrl);
@@ -227,7 +287,7 @@ export class SettingsComponent implements OnInit {
       this.isSavingServerConfig = false;
     }
   }
-  
+
   resetServerConfig(): void {
     this.serverUrl = 'http://localhost:3000';
     this.saveServerConfig();
