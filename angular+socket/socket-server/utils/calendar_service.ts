@@ -44,7 +44,7 @@ export async function createCalendarEvent(
     }
 
     const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-    const tokens = allTokens[userEmail];
+    const tokens = allTokens.entries[userEmail];
    if (!tokens) {
       return {
         success: false,
@@ -141,7 +141,7 @@ export async function deleteCalendarEvent(
     const { client_secret, client_id, redirect_uris } = credentials.web;
 
     const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-    const tokens = allTokens[userEmail];
+    const tokens = allTokens.entries[userEmail];
  if (!tokens) {
       return {
         success: false,
@@ -157,6 +157,7 @@ export async function deleteCalendarEvent(
     oAuth2Client.setCredentials(tokens);
 
     const calendar = google.calendar({ version: "v3", auth: oAuth2Client });
+    console.log("Deleting event with ID:", eventId);
 
     await calendar.events.delete({
       calendarId: "primary",
