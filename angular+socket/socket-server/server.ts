@@ -7,7 +7,7 @@ import { Server } from "socket.io";
 import { ProjectHandler } from "./utils/project_handler.ts";
 import { UserHandler } from "./utils/user_handler.ts";
 import { SERVER_HOST, SERVER_PORT, FRONTEND_URL, ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN } from "./config.ts";
-
+import { createCalendarEvent,deleteCalendarEvent } from "./utils/calendar_service.ts";
 
 
 
@@ -153,11 +153,11 @@ io.on("connection", (socket:Socket) => {
    * Save a project
    * Expected payload: { project: Project, projectType: 'local' | 'hosted' }
    */
-  socket.on("saveProject", (data: { project: any; projectType: 'local' | 'hosted' }) => {
-    try {
-      const projectType = data.projectType || data.project?.project_type || 'local';
+ socket.on("saveProject", async (data: { project: any; projectType: 'local' | 'hosted' }) => {
+     try {
+       const projectType = data.projectType || data.project?.project_type || 'local';
       console.log(`[Server] 💾 Saving project: "${data.project?.name}", Type: "${projectType}"`);
-      const result = project_handler.saveProject(data.project, projectType);
+      const result = await project_handler.saveProject(data.project, projectType);
       
       if (result.success) {
         // Send confirmation to the user who saved

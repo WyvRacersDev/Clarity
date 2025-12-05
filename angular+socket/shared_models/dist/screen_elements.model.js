@@ -112,6 +112,7 @@ export class scheduled_task {
         this.notified = false;
         this.completion_time = null;
         this.completed_by = null;
+        this.calendar_event_id = null;
     }
     edit_priority(new_pr) {
         this.priority = new_pr;
@@ -156,6 +157,12 @@ export class scheduled_task {
     get_creation_time() {
         return this.creation_time;
     }
+    get_calendar_event_id() {
+        return this.calendar_event_id;
+    }
+    set_calendar_event_id(event_id) {
+        this.calendar_event_id = event_id;
+    }
     toJSON() {
         return {
             type: this.constructor.name,
@@ -165,7 +172,8 @@ export class scheduled_task {
             time: this.time,
             completion_time: this.completion_time,
             completed_by: this.completed_by,
-            creation_time: this.creation_time
+            creation_time: this.creation_time,
+            calendar_event_id: this.calendar_event_id
         };
     }
 }
@@ -363,6 +371,8 @@ export class objects_builder {
                         t.completion_time = obj.completion_time;
                     if (obj.completed_by !== undefined)
                         t.completed_by = obj.completed_by;
+                    if (obj.calendar_event_id !== undefined)
+                        t.calendar_event_id = obj.calendar_event_id;
                     if (obj.notified !== undefined)
                         t.notified = obj.notified;
                     return t;
