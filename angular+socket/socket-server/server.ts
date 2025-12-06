@@ -801,6 +801,7 @@ app.get("/profile", async (req:any, res:any) => {
 
 import { calendar_v3 } from "googleapis"; //needed because typescript hates me
 import { fileURLToPath } from "url";
+import { aggregateAnalytics } from "./utils/analytics.ts";
 app.get("/test", async (req:any, res:any) => {
   try {
     const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
@@ -911,6 +912,20 @@ app.get("/contacts", async (req: any, res: any) => {
       message: `Failed to fetch contacts: ${error.message}` 
     });
   }
+});
+
+// Route: completed-per-day
+app.get("/analytics/completed-per-day", async (req, res) => {
+  const days = Number(req.query.days ?? 30);
+  const { completedPerDay } = await aggregateAnalytics(days);
+  res.json(completedPerDay);
+});
+
+// Route: completion-rate-by-tag
+app.get("/analytics/completion-rate-by-tag", async (req, res) => {
+  const days = Number(req.query.days ?? 30);
+  const { completionRateByTag } = await aggregateAnalytics(days);
+  res.json(completionRateByTag);
 });
 
 

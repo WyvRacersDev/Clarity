@@ -74,10 +74,10 @@ export class DashboardComponent implements OnInit {
       .slice(0, 5);
 
     // Calculate productivity score
-    this.productivityScore = this.analyticsService.calculateProductivityScore(
-      this.totalTasks,
-      this.completedTasks
-    );
+    //this.productivityScore = this.analyticsService.calculateProductivityScore(
+    //  this.totalTasks,
+    //  this.completedTasks
+    //);
   }
 
   getCompletionPercentage(): number {

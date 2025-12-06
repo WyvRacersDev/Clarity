@@ -1,6 +1,6 @@
 <h2>SOCKET TEST</h2>
 
-<p>Status: 
+<p>Status:
   <span [style.color]="connected ? 'green' : 'red'">
     {{ connected ? 'Connected ✅' : 'Disconnected ❌' }}
   </span>
@@ -15,5 +15,7 @@
 <p>Message model: {{ message }}</p>
 
 <ul>
-  <li *ngFor="let msg of messages">{{ msg }}</li>
+  @for (msg of messages; track msg) {
+    <li>{{ msg }}</li>
+  }
 </ul>

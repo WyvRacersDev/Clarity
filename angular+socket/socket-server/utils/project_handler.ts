@@ -223,10 +223,8 @@ export class ProjectHandler {
                         console.log(`[Server] ℹ️ Calendar integration not enabled for ${username}`);
                     }
                     for(let id of old_task_ids){
-                        console.log("Old ID:",id);
                         if(!new_Task_ids.includes(id) && id!==null){
                             //delete calendar event
-                            console.log(`[ProjectHandler] Deleting old calendar event: "${id}"`);
                             const deleteResult = await deleteCalendarEvent(
                                 username,
                                 id
@@ -357,7 +355,7 @@ export class ProjectHandler {
                             for (const task of element.scheduled_tasks) {
                                 if (task.calendar_event_id) {
                                     // Delete calendar event
-                                    console.log(`[ProjectHandler] Deleting old calendar event: "${task}"`);
+                                    //console.log(`[ProjectHandler] Deleting old calendar event: "${task}"`);
                                     deleteCalendarEvent(
                                         project.project.owner_name,
                                         task.calendar_event_id

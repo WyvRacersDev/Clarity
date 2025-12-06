@@ -1,549 +1,593 @@
 <!-- Loading Overlay -->
-<div class="loading-overlay" *ngIf="isSaving || isLoading">
-  <div class="loading-spinner">
-    <div class="spinner"></div>
-    <p *ngIf="isSaving">Saving project...</p>
-    <p *ngIf="isLoading">Loading project...</p>
-  </div>
-</div>
-
-<div class="project-detail-container" *ngIf="project">
-  <div class="project-header">
-    <div class="header-left">
-      <a routerLink="/projects" class="back-btn">← Back to Projects</a>
-      <h1>{{ project.name }}</h1>
-    </div>
-    <div class="header-actions">
-      <button
-        class="add-btn"
-        (click)="openAddElementModal()"
-        [disabled]="!project || project.grid.length === 0"
-      >
-        <span class="btn-icon">➕</span>
-        Add Element
-      </button>
+@if (isSaving || isLoading) {
+  <div class="loading-overlay">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      @if (isSaving) {
+        <p>Saving project...</p>
+      }
+      @if (isLoading) {
+        <p>Loading project...</p>
+      }
     </div>
   </div>
+}
 
-  <!-- Grid View -->
-  <div>
-    <div class="grids-tabs">
-      <div
-        *ngFor="let grid of project.grid; let i = index"
-        class="tab"
-        [class.active]="selectedGridIndex === i"
-        (click)="selectedGridIndex = i"
-      >
-        {{ grid.name }}
+@if (project) {
+  <div class="project-detail-container">
+    <div class="project-header">
+      <div class="header-left">
+        <a routerLink="/projects" class="back-btn">← Back to Projects</a>
+        <h1>{{ project.name }}</h1>
+      </div>
+      <div class="header-actions">
         <button
-          class="tab-delete"
-          (click)="deleteGrid(i); $event.stopPropagation()"
-          *ngIf="project.grid.length > 1"
-        >
-          ×
+          class="add-btn"
+          (click)="openAddElementModal()"
+          [disabled]="!project || project.grid.length === 0"
+          >
+          <span class="btn-icon">➕</span>
+          Add Element
         </button>
       </div>
-      <button class="add-tab" (click)="openCreateGridModal()">+ New Grid</button>
     </div>
-
-    <div class="grid-content" *ngIf="project.grid.length > 0 && project.grid[selectedGridIndex]">
-      <div class="grid-header">
-        <h2>{{ project.grid[selectedGridIndex].name }}</h2>
-        <div class="grid-stats">
-          {{ project.grid[selectedGridIndex].Screen_elements.length }} element{{
-            project.grid[selectedGridIndex].Screen_elements.length !== 1 ? 's' : ''
-          }}
-        </div>
-      </div>
-
-      <div class="elements-grid">
-        <div
-          *ngFor="let element of project.grid[selectedGridIndex].Screen_elements; let i = index"
-          class="element-card"
-          [ngStyle]="getElementStyle(element)"
-          (mousedown)="onElementMouseDown($event, i)"
-          (mouseleave)="onElementMouseLeave()"
-          draggable="false"
-        >
-          <!-- Image -->
-          <div *ngIf="getElementType(element) === 'Image'" class="image-element">
-            <div class="element-header">
-              <h3
-                *ngIf="
-                  editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                "
-                (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
-              >
-                {{ element.name }}
-              </h3>
-              <input
-                *ngIf="
-                  editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                "
-                [(ngModel)]="editingElementName"
-                (blur)="saveElementName()"
-                (keyup.enter)="saveElementName()"
-                (keyup.escape)="cancelElementNameEdit()"
-                class="element-name-input"
-                autofocus
-              />
-              <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
-            </div>
-            <div class="image-content">
-              <img [src]="getImagePath(element)" [alt]="element.name" />
-            </div>
-          </div>
-
-          <!-- Video -->
-          <div *ngIf="getElementType(element) === 'Video'" class="video-element">
-            <div class="element-header">
-              <h3
-                *ngIf="
-                  editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                "
-                (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
-              >
-                {{ element.name }}
-              </h3>
-              <input
-                *ngIf="
-                  editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                "
-                [(ngModel)]="editingElementName"
-                (blur)="saveElementName()"
-                (keyup.enter)="saveElementName()"
-                (keyup.escape)="cancelElementNameEdit()"
-                class="element-name-input"
-                autofocus
-              />
-              <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
-            </div>
-            <div class="video-content">
-              <video controls width="100%">
-                <source [src]="getVideoPath(element)" type="video/mp4" />
-              </video>
-            </div>
-          </div>
-
-          <!-- Text Document -->
-          <div *ngIf="getElementType(element) === 'Text_document'" class="text-element">
-            <div class="element-header">
-              <h3
-                *ngIf="
-                  editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                "
-                (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
-              >
-                {{ element.name }}
-              </h3>
-              <input
-                *ngIf="
-                  editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                "
-                [(ngModel)]="editingElementName"
-                (blur)="saveElementName()"
-                (keyup.enter)="saveElementName()"
-                (keyup.escape)="cancelElementNameEdit()"
-                class="element-name-input"
-                autofocus
-              />
-              <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
-            </div>
-            <div class="text-content" (dblclick)="startEditingText(element, selectedGridIndex, i)">
-              <p *ngIf="!isEditingText || editingTextIndex !== i">{{ getTextContent(element) }}</p>
-              <textarea
-                *ngIf="isEditingText && editingTextIndex === i"
-                [(ngModel)]="editingTextContent"
-                (blur)="saveTextEdit()"
-                (keydown.escape)="cancelTextEdit()"
-                (keydown.ctrl.enter)="saveTextEdit(); $event.preventDefault()"
-                class="text-edit-input"
-                autofocus
-              >
-              </textarea>
-            </div>
-          </div>
-
-          <!-- ToDo List -->
+    <!-- Grid View -->
+    <div>
+      <div class="grids-tabs">
+        @for (grid of project.grid; track grid; let i = $index) {
           <div
-            *ngIf="getElementType(element) === 'ToDoLst'"
-            class="todo-element"
-            (click)="openFullScreenTodo(i, $event)"
-            [class.dragging]="isDraggingEnabled && draggedElementIndex === i"
-          >
-            <div class="element-header">
-              <h3
-                *ngIf="
-                  editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                "
+            class="tab"
+            [class.active]="selectedGridIndex === i"
+            (click)="selectedGridIndex = i"
+            >
+            {{ grid.name }}
+            @if (project.grid.length > 1) {
+              <button
+                class="tab-delete"
+                (click)="deleteGrid(i); $event.stopPropagation()"
+                >
+                ×
+              </button>
+            }
+          </div>
+        }
+        <button class="add-tab" (click)="openCreateGridModal()">+ New Grid</button>
+      </div>
+      @if (project.grid.length > 0 && project.grid[selectedGridIndex]) {
+        <div class="grid-content">
+          <div class="grid-header">
+            <h2>{{ project.grid[selectedGridIndex].name }}</h2>
+            <div class="grid-stats">
+              {{ project.grid[selectedGridIndex].Screen_elements.length }} element{{
+              project.grid[selectedGridIndex].Screen_elements.length !== 1 ? 's' : ''
+              }}
+            </div>
+          </div>
+          <div class="elements-grid">
+            @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
+              <div
+                class="element-card"
+                [ngStyle]="getElementStyle(element)"
+                (mousedown)="onElementMouseDown($event, i)"
+                (mouseleave)="onElementMouseLeave()"
+                draggable="false"
+                >
+                <!-- Image -->
+                @if (getElementType(element) === 'Image') {
+                  <div class="image-element">
+                    <div class="element-header">
+                      @if (
+                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
+                        ) {
+                        <h3
+                          (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
+                          >
+                          {{ element.name }}
+                        </h3>
+                      }
+                      @if (
+                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
+                        ) {
+                        <input
+                          [(ngModel)]="editingElementName"
+                          (blur)="saveElementName()"
+                          (keyup.enter)="saveElementName()"
+                          (keyup.escape)="cancelElementNameEdit()"
+                          class="element-name-input"
+                          autofocus
+                          />
+                      }
+                      <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+                    </div>
+                    <div class="image-content">
+                      <img [src]="getImagePath(element)" [alt]="element.name" />
+                    </div>
+                  </div>
+                }
+                <!-- Video -->
+                @if (getElementType(element) === 'Video') {
+                  <div class="video-element">
+                    <div class="element-header">
+                      @if (
+                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
+                        ) {
+                        <h3
+                          (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
+                          >
+                          {{ element.name }}
+                        </h3>
+                      }
+                      @if (
+                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
+                        ) {
+                        <input
+                          [(ngModel)]="editingElementName"
+                          (blur)="saveElementName()"
+                          (keyup.enter)="saveElementName()"
+                          (keyup.escape)="cancelElementNameEdit()"
+                          class="element-name-input"
+                          autofocus
+                          />
+                      }
+                      <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+                    </div>
+                    <div class="video-content">
+                      <video controls width="100%">
+                        <source [src]="getVideoPath(element)" type="video/mp4" />
+                      </video>
+                    </div>
+                  </div>
+                }
+                <!-- Text Document -->
+                @if (getElementType(element) === 'Text_document') {
+                  <div class="text-element">
+                    <div class="element-header">
+                      @if (
+                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
+                        ) {
+                        <h3
+                          (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
+                          >
+                          {{ element.name }}
+                        </h3>
+                      }
+                      @if (
+                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
+                        ) {
+                        <input
+                          [(ngModel)]="editingElementName"
+                          (blur)="saveElementName()"
+                          (keyup.enter)="saveElementName()"
+                          (keyup.escape)="cancelElementNameEdit()"
+                          class="element-name-input"
+                          autofocus
+                          />
+                      }
+                      <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+                    </div>
+                    <div class="text-content" (dblclick)="startEditingText(element, selectedGridIndex, i)">
+                      @if (!isEditingText || editingTextIndex !== i) {
+                        <p>{{ getTextContent(element) }}</p>
+                      }
+                      @if (isEditingText && editingTextIndex === i) {
+                        <textarea
+                          [(ngModel)]="editingTextContent"
+                          (blur)="saveTextEdit()"
+                          (keydown.escape)="cancelTextEdit()"
+                          (keydown.ctrl.enter)="saveTextEdit(); $event.preventDefault()"
+                          class="text-edit-input"
+                          autofocus
+                          >
+                        </textarea>
+                      }
+                    </div>
+                  </div>
+                }
+                <!-- ToDo List -->
+                @if (getElementType(element) === 'ToDoLst') {
+                  <div
+                    class="todo-element"
+                    (click)="openFullScreenTodo(i, $event)"
+                    [class.dragging]="isDraggingEnabled && draggedElementIndex === i"
+                    >
+                    <div class="element-header">
+                      @if (
+                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
+                        ) {
+                        <h3
                 (dblclick)="
                   startEditingElementName(element, selectedGridIndex, i); $event.stopPropagation()
                 "
-              >
-                {{ element.name }}
-              </h3>
-              <input
-                *ngIf="
-                  editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                "
-                [(ngModel)]="editingElementName"
-                (blur)="saveElementName()"
-                (keyup.enter)="saveElementName()"
-                (keyup.escape)="cancelElementNameEdit()"
-                (click)="$event.stopPropagation()"
-                class="element-name-input"
-                autofocus
-              />
-              <button
-                class="delete-element-btn"
-                (click)="deleteElement(i); $event.stopPropagation()"
-              >
-                🗑️
-              </button>
-            </div>
-            <!-- TAGS (SMALL TODO CARD) -->
-            <div class="tags-row" *ngIf="getElementType(element) === 'ToDoLst'">
-              <ng-container *ngFor="let tag of getTags(element)">
-                <span class="tag-chip">{{ tag }}</span>
-              </ng-container>
-
-              <input
-                type="text"
-                class="tag-input"
-                placeholder="+ tag"
-                [(ngModel)]="editingTagInput"
-                (keyup.enter)="addTagToTodoList(element); $event.stopPropagation()"
-                (click)="$event.stopPropagation()"
-              />
-            </div>
-            <div class="todo-list-content">
+                          >
+                          {{ element.name }}
+                        </h3>
+                      }
+                      @if (
+                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
+                        ) {
+                        <input
+                          [(ngModel)]="editingElementName"
+                          (blur)="saveElementName()"
+                          (keyup.enter)="saveElementName()"
+                          (keyup.escape)="cancelElementNameEdit()"
+                          (click)="$event.stopPropagation()"
+                          class="element-name-input"
+                          autofocus
+                          />
+                      }
+                      <button
+                        class="delete-element-btn"
+                        (click)="deleteElement(i); $event.stopPropagation()"
+                        >
+                        🗑️
+                      </button>
+                    </div>
+                    <!-- TAGS (SMALL TODO CARD) -->
+                    @if (getElementType(element) === 'ToDoLst') {
+                      <div class="tags-row">
+                        @for (tag of getTags(element); track tag) {
+                          <span class="tag-chip">{{ tag }}</span>
+                        }
+                        <input
+                          type="text"
+                          class="tag-input"
+                          placeholder="+ tag"
+                          [(ngModel)]="editingTagInput"
+                          (keyup.enter)="addTagToTodoList(element); $event.stopPropagation()"
+                          (click)="$event.stopPropagation()"
+                          />
+                      </div>
+                    }
+                    <div class="todo-list-content">
+                      @for (task of getTodoTasks(element); track task; let taskIndex = $index) {
+                        <div
+                          class="todo-item"
+                          >
+                          <input
+                            type="checkbox"
+                            [checked]="task.is_done"
+                            (change)="onTaskToggle(task)"
+                            (click)="$event.stopPropagation()"
+                            />
+                          <span [class.completed]="task.is_done" class="task-name">
+                            {{ task.taskname }}
+                          </span>
+                          @if (task.priority) {
+                            <span class="task-priority">
+                              {{ task.priority === 1 ? '🔴' : task.priority === 2 ? '🟡' : '🟢' }}
+                            </span>
+                          }
+                        </div>
+                      }
+                      @if (getTodoTasks(element).length === 0) {
+                        <div class="empty-todo">
+                          <p>No tasks yet</p>
+                          <button
+                            class="add-task-btn-small"
+                            (click)="addTaskToTodoList(i); $event.stopPropagation()"
+                            >
+                            + Add Task
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+            @if (project.grid[selectedGridIndex].Screen_elements.length === 0) {
               <div
-                *ngFor="let task of getTodoTasks(element); let taskIndex = index"
-                class="todo-item"
-              >
-                <input
-                  type="checkbox"
-                  [checked]="task.is_done"
-                  (change)="onTaskToggle(task)"
-                  (click)="$event.stopPropagation()"
-                />
-                <span [class.completed]="task.is_done" class="task-name">
-                  {{ task.taskname }}
-                </span>
-                <span class="task-priority" *ngIf="task.priority">
-                  {{ task.priority === 1 ? '🔴' : task.priority === 2 ? '🟡' : '🟢' }}
-                </span>
-              </div>
-              <div *ngIf="getTodoTasks(element).length === 0" class="empty-todo">
-                <p>No tasks yet</p>
-                <button
-                  class="add-task-btn-small"
-                  (click)="addTaskToTodoList(i); $event.stopPropagation()"
+                class="empty-grid"
                 >
-                  + Add Task
-                </button>
+                <p>No elements yet. Click "Add Element" to get started.</p>
               </div>
-            </div>
+            }
           </div>
         </div>
-
-        <div
-          *ngIf="project.grid[selectedGridIndex].Screen_elements.length === 0"
-          class="empty-grid"
-        >
-          <p>No elements yet. Click "Add Element" to get started.</p>
+      }
+    </div>
+    <!-- Create Grid Modal -->
+    @if (showCreateGridModal) {
+      <div class="modal-overlay" (click)="closeCreateGridModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Create New Grid</h2>
+            <button class="close-btn" (click)="closeCreateGridModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Grid Name</label>
+              <input
+                type="text"
+                [(ngModel)]="newGridName"
+                placeholder="Enter grid name"
+                (keyup.enter)="createGrid()"
+                autofocus
+                />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="cancel-btn" (click)="closeCreateGridModal()">Cancel</button>
+            <button class="submit-btn" (click)="createGrid()" [disabled]="!newGridName.trim()">
+              Create Grid
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    }
+    <!-- Element Type Selector Modal -->
+    @if (showElementTypeSelector) {
+      <div
+        class="modal-overlay"
+        (click)="showElementTypeSelector = false"
+        >
+        <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Add Element Type</h2>
+            <button class="close-btn" (click)="showElementTypeSelector = false">×</button>
+          </div>
+          <div class="modal-body type-selector">
+            <button class="type-btn" (click)="selectElementType('Image')">
+              <span class="type-icon">🖼️</span>
+              <span>Image</span>
+            </button>
+            <button class="type-btn" (click)="selectElementType('Video')">
+              <span class="type-icon">🎥</span>
+              <span>Video</span>
+            </button>
+            <button class="type-btn" (click)="selectElementType('Text_document')">
+              <span class="type-icon">📝</span>
+              <span>Text Document</span>
+            </button>
+            <button class="type-btn" (click)="selectElementType('ToDoLst')">
+              <span class="type-icon">📋</span>
+              <span>Todo List</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   </div>
+}
 
-  <!-- Create Grid Modal -->
-  <div *ngIf="showCreateGridModal" class="modal-overlay" (click)="closeCreateGridModal()">
+@if (!project) {
+  <div class="loading">
+    <p>Loading project...</p>
+  </div>
+}
+
+<!-- Add Task Modal -->
+@if (showAddTaskModal) {
+  <div class="modal-overlay" (click)="closeAddTaskModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Create New Grid</h2>
-        <button class="close-btn" (click)="closeCreateGridModal()">×</button>
+        <h2>Add New Task</h2>
+        <button class="close-btn" (click)="closeAddTaskModal()">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Grid Name</label>
+          <label>Task Name *</label>
           <input
             type="text"
-            [(ngModel)]="newGridName"
-            placeholder="Enter grid name"
-            (keyup.enter)="createGrid()"
+            [(ngModel)]="newTaskName"
+            placeholder="Enter task name"
+            (keyup.enter)="submitAddTask()"
             autofocus
-          />
+            />
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select [(ngModel)]="newTaskPriority">
+            <option [value]="1">🔴 High</option>
+            <option [value]="2">🟡 Medium</option>
+            <option [value]="3">🟢 Low</option>
+          </select>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="cancel-btn" (click)="closeCreateGridModal()">Cancel</button>
-        <button class="submit-btn" (click)="createGrid()" [disabled]="!newGridName.trim()">
-          Create Grid
+        <button class="cancel-btn" (click)="closeAddTaskModal()">Cancel</button>
+        <button class="submit-btn" (click)="submitAddTask()" [disabled]="!newTaskName.trim()">
+          Add Task
         </button>
       </div>
     </div>
   </div>
-
-  <!-- Element Type Selector Modal -->
-  <div
-    *ngIf="showElementTypeSelector"
-    class="modal-overlay"
-    (click)="showElementTypeSelector = false"
-  >
-    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Add Element Type</h2>
-        <button class="close-btn" (click)="showElementTypeSelector = false">×</button>
-      </div>
-      <div class="modal-body type-selector">
-        <button class="type-btn" (click)="selectElementType('Image')">
-          <span class="type-icon">🖼️</span>
-          <span>Image</span>
-        </button>
-        <button class="type-btn" (click)="selectElementType('Video')">
-          <span class="type-icon">🎥</span>
-          <span>Video</span>
-        </button>
-        <button class="type-btn" (click)="selectElementType('Text_document')">
-          <span class="type-icon">📝</span>
-          <span>Text Document</span>
-        </button>
-        <button class="type-btn" (click)="selectElementType('ToDoLst')">
-          <span class="type-icon">📋</span>
-          <span>Todo List</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div *ngIf="!project" class="loading">
-  <p>Loading project...</p>
-</div>
-
-<!-- Add Task Modal -->
-<div *ngIf="showAddTaskModal" class="modal-overlay" (click)="closeAddTaskModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h2>Add New Task</h2>
-      <button class="close-btn" (click)="closeAddTaskModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label>Task Name *</label>
-        <input
-          type="text"
-          [(ngModel)]="newTaskName"
-          placeholder="Enter task name"
-          (keyup.enter)="submitAddTask()"
-          autofocus
-        />
-      </div>
-      <div class="form-group">
-        <label>Priority</label>
-        <select [(ngModel)]="newTaskPriority">
-          <option [value]="1">🔴 High</option>
-          <option [value]="2">🟡 Medium</option>
-          <option [value]="3">🟢 Low</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="cancel-btn" (click)="closeAddTaskModal()">Cancel</button>
-      <button class="submit-btn" (click)="submitAddTask()" [disabled]="!newTaskName.trim()">
-        Add Task
-      </button>
-    </div>
-  </div>
-</div>
+}
 
 <!-- Add Text Document Modal -->
-<div *ngIf="showAddTextModal" class="modal-overlay" (click)="closeAddTextModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h2>Add Text Document</h2>
-      <button class="close-btn" (click)="closeAddTextModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label>Document Name *</label>
-        <input
-          type="text"
-          [(ngModel)]="newTextDocumentName"
-          placeholder="Enter document name"
-          (keyup.enter)="submitAddTextDocument()"
-          autofocus
-        />
+@if (showAddTextModal) {
+  <div class="modal-overlay" (click)="closeAddTextModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Add Text Document</h2>
+        <button class="close-btn" (click)="closeAddTextModal()">×</button>
       </div>
-      <div class="form-group">
-        <label>Text Content</label>
-        <textarea
-          [(ngModel)]="newTextDocumentContent"
-          placeholder="Enter text content"
-          rows="6"
-          class="text-content-input"
-        >
-        </textarea>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Document Name *</label>
+          <input
+            type="text"
+            [(ngModel)]="newTextDocumentName"
+            placeholder="Enter document name"
+            (keyup.enter)="submitAddTextDocument()"
+            autofocus
+            />
+        </div>
+        <div class="form-group">
+          <label>Text Content</label>
+          <textarea
+            [(ngModel)]="newTextDocumentContent"
+            placeholder="Enter text content"
+            rows="6"
+            class="text-content-input"
+            >
+          </textarea>
+        </div>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="cancel-btn" (click)="closeAddTextModal()">Cancel</button>
-      <button
-        class="submit-btn"
-        (click)="submitAddTextDocument()"
-        [disabled]="!newTextDocumentName.trim()"
-      >
-        Add Text Document
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Full-Screen Todo List View -->
-<div *ngIf="showFullScreenTodo && fullScreenTodoElement" class="fullscreen-todo-overlay">
-  <div class="fullscreen-todo-container">
-    <!-- Header -->
-    <div class="fullscreen-todo-header">
-      <div class="header-left">
-        <h1>{{ fullScreenTodoElement.name }}</h1>
-      </div>
-      <button class="close-fullscreen-btn" (click)="closeFullScreenTodo()">×</button>
-    </div>
-
-    <!-- Add Task Input -->
-    <div class="add-task-section">
-      <div class="add-task-input-wrapper">
-        <input
-          type="text"
-          [(ngModel)]="newTaskName"
-          placeholder="List item"
-          (keyup.enter)="addTaskToFullScreenTodo()"
-          class="add-task-input"
-        />
-        <input type="datetime-local" [(ngModel)]="newTaskTime" class="task-date-input" />
-        <select [(ngModel)]="newTaskPriority" class="task-priority-select">
-          <option [value]="1">🔴 High</option>
-          <option [value]="2">🟡 Medium</option>
-          <option [value]="3">🟢 Low</option>
-        </select>
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeAddTextModal()">Cancel</button>
         <button
-          class="add-task-button"
-          (click)="addTaskToFullScreenTodo()"
-          [disabled]="!newTaskName.trim()"
-        >
-          +
+          class="submit-btn"
+          (click)="submitAddTextDocument()"
+          [disabled]="!newTextDocumentName.trim()"
+          >
+          Add Text Document
         </button>
       </div>
     </div>
-    <!-- TAGS SECTION FULL SCREEN -->
-    <div class="tags-section">
-      <h2 class="section-title">Tags</h2>
+  </div>
+}
 
-      <div class="tags-row">
-        <span
-          *ngFor="let tag of fullScreenTodoElement.tags"
-          class="tag-chip removable"
-          (click)="removeTagFromFullScreen(tag)"
-        >
-          {{ tag }} ✖
-        </span>
-
-        <input
-          type="text"
-          class="tag-input"
-          placeholder="+ add tag"
-          [(ngModel)]="editingTagInput"
-          (keyup.enter)="addTagToFullScreen()"
-        />
+<!-- Full-Screen Todo List View -->
+@if (showFullScreenTodo && fullScreenTodoElement) {
+  <div class="fullscreen-todo-overlay">
+    <div class="fullscreen-todo-container">
+      <!-- Header -->
+      <div class="fullscreen-todo-header">
+        <div class="header-left">
+          <h1>{{ fullScreenTodoElement.name }}</h1>
+        </div>
+        <button class="close-fullscreen-btn" (click)="closeFullScreenTodo()">×</button>
       </div>
-    </div>
-
-    <!-- Upcoming Tasks -->
-    <div class="tasks-section">
-      <h2 class="section-title">Upcoming</h2>
-      <div class="tasks-list">
-        <div
-          *ngFor="let task of getUpcomingTasks(); let i = index"
-          class="task-item-fullscreen"
-          [class.overdue]="isTaskOverdue(task)"
-          draggable="true"
-          (dragstart)="onTaskDragStart($event, task)"
-          (dragover)="onTaskDragOver($event)"
-          (drop)="onTaskDrop($event, task)"
-        >
-          <div class="task-drag-handle">⋮⋮</div>
+      <!-- Add Task Input -->
+      <div class="add-task-section">
+        <div class="add-task-input-wrapper">
           <input
-            type="checkbox"
-            [checked]="task.is_done"
-            (change)="toggleTaskStatusInFullScreen(task)"
-            class="task-checkbox"
-          />
-          <div class="task-content-fullscreen">
-            <span class="task-name-fullscreen">{{ task.taskname }}</span>
-            <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
-          </div>
-          <div class="task-actions">
-            <select
-              [value]="task.get_priority()"
-              (change)="onPriorityChange(task, $event)"
-              class="priority-select-fullscreen"
+            type="text"
+            [(ngModel)]="newTaskName"
+            placeholder="List item"
+            (keyup.enter)="addTaskToFullScreenTodo()"
+            class="add-task-input"
+            />
+          <input type="datetime-local" [(ngModel)]="newTaskTime" class="task-date-input" />
+          <select [(ngModel)]="newTaskPriority" class="task-priority-select">
+            <option [value]="1">🔴 High</option>
+            <option [value]="2">🟡 Medium</option>
+            <option [value]="3">🟢 Low</option>
+          </select>
+          <button
+            class="add-task-button"
+            (click)="addTaskToFullScreenTodo()"
+            [disabled]="!newTaskName.trim()"
             >
-              <option [value]="1">🔴 High</option>
-              <option [value]="2">🟡 Medium</option>
-              <option [value]="3">🟢 Low</option>
-            </select>
-            <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
-          </div>
-        </div>
-        <div *ngIf="getUpcomingTasks().length === 0" class="empty-tasks">
-          <p>No upcoming tasks</p>
+            +
+          </button>
         </div>
       </div>
-    </div>
-
-    <!-- Completed Tasks -->
-    <div class="tasks-section" *ngIf="getCompletedTasks().length > 0">
-      <h2 class="section-title collapsible" (click)="toggleCompletedSection()">
-        {{ getCompletedTasks().length }} Completed item{{
-          getCompletedTasks().length !== 1 ? 's' : ''
-        }}
-        <span class="toggle-icon">{{ showCompletedTasks ? '▼' : '▶' }}</span>
-      </h2>
-      <div class="tasks-list" *ngIf="showCompletedTasks">
-        <div
-          *ngFor="let task of getCompletedTasks(); let i = index"
-          class="task-item-fullscreen completed"
-          draggable="true"
-          (dragstart)="onTaskDragStart($event, task)"
-          (dragover)="onTaskDragOver($event)"
-          (drop)="onTaskDrop($event, task)"
-        >
-          <div class="task-drag-handle">⋮⋮</div>
+      <!-- TAGS SECTION FULL SCREEN -->
+      <div class="tags-section">
+        <h2 class="section-title">Tags</h2>
+        <div class="tags-row">
+          @for (tag of fullScreenTodoElement.tags; track tag) {
+            <span
+              class="tag-chip removable"
+              (click)="removeTagFromFullScreen(tag)"
+              >
+              {{ tag }} ✖
+            </span>
+          }
           <input
-            type="checkbox"
-            [checked]="task.is_done"
-            (change)="toggleTaskStatusInFullScreen(task)"
-            class="task-checkbox"
-          />
-          <div class="task-content-fullscreen">
-            <span class="task-name-fullscreen completed-text">{{ task.taskname }}</span>
-            <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
-          </div>
-          <div class="task-actions">
-            <select
-              [value]="task.get_priority()"
-              (change)="onPriorityChange(task, $event)"
-              class="priority-select-fullscreen"
-            >
-              <option [value]="1">🔴 High</option>
-              <option [value]="2">🟡 Medium</option>
-              <option [value]="3">🟢 Low</option>
-            </select>
-            <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
-          </div>
+            type="text"
+            class="tag-input"
+            placeholder="+ add tag"
+            [(ngModel)]="editingTagInput"
+            (keyup.enter)="addTagToFullScreen()"
+            />
         </div>
       </div>
+      <!-- Upcoming Tasks -->
+      <div class="tasks-section">
+        <h2 class="section-title">Upcoming</h2>
+        <div class="tasks-list">
+          @for (task of getUpcomingTasks(); track task; let i = $index) {
+            <div
+              class="task-item-fullscreen"
+              [class.overdue]="isTaskOverdue(task)"
+              draggable="true"
+              (dragstart)="onTaskDragStart($event, task)"
+              (dragover)="onTaskDragOver($event)"
+              (drop)="onTaskDrop($event, task)"
+              >
+              <div class="task-drag-handle">⋮⋮</div>
+              <input
+                type="checkbox"
+                [checked]="task.is_done"
+                (change)="toggleTaskStatusInFullScreen(task)"
+                class="task-checkbox"
+                />
+              <div class="task-content-fullscreen">
+                <span class="task-name-fullscreen">{{ task.taskname }}</span>
+                <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
+              </div>
+              <div class="task-actions">
+                <select
+                  [value]="task.get_priority()"
+                  (change)="onPriorityChange(task, $event)"
+                  class="priority-select-fullscreen"
+                  >
+                  <option [value]="1">🔴 High</option>
+                  <option [value]="2">🟡 Medium</option>
+                  <option [value]="3">🟢 Low</option>
+                </select>
+                <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
+              </div>
+            </div>
+          }
+          @if (getUpcomingTasks().length === 0) {
+            <div class="empty-tasks">
+              <p>No upcoming tasks</p>
+            </div>
+          }
+        </div>
+      </div>
+      <!-- Completed Tasks -->
+      @if (getCompletedTasks().length > 0) {
+        <div class="tasks-section">
+          <h2 class="section-title collapsible" (click)="toggleCompletedSection()">
+            {{ getCompletedTasks().length }} Completed item{{
+            getCompletedTasks().length !== 1 ? 's' : ''
+            }}
+            <span class="toggle-icon">{{ showCompletedTasks ? '▼' : '▶' }}</span>
+          </h2>
+          @if (showCompletedTasks) {
+            <div class="tasks-list">
+              @for (task of getCompletedTasks(); track task; let i = $index) {
+                <div
+                  class="task-item-fullscreen completed"
+                  draggable="true"
+                  (dragstart)="onTaskDragStart($event, task)"
+                  (dragover)="onTaskDragOver($event)"
+                  (drop)="onTaskDrop($event, task)"
+                  >
+                  <div class="task-drag-handle">⋮⋮</div>
+                  <input
+                    type="checkbox"
+                    [checked]="task.is_done"
+                    (change)="toggleTaskStatusInFullScreen(task)"
+                    class="task-checkbox"
+                    />
+                  <div class="task-content-fullscreen">
+                    <span class="task-name-fullscreen completed-text">{{ task.taskname }}</span>
+                    <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
+                  </div>
+                  <div class="task-actions">
+                    <select
+                      [value]="task.get_priority()"
+                      (change)="onPriorityChange(task, $event)"
+                      class="priority-select-fullscreen"
+                      >
+                      <option [value]="1">🔴 High</option>
+                      <option [value]="2">🟡 Medium</option>
+                      <option [value]="3">🟢 Low</option>
+                    </select>
+                    <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
-</div>
+}

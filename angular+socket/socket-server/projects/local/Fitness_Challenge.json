@@ -1,0 +1,242 @@
+{
+  "owner_name": "l230757@lhr.nu.edu.pk",
+  "name": "Fitness Challenge",
+  "projectType": "local",
+  "grid": [
+    {
+      "name": "Workouts",
+      "Screen_elements": [
+        {
+          "type": "ToDoLst",
+          "name": "Exercise",
+          "x_pos": 120,
+          "y_pos": 60,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Morning run",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-08T07:00:00.000Z",
+              "completion_time": "2025-11-08T06:45:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "t62qhpno1lplep43et3dssv3gk"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Gym legs",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-11T18:00:00.000Z",
+              "completion_time": "2025-11-11T19:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "qr936vsfoom2bqdfc600sq9bj4"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Yoga class",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-14T08:00:00.000Z",
+              "completion_time": "2025-11-14T07:50:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "4t5dv6a7l4od3oaq8vnqrfcueo"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Swimming",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-11-17T16:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "s5p3g56ehelaufoetmpui8qcls"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "HIIT workout",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-20T17:00:00.000Z",
+              "completion_time": "2025-11-20T16:45:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "5t4dbqmqs38ns6a9f43i2km00k"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "health",
+            "fitness",
+            "personal"
+          ]
+        },
+        {
+          "type": "ToDoLst",
+          "name": "Nutrition",
+          "x_pos": 420,
+          "y_pos": 60,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Meal prep",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-10T12:00:00.000Z",
+              "completion_time": "2025-11-10T11:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "efnitp717gmpknhrtl7q2lfr08"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Track calories",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-15T23:00:00.000Z",
+              "completion_time": "2025-11-15T22:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "7cak836men7a5lqkm0a1vgupus"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Buy protein",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-18T15:00:00.000Z",
+              "completion_time": "2025-11-19T10:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "abnlhu5rslj4m8a4n49pf8s7f4"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Weigh-in",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-23T08:00:00.000Z",
+              "completion_time": "2025-11-23T07:50:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "4l8adjltd8vbtnnhp3lcq33ips"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "health",
+            "personal",
+            "shopping"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tracking",
+      "Screen_elements": [
+        {
+          "type": "ToDoLst",
+          "name": "Progress",
+          "x_pos": 120,
+          "y_pos": 60,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Body fat check",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-11-30T09:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "5nbe59iklgdoh34l26s6eb2hvg"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Progress photos",
+              "priority": 3,
+              "is_done": true,
+              "time": "2025-12-01T10:00:00.000Z",
+              "completion_time": "2025-12-01T09:45:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "0vrj3hkhoe92u72st9mmgv08mg"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Update goals",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-26T14:00:00.000Z",
+              "completion_time": "2025-11-26T13:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "bec8d4tnsqfiup6c79b8tb2adc"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Book trainer",
+              "priority": 1,
+              "is_done": false,
+              "time": "2025-12-04T10:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "dc1rtf062se0e3q6qfgii8ja3c"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "New workout plan",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-06T15:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "nqi26r1ro2ne478432qidohbhc"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Update app",
+              "priority": 3,
+              "is_done": true,
+              "time": "2025-11-27T12:00:00.000Z",
+              "completion_time": "2025-11-27T11:45:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "805mvlcqbd6q2ep7f01reb392g"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Check measurements",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-12-03T09:00:00.000Z",
+              "completion_time": "2025-12-03T08:50:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T14:45:00.030Z",
+              "calendar_event_id": "pieucjkdnltogf7la6kuosjluc"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "health",
+            "fitness"
+          ]
+        }
+      ]
+    }
+  ],
+  "project_type": "local",
+  "lastModified": "2025-12-06T14:45:07.695Z"
+}

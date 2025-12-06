@@ -20,7 +20,7 @@
             type="checkbox"
             [checked]="userSettings?.recieve_notifications"
             (change)="toggleNotifications()"
-          />
+            />
           <span class="slider"></span>
         </label>
       </div>
@@ -39,7 +39,7 @@
             type="checkbox"
             [checked]="userSettings?.allow_invite"
             (change)="toggleInvites()"
-          />
+            />
           <span class="slider"></span>
         </label>
       </div>
@@ -62,207 +62,235 @@
           </div>
         </div>
         <div class="integration-actions">
-          <span *ngIf="isGoogleCalendarConnected()" class="status-badge connected">Connected</span>
-          <span *ngIf="!isGoogleCalendarConnected()" class="status-badge disconnected"
-            >Not Connected</span
-          >
-          <button
-            *ngIf="!isGoogleCalendarConnected()"
-            class="connect-btn"
-            (click)="connectGoogleCalendar()"
-            [disabled]="isConnectingCalendar"
-          >
-            {{ isConnectingCalendar ? 'Connecting...' : 'Connect' }}
-          </button>
-          <button
-            *ngIf="isGoogleCalendarConnected()"
-            class="disconnect-btn"
-            (click)="disconnectGoogleCalendar()"
-          >
-            Disconnect
-          </button>
-        </div>
-      </div>
-
-      <!-- Google Contacts -->
-      <div class="integration-item">
-        <div class="integration-info">
-          <div class="integration-icon">👥</div>
-          <div class="integration-details">
-            <div class="integration-name">Google Contacts</div>
-            <div class="integration-description">
-              Access your contacts for project collaboration
-            </div>
+          @if (isGoogleCalendarConnected()) {
+            <span class="status-badge connected">Connected</span>
+          }
+          @if (!isGoogleCalendarConnected()) {
+            <span class="status-badge disconnected"
+              >Not Connected</span
+              >
+            }
+            @if (!isGoogleCalendarConnected()) {
+              <button
+                class="connect-btn"
+                (click)="connectGoogleCalendar()"
+                [disabled]="isConnectingCalendar"
+                >
+                {{ isConnectingCalendar ? 'Connecting...' : 'Connect' }}
+              </button>
+            }
+            @if (isGoogleCalendarConnected()) {
+              <button
+                class="disconnect-btn"
+                (click)="disconnectGoogleCalendar()"
+                >
+                Disconnect
+              </button>
+            }
           </div>
         </div>
-        <div class="integration-actions">
-          <span *ngIf="isGoogleContactsConnected()" class="status-badge connected">Connected</span>
-          <span *ngIf="!isGoogleContactsConnected()" class="status-badge disconnected"
-            >Not Connected</span
-          >
-          <button
-            *ngIf="!isGoogleContactsConnected()"
-            class="connect-btn"
-            (click)="connectGoogleContacts()"
-            [disabled]="isConnectingContacts"
-          >
-            {{ isConnectingContacts ? 'Connecting...' : 'Connect' }}
-          </button>
-          <button
-            *ngIf="isGoogleContactsConnected()"
-            class="disconnect-btn"
-            (click)="disconnectGoogleContacts()"
-          >
-            Disconnect
-          </button>
-        </div>
-      </div>
 
-      <!-- Gmail -->
-      <div class="integration-item">
-        <div class="integration-info">
-          <div class="integration-icon">📧</div>
-          <div class="integration-details">
-            <div class="integration-name">Gmail</div>
-            <div class="integration-description">Send invites and notifications via email</div>
-          </div>
-        </div>
-        <div class="integration-actions">
-          <span *ngIf="isGmailConnected()" class="status-badge connected">Connected</span>
-          <span *ngIf="!isGmailConnected()" class="status-badge disconnected">Not Connected</span>
-          <button
-            *ngIf="!isGmailConnected()"
-            class="connect-btn"
-            (click)="connectGmail()"
-            [disabled]="isConnectingGmail"
-          >
-            {{ isConnectingGmail ? 'Connecting...' : 'Connect' }}
-          </button>
-          <button *ngIf="isGmailConnected()" class="disconnect-btn" (click)="disconnectGmail()">
-            Disconnect
-          </button>
-        </div>
-      </div>
-    </div>
-    <!-- Import Contacts Section -->
-    <div class="settings-section" *ngIf="isGmailConnected()">
-      <h2>Import Contacts</h2>
-      <p class="section-description">
-        Import your Google Contacts to easily collaborate with others
-      </p>
-
-      <div class="import-contacts-section">
-        <div class="import-info">
-          <p *ngIf="!userSettings?.allow_invite" class="warning-text">
-            ⚠️ Enable "Allow Invites" above to import contacts
-          </p>
-          <p *ngIf="userSettings?.allow_invite && userContacts.length === 0" class="info-text">
-            No contacts imported yet. Click the button below to import from Google.
-          </p>
-          <p *ngIf="userContacts.length > 0" class="success-text">
-            ✓ {{ userContacts.length }} contacts imported
-          </p>
-        </div>
-
-        <button
-          class="import-btn"
-          (click)="importGoogleContacts()"
-          [disabled]="isImportingContacts || !userSettings?.allow_invite"
-        >
-          {{ isImportingContacts ? 'Importing...' : 'Import Google Contacts' }}
-        </button>
-
-        <div
-          *ngIf="importMessage"
-          class="import-message"
-          [class.success]="importSuccess"
-          [class.error]="!importSuccess"
-        >
-          {{ importMessage }}
-        </div>
-
-        <!-- Contacts List -->
-        <div *ngIf="userContacts.length > 0" class="contacts-list">
-          <h3>Imported Contacts ({{ userContacts.length }})</h3>
-          <div class="contacts-grid">
-            <div *ngFor="let contact of userContacts" class="contact-item">
-              <div class="contact-avatar">{{ contact.name?.charAt(0)?.toUpperCase() || '?' }}</div>
-              <div class="contact-info">
-                <div class="contact-name">{{ contact.name || 'Unknown' }}</div>
-                <div class="contact-email">
-                  {{ contact.contact_detail || contact.email || 'No email' }}
-                </div>
+        <!-- Google Contacts -->
+        <div class="integration-item">
+          <div class="integration-info">
+            <div class="integration-icon">👥</div>
+            <div class="integration-details">
+              <div class="integration-name">Google Contacts</div>
+              <div class="integration-description">
+                Access your contacts for project collaboration
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-    <!-- Server Configuration -->
-    <div class="settings-section">
-      <h2>Server Configuration</h2>
-      <p class="section-description">
-        Configure the server IP/URL where hosted projects are stored
-      </p>
+          <div class="integration-actions">
+            @if (isGoogleContactsConnected()) {
+              <span class="status-badge connected">Connected</span>
+            }
+            @if (!isGoogleContactsConnected()) {
+              <span class="status-badge disconnected"
+                >Not Connected</span
+                >
+              }
+              @if (!isGoogleContactsConnected()) {
+                <button
+                  class="connect-btn"
+                  (click)="connectGoogleContacts()"
+                  [disabled]="isConnectingContacts"
+                  >
+                  {{ isConnectingContacts ? 'Connecting...' : 'Connect' }}
+                </button>
+              }
+              @if (isGoogleContactsConnected()) {
+                <button
+                  class="disconnect-btn"
+                  (click)="disconnectGoogleContacts()"
+                  >
+                  Disconnect
+                </button>
+              }
+            </div>
+          </div>
 
-      <div class="server-config-item">
-        <div class="setting-info">
-          <div class="setting-label">Server URL</div>
-          <div class="setting-description">
-            Enter the server address (e.g., http://192.168.1.100:3000 or http://yourdomain.com:3000)
+          <!-- Gmail -->
+          <div class="integration-item">
+            <div class="integration-info">
+              <div class="integration-icon">📧</div>
+              <div class="integration-details">
+                <div class="integration-name">Gmail</div>
+                <div class="integration-description">Send invites and notifications via email</div>
+              </div>
+            </div>
+            <div class="integration-actions">
+              @if (isGmailConnected()) {
+                <span class="status-badge connected">Connected</span>
+              }
+              @if (!isGmailConnected()) {
+                <span class="status-badge disconnected">Not Connected</span>
+              }
+              @if (!isGmailConnected()) {
+                <button
+                  class="connect-btn"
+                  (click)="connectGmail()"
+                  [disabled]="isConnectingGmail"
+                  >
+                  {{ isConnectingGmail ? 'Connecting...' : 'Connect' }}
+                </button>
+              }
+              @if (isGmailConnected()) {
+                <button class="disconnect-btn" (click)="disconnectGmail()">
+                  Disconnect
+                </button>
+              }
+            </div>
           </div>
         </div>
-        <div class="server-config-input-group">
-          <input
-            type="text"
-            [(ngModel)]="serverUrl"
-            placeholder="http://localhost:3000"
-            class="server-url-input"
-            [disabled]="isSavingServerConfig"
-          />
-          <div class="server-config-buttons">
-            <button
-              class="save-btn"
-              (click)="saveServerConfig()"
-              [disabled]="isSavingServerConfig || !serverUrl.trim()"
-            >
-              {{ isSavingServerConfig ? 'Saving...' : 'Save' }}
-            </button>
-            <button
-              class="reset-btn"
-              (click)="resetServerConfig()"
-              [disabled]="isSavingServerConfig"
-            >
-              Reset to Default
-            </button>
+        <!-- Import Contacts Section -->
+        @if (isGmailConnected()) {
+          <div class="settings-section">
+            <h2>Import Contacts</h2>
+            <p class="section-description">
+              Import your Google Contacts to easily collaborate with others
+            </p>
+            <div class="import-contacts-section">
+              <div class="import-info">
+                @if (!userSettings?.allow_invite) {
+                  <p class="warning-text">
+                    ⚠️ Enable "Allow Invites" above to import contacts
+                  </p>
+                }
+                @if (userSettings?.allow_invite && userContacts.length === 0) {
+                  <p class="info-text">
+                    No contacts imported yet. Click the button below to import from Google.
+                  </p>
+                }
+                @if (userContacts.length > 0) {
+                  <p class="success-text">
+                    ✓ {{ userContacts.length }} contacts imported
+                  </p>
+                }
+              </div>
+              <button
+                class="import-btn"
+                (click)="importGoogleContacts()"
+                [disabled]="isImportingContacts || !userSettings?.allow_invite"
+                >
+                {{ isImportingContacts ? 'Importing...' : 'Import Google Contacts' }}
+              </button>
+              @if (importMessage) {
+                <div
+                  class="import-message"
+                  [class.success]="importSuccess"
+                  [class.error]="!importSuccess"
+                  >
+                  {{ importMessage }}
+                </div>
+              }
+              <!-- Contacts List -->
+              @if (userContacts.length > 0) {
+                <div class="contacts-list">
+                  <h3>Imported Contacts ({{ userContacts.length }})</h3>
+                  <div class="contacts-grid">
+                    @for (contact of userContacts; track contact) {
+                      <div class="contact-item">
+                        <div class="contact-avatar">{{ contact.name?.charAt(0)?.toUpperCase() || '?' }}</div>
+                        <div class="contact-info">
+                          <div class="contact-name">{{ contact.name || 'Unknown' }}</div>
+                          <div class="contact-email">
+                            {{ contact.contact_detail || contact.email || 'No email' }}
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
           </div>
-        </div>
-        <div class="server-config-note">
-          <p>
-            <strong>Note:</strong> Changing the server URL will reload the page. Make sure the
-            server is accessible at the specified address.
+        }
+        <!-- Server Configuration -->
+        <div class="settings-section">
+          <h2>Server Configuration</h2>
+          <p class="section-description">
+            Configure the server IP/URL where hosted projects are stored
           </p>
-        </div>
-      </div>
-    </div>
 
-    <!-- Account Info -->
-    <div class="settings-section">
-      <h2>Account Information</h2>
-      <div class="account-info">
-        <div class="info-item">
-          <div class="info-label">Name</div>
-          <div class="info-value">{{ currentUser?.name || 'N/A' }}</div>
+          <div class="server-config-item">
+            <div class="setting-info">
+              <div class="setting-label">Server URL</div>
+              <div class="setting-description">
+                Enter the server address (e.g., http://192.168.1.100:3000 or http://yourdomain.com:3000)
+              </div>
+            </div>
+            <div class="server-config-input-group">
+              <input
+                type="text"
+                [(ngModel)]="serverUrl"
+                placeholder="http://localhost:3000"
+                class="server-url-input"
+                [disabled]="isSavingServerConfig"
+                />
+              <div class="server-config-buttons">
+                <button
+                  class="save-btn"
+                  (click)="saveServerConfig()"
+                  [disabled]="isSavingServerConfig || !serverUrl.trim()"
+                  >
+                  {{ isSavingServerConfig ? 'Saving...' : 'Save' }}
+                </button>
+                <button
+                  class="reset-btn"
+                  (click)="resetServerConfig()"
+                  [disabled]="isSavingServerConfig"
+                  >
+                  Reset to Default
+                </button>
+              </div>
+            </div>
+            <div class="server-config-note">
+              <p>
+                <strong>Note:</strong> Changing the server URL will reload the page. Make sure the
+                server is accessible at the specified address.
+              </p>
+            </div>
+          </div>
         </div>
-        <div class="info-item">
-          <div class="info-label">User ID</div>
-          <div class="info-value">{{ currentUser?.name || 'N/A' }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">Projects</div>
-          <div class="info-value">{{ currentUser?.projects?.length || 0 }}</div>
+
+        <!-- Account Info -->
+        <div class="settings-section">
+          <h2>Account Information</h2>
+          <div class="account-info">
+            <div class="info-item">
+              <div class="info-label">Name</div>
+              <div class="info-value">{{ currentUser?.name || 'N/A' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">User ID</div>
+              <div class="info-value">{{ currentUser?.name || 'N/A' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Projects</div>
+              <div class="info-value">{{ currentUser?.projects?.length || 0 }}</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</div>

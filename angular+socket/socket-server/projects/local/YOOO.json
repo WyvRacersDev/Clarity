@@ -22,7 +22,7 @@
               "time": "2025-12-02T07:24:00.000Z",
               "completion_time": null,
               "completed_by": null,
-              "creation_time": "2025-12-05T16:26:28.147Z",
+              "creation_time": "2025-12-06T09:42:37.182Z",
               "calendar_event_id": "991g5tc6aokbsk91i71v5ljs3k"
             }
           ],
@@ -52,12 +52,23 @@
               "type": "scheduled_task",
               "taskname": "Gmail reminder",
               "priority": 1,
-              "is_done": false,
+              "is_done": true,
               "time": "2025-11-27T12:30:00.000Z",
               "completion_time": null,
               "completed_by": null,
-              "creation_time": "2025-12-05T16:26:28.147Z",
+              "creation_time": "2025-12-06T09:42:37.183Z",
               "calendar_event_id": "n0vmtcdd2celfbn7o2cnegfinc"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "dummy task_1",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-12-06T09:42:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T09:43:10.163Z",
+              "calendar_event_id": "ubaddn7goaich30sh4hm5i62mc"
             }
           ],
           "collaborators": [],
@@ -66,10 +77,36 @@
             "hello",
             "he"
           ]
+        },
+        {
+          "type": "ToDoLst",
+          "name": "Tasks",
+          "x_pos": 369.6000061035156,
+          "y_pos": 15.600006103515625,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "beebop",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-05T17:35:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T09:42:37.183Z",
+              "calendar_event_id": "mlohlngtobmav3lrrrq1pobj4k"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "hi",
+            "bebe"
+          ]
         }
       ]
     }
   ],
   "project_type": "local",
-  "lastModified": "2025-12-05T16:29:09.702Z"
+  "lastModified": "2025-12-06T09:43:15.926Z"
 }

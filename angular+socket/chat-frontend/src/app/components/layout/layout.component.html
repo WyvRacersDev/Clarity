@@ -2,50 +2,70 @@
   <!-- Sidebar -->
   <aside class="sidebar" [class.collapsed]="!isSidebarOpen">
     <div class="sidebar-header">
-      <h1 class="logo" *ngIf="isSidebarOpen">Clarity</h1>
+      @if (isSidebarOpen) {
+        <h1 class="logo">Clarity</h1>
+      }
       <button class="toggle-btn" (click)="toggleSidebar()">
-        <span *ngIf="isSidebarOpen">‹</span>
-        <span *ngIf="!isSidebarOpen">›</span>
+        @if (isSidebarOpen) {
+          <span>‹</span>
+        }
+        @if (!isSidebarOpen) {
+          <span>›</span>
+        }
       </button>
     </div>
-    
+
     <nav class="sidebar-nav">
       <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
         <img src="/assets/histogram.png" alt="Dashboard" class="nav-icon">
-        <span class="nav-text" *ngIf="isSidebarOpen">Dashboard</span>
+        @if (isSidebarOpen) {
+          <span class="nav-text">Dashboard</span>
+        }
       </a>
       <a routerLink="/projects" routerLinkActive="active" class="nav-item">
         <img src="/assets/folder.png" alt="Projects" class="nav-icon">
-        <span class="nav-text" *ngIf="isSidebarOpen">Projects</span>
+        @if (isSidebarOpen) {
+          <span class="nav-text">Projects</span>
+        }
       </a>
       <a routerLink="/tasks" routerLinkActive="active" class="nav-item">
         <img src="/assets/check.jpg" alt="Tasks" class="nav-icon">
-        <span class="nav-text" *ngIf="isSidebarOpen">Tasks & Calendar</span>
+        @if (isSidebarOpen) {
+          <span class="nav-text">Tasks & Calendar</span>
+        }
       </a>
       <a routerLink="/analytics" routerLinkActive="active" class="nav-item">
         <img src="/assets/graph.png" alt="Analytics" class="nav-icon">
-        <span class="nav-text" *ngIf="isSidebarOpen">Analytics</span>
+        @if (isSidebarOpen) {
+          <span class="nav-text">Analytics</span>
+        }
       </a>
       <a routerLink="/ai-insights" routerLinkActive="active" class="nav-item">
         <img src="/assets/robot.png" alt="AI Insights" class="nav-icon">
-        <span class="nav-text" *ngIf="isSidebarOpen">AI Insights</span>
+        @if (isSidebarOpen) {
+          <span class="nav-text">AI Insights</span>
+        }
       </a>
       <a routerLink="/settings" routerLinkActive="active" class="nav-item">
         <img src="/assets/settings.jpg" alt="Settings" class="nav-icon">
-        <span class="nav-text" *ngIf="isSidebarOpen">Settings</span>
+        @if (isSidebarOpen) {
+          <span class="nav-text">Settings</span>
+        }
       </a>
     </nav>
 
-    <div class="sidebar-footer" *ngIf="isSidebarOpen">
-      <div class="user-info">
-        <div class="user-avatar">{{ currentUser?.name?.charAt(0) || 'U' }}</div>
-        <div class="user-details">
-          <div class="user-name">{{ currentUser?.name || 'User' }}</div>
-          <div class="user-email">user@clarity.com</div>
+    @if (isSidebarOpen) {
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">{{ currentUser?.name?.charAt(0) || 'U' }}</div>
+          <div class="user-details">
+            <div class="user-name">{{ currentUser?.name || 'User' }}</div>
+            <div class="user-email">user@clarity.com</div>
+          </div>
         </div>
+        <button class="logout-btn" (click)="logout()">Logout</button>
       </div>
-      <button class="logout-btn" (click)="logout()">Logout</button>
-    </div>
+    }
   </aside>
 
   <!-- Main Content -->

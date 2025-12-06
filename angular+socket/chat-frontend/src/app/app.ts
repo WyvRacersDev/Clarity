@@ -1,12 +1,16 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Chart,
+  registerables
+} from 'chart.js';
 import { RouterOutlet, Router } from '@angular/router';
 import { AuthService } from './services/auth.service';
 
+Chart.register(...registerables);
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet],
+  imports: [RouterOutlet],
   templateUrl: './app.html',
   styleUrls: ['./app.css']
 })

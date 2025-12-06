@@ -1,0 +1,202 @@
+{
+        "name": "Testing Phase",
+        "Screen_elements": [
+          {
+            "type": "ToDoLst",
+            "name": "QA Checklist",
+            "x_pos": 100,
+            "y_pos": 50,
+            "x_scale": 1,
+            "y_scale": 1,
+            "scheduled_tasks": [
+              {
+                "type": "scheduled_task",
+                "taskname": "Cross-browser testing",
+                "priority": 1,
+                "is_done": false,
+                "time": "2025-11-25T12:00:00.000Z",
+                "completion_time": null,
+                "completed_by": null,
+                "creation_time": "2025-11-15T10:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Mobile responsiveness check",
+                "priority": 2,
+                "is_done": true,
+                "time": "2025-11-28T14:00:00.000Z",
+                "completion_time": "2025-11-29T10:00:00.000Z",
+                "completed_by": null,
+                "creation_time": "2025-11-16T09:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Load testing",
+                "priority": 1,
+                "is_done": true,
+                "time": "2025-11-30T16:00:00.000Z",
+                "completion_time": "2025-11-30T15:00:00.000Z",
+                "completed_by": null,
+                "creation_time": "2025-11-18T11:00:00.000Z",
+                "calendar_event_id": null
+              }
+            ],
+            "collaborators": [],
+            "tags": ["work", "testing", "urgent"]
+          },
+          {
+            "type": "ToDoLst",
+            "name": "Bug Fixes",
+            "x_pos": 400,
+            "y_pos": 50,
+            "x_scale": 1,
+            "y_scale": 1,
+            "scheduled_tasks": [
+              {
+                "type": "scheduled_task",
+                "taskname": "Fix navigation menu",
+                "priority": 1,
+                "is_done": true,
+                "time": "2025-12-02T10:00:00.000Z",
+                "completion_time": "2025-12-01T18:00:00.000Z",
+                "completed_by": null,
+                "creation_time": "2025-11-20T09:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Optimize images",
+                "priority": 2,
+                "is_done": false,
+                "time": "2025-12-05T14:00:00.000Z",
+                "completion_time": null,
+                "completed_by": null,
+                "creation_time": "2025-11-22T10:00:00.000Z",
+                "calendar_event_id": null
+              }
+            ],
+            "collaborators": [],
+            "tags": ["work", "development"]
+          }
+        ]
+      },
+      {
+        "name": "Launch Prep",
+        "Screen_elements": [
+          {
+            "type": "ToDoLst",
+            "name": "Final Tasks",
+            "x_pos": 100,
+            "y_pos": 50,
+            "x_scale": 1,
+            "y_scale": 1,
+            "scheduled_tasks": [
+              {
+                "type": "scheduled_task",
+                "taskname": "Deploy to production",
+                "priority": 1,
+                "is_done": false,
+                "time": "2025-12-06T09:00:00.000Z",
+                "completion_time": null,
+                "completed_by": null,
+                "creation_time": "2025-11-25T08:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Update documentation",
+                "priority": 2,
+                "is_done": true,
+                "time": "2025-12-04T16:00:00.000Z",
+                "completion_time": "2025-12-04T14:30:00.000Z",
+                "completed_by": null,
+                "creation_time": "2025-11-26T09:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Send launch email",
+                "priority": 1,
+                "is_done": false,
+                "time": "2025-12-06T12:00:00.000Z",
+                "completion_time": null,
+                "completed_by": null,
+                "creation_time": "2025-11-28T10:00:00.000Z",
+                "calendar_event_id": null
+              }
+            ],
+            "collaborators": [],
+            "tags": ["work", "urgent"]
+          },
+          {
+            "type": "ToDoLst",
+            "name": "Marketing",
+            "x_pos": 400,
+            "y_pos": 50,
+            "x_scale": 1,
+            "y_scale": 1,
+            "scheduled_tasks": [
+              {
+                "type": "scheduled_task",
+                "taskname": "Social media posts",
+                "priority": 2,
+                "is_done": true,
+                "time": "2025-12-03T11:00:00.000Z",
+                "completion_time": "2025-12-03T10:00:00.000Z",
+                "completed_by": null,
+                "creation_time": "2025-11-27T09:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Press release",
+                "priority": 1,
+                "is_done": false,
+                "time": "2025-12-05T15:00:00.000Z",
+                "completion_time": null,
+                "completed_by": null,
+                "creation_time": "2025-11-29T10:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Email newsletter",
+                "priority": 2,
+                "is_done": true,
+                "time": "2025-12-04T13:00:00.000Z",
+                "completion_time": "2025-12-04T12:00:00.000Z",
+                "completed_by": null,
+                "creation_time": "2025-11-30T09:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Update LinkedIn",
+                "priority": 3,
+                "is_done": true,
+                "time": "2025-12-02T14:00:00.000Z",
+                "completion_time": "2025-12-03T09:00:00.000Z",
+                "completed_by": null,
+                "creation_time": "2025-11-28T11:00:00.000Z",
+                "calendar_event_id": null
+              },
+              {
+                "type": "scheduled_task",
+                "taskname": "Schedule demo calls",
+                "priority": 2,
+                "is_done": false,
+                "time": "2025-12-06T10:00:00.000Z",
+                "completion_time": null,
+                "completed_by": null,
+                "creation_time": "2025-12-01T09:00:00.000Z",
+                "calendar_event_id": null
+              }
+            ],
+            "collaborators": [],
+            "tags": ["work", "marketing"]
+          }
+        ]
+      }
+    

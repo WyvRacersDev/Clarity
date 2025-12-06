@@ -4,49 +4,63 @@
       <h1>AI Assistant</h1>
       <p class="subtitle">Get insights, schedule tasks, and improve your productivity</p>
     </div>
-    <button class="clear-btn" (click)="clearChat()" *ngIf="messages.length > 1">
-      🗑️ Clear Chat
-    </button>
+    @if (messages.length > 1) {
+      <button class="clear-btn" (click)="clearChat()">
+        🗑️ Clear Chat
+      </button>
+    }
   </div>
 
   <div class="chat-container" #chatContainer>
-    <div *ngFor="let message of messages" class="message" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
-      <div class="message-avatar">
-        <span *ngIf="message.role === 'user'">👤</span>
-        <span *ngIf="message.role === 'assistant'">🤖</span>
-      </div>
-      <div class="message-content">
-        <div class="message-text" [innerHTML]="formatMessage(message.content)"></div>
-        <div class="message-time">{{ message.timestamp | date:'short' }}</div>
-      </div>
-    </div>
-    <div *ngIf="isProcessing" class="message assistant-message">
-      <div class="message-avatar">🤖</div>
-      <div class="message-content">
-        <div class="typing-indicator">
-          <span></span>
-          <span></span>
-          <span></span>
+    @for (message of messages; track message) {
+      <div class="message" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
+        <div class="message-avatar">
+          @if (message.role === 'user') {
+            <span>👤</span>
+          }
+          @if (message.role === 'assistant') {
+            <span>🤖</span>
+          }
+        </div>
+        <div class="message-content">
+          <div class="message-text" [innerHTML]="formatMessage(message.content)"></div>
+          <div class="message-time">{{ message.timestamp | date:'short' }}</div>
         </div>
       </div>
-    </div>
+    }
+    @if (isProcessing) {
+      <div class="message assistant-message">
+        <div class="message-avatar">🤖</div>
+        <div class="message-content">
+          <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    }
   </div>
 
   <div class="chat-input-container">
     <div class="input-wrapper">
-      <input 
-        type="text" 
+      <input
+        type="text"
         [(ngModel)]="userInput"
         placeholder="Ask me anything about your productivity, tasks, or projects..."
         (keyup.enter)="sendMessage()"
         [disabled]="isProcessing"
         class="chat-input">
-      <button 
-        class="send-btn" 
+      <button
+        class="send-btn"
         (click)="sendMessage()"
         [disabled]="!userInput.trim() || isProcessing">
-        <span *ngIf="!isProcessing">➤</span>
-        <span *ngIf="isProcessing">⏳</span>
+        @if (!isProcessing) {
+          <span>➤</span>
+        }
+        @if (isProcessing) {
+          <span>⏳</span>
+        }
       </button>
     </div>
     <div class="suggestions">
