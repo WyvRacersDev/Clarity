@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
@@ -11,7 +11,7 @@ import dayjs from 'dayjs';
 @Component({
   selector: 'app-ai-insights',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './ai-insights.component.html',
   styleUrls: ['./ai-insights.component.css']
 })

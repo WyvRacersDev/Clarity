@@ -1,0 +1,258 @@
+{
+  "owner_name": "l230757@lhr.nu.edu.pk",
+  "name": "Mobile App Development",
+  "projectType": "local",
+  "grid": [
+    {
+      "name": "Backend",
+      "Screen_elements": [
+        {
+          "type": "ToDoLst",
+          "name": "API",
+          "x_pos": 100,
+          "y_pos": 50,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Database schema",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-09T10:00:00.000Z",
+              "completion_time": "2025-11-09T09:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "7jssi2b20qs21l3t66gn41rat8"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Auth endpoints",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-13T14:00:00.000Z",
+              "completion_time": "2025-11-14T10:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "0i09jkga2pt1j4qlpf60ve07k0"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "User CRUD",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-17T16:00:00.000Z",
+              "completion_time": "2025-11-17T15:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "fp01vlbedcnba997epp60ok0ik"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "File upload",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-11-21T12:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "rmdtu3nt3htc09objp73s13ufo"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "work",
+            "development",
+            "backend"
+          ]
+        },
+        {
+          "type": "ToDoLst",
+          "name": "Infrastructure",
+          "x_pos": 400,
+          "y_pos": 50,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Setup AWS",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-11T09:00:00.000Z",
+              "completion_time": "2025-11-10T17:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "7d0nj9katbfe5id7rthn8i3dc4"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Configure CDN",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-15T13:00:00.000Z",
+              "completion_time": "2025-11-15T12:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "n70qv2hvu4en1goclsb0hulogs"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Setup CI/CD",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-19T15:00:00.000Z",
+              "completion_time": "2025-11-20T10:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "a1fja9p7n21l6ancat9mm8nmh4"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "work",
+            "development",
+            "devops"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Frontend",
+      "Screen_elements": [
+        {
+          "type": "ToDoLst",
+          "name": "UI",
+          "x_pos": 100,
+          "y_pos": 50,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Design system",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-23T14:00:00.000Z",
+              "completion_time": "2025-11-23T13:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "c0k37i82cerg4c1thqlapq4gmk"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Login screen",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-26T10:00:00.000Z",
+              "completion_time": "2025-11-26T09:45:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "161qb7tt2htev5mnfgd8gvjfbg"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Dashboard",
+              "priority": 1,
+              "is_done": false,
+              "time": "2025-11-29T16:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "3pnkgtrcqafh279gg75k7j9cak"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Profile page",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-12-02T12:00:00.000Z",
+              "completion_time": "2025-12-02T11:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "vj95fuij4ldij67rr09vqausgk"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Settings",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-05T14:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "1cis6jeb3ns8cjbo4l7vl3j69o"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "work",
+            "design",
+            "frontend"
+          ]
+        },
+        {
+          "type": "ToDoLst",
+          "name": "Testing",
+          "x_pos": 400,
+          "y_pos": 50,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Unit tests",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-30T15:00:00.000Z",
+              "completion_time": "2025-11-30T14:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "ksmac618n0jf0se5j6a2t0cvb0"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Integration tests",
+              "priority": 1,
+              "is_done": false,
+              "time": "2025-12-04T11:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "7lqglmu523flcpehh2v090q7n0"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "E2E tests",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-06T13:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "j86iltks94k1vq92sjkar9g6ds"
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Performance",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-12-03T16:00:00.000Z",
+              "completion_time": "2025-12-03T15:45:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-06T12:45:00.051Z",
+              "calendar_event_id": "hq6a95tfeltmhji9065i8c59l0"
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "work",
+            "testing"
+          ]
+        }
+      ]
+    }
+  ],
+  "project_type": "local",
+  "lastModified": "2025-12-06T12:45:14.819Z"
+}

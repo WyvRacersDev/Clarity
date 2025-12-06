@@ -6,14 +6,14 @@
     </div>
 
     <div class="login-tabs">
-      <button 
-        class="tab-btn" 
+      <button
+        class="tab-btn"
         [class.active]="isLoginMode"
         (click)="toggleMode()">
         Login
       </button>
-      <button 
-        class="tab-btn" 
+      <button
+        class="tab-btn"
         [class.active]="!isLoginMode"
         (click)="toggleMode()">
         Register
@@ -21,39 +21,45 @@
     </div>
 
     <form (ngSubmit)="onSubmit()" class="login-form">
-      <div class="form-group" *ngIf="!isLoginMode">
-        <label>Name</label>
-        <input 
-          type="text" 
-          [(ngModel)]="name" 
-          name="name"
-          placeholder="Enter your name"
-          required>
-      </div>
+      @if (!isLoginMode) {
+        <div class="form-group">
+          <label>Name</label>
+          <input
+            type="text"
+            [(ngModel)]="name"
+            name="name"
+            placeholder="Enter your name"
+            required>
+        </div>
+      }
 
-      <div class="form-group" *ngIf="isLoginMode">
-        <label>Name</label>
-        <input 
-          type="text" 
-          [(ngModel)]="name" 
-          name="name"
-          placeholder="Enter your name"
-          required>
-      </div>
+      @if (isLoginMode) {
+        <div class="form-group">
+          <label>Name</label>
+          <input
+            type="text"
+            [(ngModel)]="name"
+            name="name"
+            placeholder="Enter your name"
+            required>
+        </div>
+      }
 
       <div class="form-group">
         <label>Password</label>
-        <input 
-          type="password" 
-          [(ngModel)]="password" 
+        <input
+          type="password"
+          [(ngModel)]="password"
           name="password"
           placeholder="Enter your password"
           required>
       </div>
 
-      <div class="error-message" *ngIf="errorMessage">
-        {{ errorMessage }}
-      </div>
+      @if (errorMessage) {
+        <div class="error-message">
+          {{ errorMessage }}
+        </div>
+      }
 
       <button type="submit" class="submit-btn">
         {{ isLoginMode ? 'Login' : 'Register' }}

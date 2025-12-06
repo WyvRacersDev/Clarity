@@ -53,21 +53,25 @@
         <a routerLink="/tasks" class="view-all">View All →</a>
       </div>
       <div class="tasks-list">
-        <div *ngIf="upcomingTasks.length === 0" class="empty-state">
-          <p>No upcoming tasks. Great job! 🎉</p>
-        </div>
-        <div *ngFor="let task of upcomingTasks" class="task-item">
-          <div class="task-checkbox">
-            <input type="checkbox" [checked]="task.is_done" disabled>
+        @if (upcomingTasks.length === 0) {
+          <div class="empty-state">
+            <p>No upcoming tasks. Great job! 🎉</p>
           </div>
-          <div class="task-info">
-            <div class="task-name">{{ task.taskname }}</div>
-            <div class="task-time">{{ task.time | date:'short' }}</div>
+        }
+        @for (task of upcomingTasks; track task) {
+          <div class="task-item">
+            <div class="task-checkbox">
+              <input type="checkbox" [checked]="task.is_done" disabled>
+            </div>
+            <div class="task-info">
+              <div class="task-name">{{ task.taskname }}</div>
+              <div class="task-time">{{ task.time | date:'short' }}</div>
+            </div>
+            <div class="task-priority priority-{{ task.priority }}">
+              {{ task.priority === 1 ? 'High' : task.priority === 2 ? 'Medium' : 'Low' }}
+            </div>
           </div>
-          <div class="task-priority priority-{{ task.priority }}">
-            {{ task.priority === 1 ? 'High' : task.priority === 2 ? 'Medium' : 'Low' }}
-          </div>
-        </div>
+        }
       </div>
     </div>
 
@@ -77,19 +81,23 @@
         <a routerLink="/projects" class="view-all">View All →</a>
       </div>
       <div class="projects-list">
-        <div *ngIf="recentProjects.length === 0" class="empty-state">
-          <p>No projects yet. <a routerLink="/projects">Create your first project</a></p>
-        </div>
-        <div *ngFor="let project of recentProjects; let i = index" class="project-item" [routerLink]="['/projects', getProjectIndex(project)]">
-          <div class="project-icon">
-            <img src="/assets/folder.png" alt="Project" class="project-icon-img">
+        @if (recentProjects.length === 0) {
+          <div class="empty-state">
+            <p>No projects yet. <a routerLink="/projects">Create your first project</a></p>
           </div>
-          <div class="project-info">
-            <div class="project-name">{{ project.name }}</div>
-            <div class="project-meta">{{ project.grid.length }} grid{{ project.grid.length !== 1 ? 's' : '' }}</div>
+        }
+        @for (project of recentProjects; track project; let i = $index) {
+          <div class="project-item" [routerLink]="['/projects', getProjectIndex(project)]">
+            <div class="project-icon">
+              <img src="/assets/folder.png" alt="Project" class="project-icon-img">
+            </div>
+            <div class="project-info">
+              <div class="project-name">{{ project.name }}</div>
+              <div class="project-meta">{{ project.grid.length }} grid{{ project.grid.length !== 1 ? 's' : '' }}</div>
+            </div>
+            <div class="project-arrow">→</div>
           </div>
-          <div class="project-arrow">→</div>
-        </div>
+        }
       </div>
     </div>
   </div>

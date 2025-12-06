@@ -6,14 +6,14 @@
     </div>
 
     <div class="login-tabs">
-      <button 
-        [class.active]="isLoginMode" 
+      <button
+        [class.active]="isLoginMode"
         (click)="toggleMode()"
         class="tab-btn">
         Login
       </button>
-      <button 
-        [class.active]="!isLoginMode" 
+      <button
+        [class.active]="!isLoginMode"
         (click)="toggleMode()"
         class="tab-btn">
         Register
@@ -23,10 +23,10 @@
     <form (ngSubmit)="onSubmit()" class="login-form">
       <div class="form-group">
         <label for="name">Name</label>
-        <input 
-          type="text" 
-          id="name" 
-          [(ngModel)]="name" 
+        <input
+          type="text"
+          id="name"
+          [(ngModel)]="name"
           name="name"
           placeholder="Enter your name"
           required>
@@ -34,18 +34,20 @@
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input 
-          type="password" 
-          id="password" 
-          [(ngModel)]="password" 
+        <input
+          type="password"
+          id="password"
+          [(ngModel)]="password"
           name="password"
           placeholder="Enter your password"
           required>
       </div>
 
-      <div class="error-message" *ngIf="errorMessage">
-        {{ errorMessage }}
-      </div>
+      @if (errorMessage) {
+        <div class="error-message">
+          {{ errorMessage }}
+        </div>
+      }
 
       <button type="submit" class="submit-btn">
         {{ isLoginMode ? 'Login' : 'Register' }}

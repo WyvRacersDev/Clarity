@@ -8,84 +8,103 @@
   </div>
 
   <!-- Loading indicator -->
-  <div *ngIf="isLoading" class="loading-container">
-    <div class="spinner-large"></div>
-    <p>Loading projects...</p>
-  </div>
-
-  <div class="projects-list" *ngIf="!isLoading && currentUser && currentUser.projects.length > 0">
-    <div 
-      class="project-card" 
-      *ngFor="let project of currentUser.projects; let i = index"
-      (click)="selectProject(i)"
-    >
-      <div class="project-card-header">
-        <div class="project-title-section">
-          <h2>{{ project.name }}</h2>
-          <span class="project-type-badge" [class.local]="isLocalProject(project)" [class.hosted]="!isLocalProject(project)">
-            {{ isLocalProject(project) ? '📁 Local' : '🌐 Hosted' }}
-          </span>
-        </div>
-        <button 
-          class="delete-btn" 
-          (click)="deleteProject(i, $event)"
-          title="Delete project"
-          [disabled]="isDeleting && deletingProjectIndex === i"
-        >
-          <span *ngIf="isDeleting && deletingProjectIndex === i" class="spinner-small"></span>
-          <span *ngIf="!(isDeleting && deletingProjectIndex === i)">🗑️</span>
-        </button>
-      </div>
-      <div class="project-stats">
-        <span>{{ project.grid.length }} grids</span>
-      </div>
+  @if (isLoading) {
+    <div class="loading-container">
+      <div class="spinner-large"></div>
+      <p>Loading projects...</p>
     </div>
-  </div>
+  }
 
-  <div class="empty-projects" *ngIf="!isLoading && (!currentUser || currentUser.projects.length === 0)">
-    <h2>No projects yet</h2>
-    <p>Create a new project to get started</p>
-  </div>
+  @if (!isLoading && currentUser && currentUser.projects.length > 0) {
+    <div class="projects-list">
+      @for (project of currentUser.projects; track project; let i = $index) {
+        <div
+          class="project-card"
+          (click)="selectProject(i)"
+          >
+          <div class="project-card-header">
+            <div class="project-title-section">
+              <h2>{{ project.name }}</h2>
+              <span class="project-type-badge" [class.local]="isLocalProject(project)" [class.hosted]="!isLocalProject(project)">
+                {{ isLocalProject(project) ? '📁 Local' : '🌐 Hosted' }}
+              </span>
+            </div>
+            <button
+              class="delete-btn"
+              (click)="deleteProject(i, $event)"
+              title="Delete project"
+              [disabled]="isDeleting && deletingProjectIndex === i"
+              >
+              @if (isDeleting && deletingProjectIndex === i) {
+                <span class="spinner-small"></span>
+              }
+              @if (!(isDeleting && deletingProjectIndex === i)) {
+                <span>🗑️</span>
+              }
+            </button>
+          </div>
+          <div class="project-stats">
+            <span>{{ project.grid.length }} grids</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (!isLoading && (!currentUser || currentUser.projects.length === 0)) {
+    <div class="empty-projects">
+      <h2>No projects yet</h2>
+      <p>Create a new project to get started</p>
+    </div>
+  }
 
   <!-- Create Project Modal -->
-  <div *ngIf="showCreateModal" class="modal-overlay" (click)="closeCreateModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Create New Project</h2>
-        <button class="close-btn" (click)="closeCreateModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Project Name *</label>
-          <input 
-            type="text" 
-            [(ngModel)]="newProjectName" 
-            placeholder="Enter project name"
-            (keyup.enter)="createProject()"
-          >
+  @if (showCreateModal) {
+    <div class="modal-overlay" (click)="closeCreateModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Create New Project</h2>
+          <button class="close-btn" (click)="closeCreateModal()">×</button>
         </div>
-        <div class="form-group">
-          <label>Project Type</label>
-          <select [(ngModel)]="projectType" [disabled]="!isLocalProjectsAvailable() && projectType === 'local'">
-            <option value="local" [disabled]="!isLocalProjectsAvailable()">📁 Local Project {{ !isLocalProjectsAvailable() ? '(Only on localhost)' : '' }}</option>
-            <option value="hosted">🌐 Hosted/Shared Project</option>
-          </select>
-          <p *ngIf="!isLocalProjectsAvailable()" class="form-hint">
-            Local projects are only available when connected to localhost. Switch to hosted projects or connect to a local server.
-          </p>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Project Name *</label>
+            <input
+              type="text"
+              [(ngModel)]="newProjectName"
+              placeholder="Enter project name"
+              (keyup.enter)="createProject()"
+              >
+          </div>
+          <div class="form-group">
+            <label>Project Type</label>
+            <select [(ngModel)]="projectType" [disabled]="!isLocalProjectsAvailable() && projectType === 'local'">
+              <option value="local" [disabled]="!isLocalProjectsAvailable()">📁 Local Project {{ !isLocalProjectsAvailable() ? '(Only on localhost)' : '' }}</option>
+              <option value="hosted">🌐 Hosted/Shared Project</option>
+            </select>
+            @if (!isLocalProjectsAvailable()) {
+              <p class="form-hint">
+                Local projects are only available when connected to localhost. Switch to hosted projects or connect to a local server.
+              </p>
+            }
+          </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button class="cancel-btn" (click)="closeCreateModal()">Cancel</button>
-        <button 
-          class="submit-btn" 
-          (click)="createProject()"
-          [disabled]="!newProjectName.trim() || isSaving"
-        >
-          <span *ngIf="isSaving" class="spinner-small"></span>
-          <span *ngIf="!isSaving">Create</span>
-        </button>
+        <div class="modal-footer">
+          <button class="cancel-btn" (click)="closeCreateModal()">Cancel</button>
+          <button
+            class="submit-btn"
+            (click)="createProject()"
+            [disabled]="!newProjectName.trim() || isSaving"
+            >
+            @if (isSaving) {
+              <span class="spinner-small"></span>
+            }
+            @if (!isSaving) {
+              <span>Create</span>
+            }
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  }
 </div>
