@@ -62,7 +62,7 @@ export class ProjectHandler {
                     // Use toJSON if available, otherwise serialize manually
                     if (element.toJSON && typeof element.toJSON === 'function') {
                         const serialized = element.toJSON();
-                        console.log(`[ProjectHandler] Element serialized via toJSON():`, serialized);
+                       // console.log(`[ProjectHandler] Element serialized via toJSON():`, serialized);
                         return serialized;
                     }
 
