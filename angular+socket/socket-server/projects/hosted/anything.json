@@ -9,8 +9,8 @@
         {
           "type": "Image",
           "name": "New Image",
-          "x_pos": 733.2000122070312,
-          "y_pos": 502.20001220703125,
+          "x_pos": 582,
+          "y_pos": 791.6666717529297,
           "x_scale": 300,
           "y_scale": 200,
           "imagepath": "http://10.193.21.138:3000/projects/hosted/anything_assets/IMG_5565_1764324861190_22u2x6.webp"
@@ -22,19 +22,7 @@
           "y_pos": 200,
           "x_scale": 1,
           "y_scale": 1,
-          "scheduled_tasks": [
-            {
-              "type": "scheduled_task",
-              "taskname": "heheha",
-              "priority": 2,
-              "is_done": false,
-              "time": "2025-12-07T15:18:30.446Z",
-              "completion_time": null,
-              "completed_by": null,
-              "creation_time": "2025-12-07T15:18:35.350Z",
-              "calendar_event_id": null
-            }
-          ],
+          "scheduled_tasks": [],
           "collaborators": [],
           "tags": []
         }
@@ -42,5 +30,5 @@
     }
   ],
   "project_type": "hosted",
-  "lastModified": "2025-12-07T15:18:38.074Z"
+  "lastModified": "2025-12-07T18:09:06.684Z"
 }

@@ -15,19 +15,26 @@ export class WelcomeComponent implements OnInit {
     private authService: AuthService,
     private router: Router
   ) {}
-    ngOnInit(): void {
+  
+  ngOnInit(): void {
     // If user is already logged in, redirect to dashboard
     if (this.authService.isLoggedIn()) {
       this.router.navigate(['/dashboard']);
     }
   }
 
-
   enterApp(): void {
-    // Auto-login as demo user for quick entry
-    const demoUser = this.authService.register('Demo User', 'demo123');
-    if (demoUser) {
-      this.router.navigate(['/dashboard']);
+    try {
+      // Auto-login as demo user for quick entry
+      const demoUser = this.authService.register('Demo User', 'demo123');
+      if (demoUser) {
+        // Navigate to dashboard after successful registration
+        this.router.navigate(['/dashboard']).catch(err => {
+          console.error('Navigation error:', err);
+        });
+      }
+    } catch (error) {
+      console.error('Error during registration:', error);
     }
   }
 }

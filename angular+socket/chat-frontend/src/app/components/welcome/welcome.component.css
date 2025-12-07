@@ -61,7 +61,7 @@
 .welcome-card {
   text-align: center;
   max-width: 600px;
-  padding: 60px 40px;
+  padding: 40px 30px;
   background: rgba(0, 0, 0, 0.7);
   border: 2px solid #00D4FF;
   border-radius: 20px;
@@ -69,6 +69,7 @@
     0 0 20px rgba(0, 212, 255, 0.3),
     inset 0 0 20px rgba(0, 212, 255, 0.1);
   animation: slideIn 0.8s ease-out;
+  width: 90%;
 }
 
 @keyframes slideIn {
@@ -83,7 +84,7 @@
 }
 
 .app-title {
-  font-size: 4rem;
+  font-size: clamp(2rem, 8vw, 4rem);
   font-weight: 700;
   margin: 0 0 30px 0;
   background: linear-gradient(135deg, #00D4FF 0%, #0099FF 50%, #3AFF6F 100%);
@@ -92,6 +93,10 @@
   background-clip: text;
   text-shadow: 0 0 40px rgba(0, 212, 255, 0.4);
   letter-spacing: 2px;
+  word-wrap: break-word;
+  white-space: normal;
+  line-height: 1.2;
+  max-width: 100%;
 }
 
 .welcome-description {
