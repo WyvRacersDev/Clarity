@@ -202,8 +202,9 @@
                         ) {
                         <h3
                 (dblclick)="
-                  startEditingElementName(element, selectedGridIndex, i); $event.stopPropagation()
+                  $event.stopPropagation(); startEditingElementName(element, selectedGridIndex, i)
                 "
+                (click)="$event.stopPropagation()"
                           >
                           {{ element.name }}
                         </h3>
@@ -415,7 +416,7 @@
             type="text"
             [(ngModel)]="newTextDocumentName"
             placeholder="Enter document name"
-            (keyup.enter)="submitAddTextDocument()"
+            (keydown.enter)="$event.preventDefault(); submitAddTextDocument()"
             autofocus
             />
         </div>
@@ -438,6 +439,74 @@
           [disabled]="!newTextDocumentName.trim()"
           >
           Add Text Document
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Image Name Modal -->
+@if (showImageNameModal) {
+  <div class="modal-overlay" (click)="cancelImageUpload()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Name Your Image</h2>
+        <button class="close-btn" (click)="cancelImageUpload()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Image Name *</label>
+          <input
+            type="text"
+            [(ngModel)]="newImageName"
+            placeholder="Enter image name"
+            (keydown.enter)="$event.preventDefault(); confirmImageUpload()"
+            autofocus
+            />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="cancelImageUpload()">Cancel</button>
+        <button
+          class="submit-btn"
+          (click)="confirmImageUpload()"
+          [disabled]="!newImageName.trim()"
+          >
+          Add Image
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Video Name Modal -->
+@if (showVideoNameModal) {
+  <div class="modal-overlay" (click)="cancelVideoUpload()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Name Your Video</h2>
+        <button class="close-btn" (click)="cancelVideoUpload()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Video Name *</label>
+          <input
+            type="text"
+            [(ngModel)]="newVideoName"
+            placeholder="Enter video name"
+            (keydown.enter)="$event.preventDefault(); confirmVideoUpload()"
+            autofocus
+            />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="cancelVideoUpload()">Cancel</button>
+        <button
+          class="submit-btn"
+          (click)="confirmVideoUpload()"
+          [disabled]="!newVideoName.trim()"
+          >
+          Add Video
         </button>
       </div>
     </div>
@@ -631,7 +700,12 @@
       </div>
       <div class="modal-footer">
         <button class="cancel-btn" (click)="closeConfirmModal()">Cancel</button>
-        <button class="submit-btn delete-confirm-btn" (click)="confirmDeleteGrid()">OK</button>
+        @if (gridToDelete) {
+          <button class="submit-btn delete-confirm-btn" (click)="confirmDeleteGrid()">OK</button>
+        }
+        @if (elementToDelete) {
+          <button class="submit-btn delete-confirm-btn" (click)="confirmDeleteElement()">OK</button>
+        }
       </div>
     </div>
   </div>
