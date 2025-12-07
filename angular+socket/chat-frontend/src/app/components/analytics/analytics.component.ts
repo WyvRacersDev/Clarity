@@ -291,30 +291,283 @@
 //   }
 // }
 //========================================================
-import { Component, OnInit } from '@angular/core';
-import { ChartDataset, ChartOptions, ChartData,registerables } from 'chart.js';
+// import { Component, OnInit, AfterViewInit, OnDestroy  } from '@angular/core';
+// import { ChartDataset, ChartOptions, ChartData, registerables } from 'chart.js';
+// import { AnalyticsService, SeriesEntry } from '../../services/analytics.service';
+// import { FormsModule } from '@angular/forms';   // <-- ADD THIS
+// import { BaseChartDirective } from 'ng2-charts';
+// import { subscribe } from 'diagnostics_channel';
+// import { CommonModule } from '@angular/common';
+// import { MatChipOption,MatChipSet } from '@angular/material/chips';
+// import { MatIconModule } from '@angular/material/icon';
+
+// @Component({
+//   selector: 'app-analytics',
+//   standalone: true,
+//   imports: [
+//     BaseChartDirective,   // required for charts
+//     FormsModule,       // required for ngModel
+//         CommonModule,
+//     MatChipOption,
+//     MatChipSet,
+//     MatIconModule,
+//   ],
+//   templateUrl: './analytics.component.html'
+// })
+// export class AnalyticsComponent implements OnInit {
+
+//   lineChartMap: SeriesEntry[] = [];
+//   lineChartData: ChartData<'line'> = {
+//     labels: [],      // string[]
+//     datasets: []     // ChartDataset[]
+//   };
+//   lineChartLabels: string[] = [];
+//   availableTags: string[] = [];
+//   selectedTags: string[] = [];
+
+//   completionChartData: ChartData<'bar'> = {
+//     labels: [],
+//     datasets: [
+//       {
+//         label: 'Completion Rate (%)',
+//         data: []
+//       }
+//     ]
+//   };
+//   completionTags: string[] = [];
+//   completionValues: number[] = [];
+
+
+
+
+//   constructor(private analytics: AnalyticsService) { }
+
+//   ngOnInit(): void {
+
+//     // Completion rate
+//     this.analytics.getCompletionRateByTag().subscribe(res => {
+//       this.availableTags = res.labels;
+//       this.selectedTags = [];//[...this.availableTags];
+//       this.completionTags = res.labels;
+//       this.completionValues = res.values.map(v => Math.round(v * 100));
+
+//       console.log("Completion API result:", res);
+//       console.log('bar chart data:', this.completionValues);
+
+//       this.updateCompletionChart();   // <-- FIXED
+//     });
+
+//     // Completed per day
+//     this.analytics.getCompletedPerDay().subscribe(res => {
+//       this.lineChartLabels = res.labels;
+//       this.lineChartMap = res.series;
+
+//       console.log("Completed per day API result:", res);
+//       console.log('line chart data:', this.lineChartMap);
+//       this.updateLineChart();         // <-- FIXED
+//     });
+//   }
+
+
+//   updateLineChart() {
+//     console.log('Updating line chart with tags:', this.selectedTags);
+//     this.lineChartData = {
+//       labels: this.lineChartLabels,
+//       datasets: this.selectedTags.map(tag => ({
+//         label: tag,
+//         data: this.lineChartMap.find(s => s.tag === tag)?.data || [],
+//         // tension: 0.2,
+//         // fill: false
+//       }))
+//     }
+//     console.log('line chart data after update:', this.lineChartData);
+//   }
+//   updateCompletionChart() {
+//     console.log('Updating completion chart with tags:', this.selectedTags);
+//     this.completionChartData = {
+//       labels: this.completionTags,
+//       datasets: [
+//         {
+//           label: 'Completion Rate (%)',
+//           data: this.completionValues
+//         }
+//       ]
+//     };
+//     console.log('bar chart data after update:', this.completionChartData);
+//   }
+//   toggleTag(tag: string) {
+//     if (this.selectedTags.includes(tag)) {
+//       this.selectedTags = this.selectedTags.filter(t => t !== tag);
+//     } else {
+//       this.selectedTags = [...this.selectedTags, tag];
+//     }
+
+//     this.updateLineChart();
+//   }
+// }
+//==========================================================================
+// import { Component, OnInit, AfterViewInit, ViewChild } from '@angular/core';
+// import { ChartData } from 'chart.js';
+// import { AnalyticsService, SeriesEntry } from '../../services/analytics.service';
+// import { FormsModule } from '@angular/forms';
+// import { BaseChartDirective } from 'ng2-charts';
+// import { CommonModule } from '@angular/common';
+// import { MatChipOption, MatChipSet } from '@angular/material/chips';
+// import { MatIconModule } from '@angular/material/icon';
+
+// @Component({
+//   selector: 'app-analytics',
+//   standalone: true,
+//   imports: [
+//     BaseChartDirective,
+//     FormsModule,
+//     CommonModule,
+//     MatChipOption,
+//     MatChipSet,
+//     MatIconModule,
+//   ],
+//   templateUrl: './analytics.component.html'
+// })
+// export class AnalyticsComponent implements OnInit {
+
+//   @ViewChild('lineChart') lineChart?: BaseChartDirective;
+//   @ViewChild('barChart') barChart?: BaseChartDirective;
+
+//   lineChartMap: SeriesEntry[] = [];
+//   lineChartData: ChartData<'line'> = {
+//     labels: [],
+//     datasets: []
+//   };
+//   lineChartLabels: string[] = [];
+
+//   availableTags: string[] = [];
+//   selectedTags: string[] = [];
+
+//   completionChartData: ChartData<'bar'> = {
+//     labels: [],
+//     datasets: [
+//       {
+//         label: 'Completion Rate (%)',
+//         data: []
+//       }
+//     ]
+//   };
+//   completionTags: string[] = [];
+//   completionValues: number[] = [];
+
+//   constructor(private analytics: AnalyticsService) {}
+
+//   ngOnInit(): void {
+
+//     // COMPLETION RATE
+//     this.analytics.getCompletionRateByTag().subscribe(res => {
+//       this.availableTags = res.labels;
+//       this.selectedTags = [];
+//       this.completionTags = res.labels;
+//       this.completionValues = res.values.map(v => Math.round(v * 100));
+
+//       console.log("Completion API:", res);
+
+//       this.updateCompletionChart();
+//     });
+
+//     // COMPLETED PER DAY
+//     this.analytics.getCompletedPerDay().subscribe(res => {
+//       this.lineChartLabels = res.labels;
+//       this.lineChartMap = res.series;
+
+//       console.log("Completed per day API:", res);
+
+//       this.updateLineChart();
+//     });
+//   }
+
+//   updateLineChart() {
+//     console.log('Updating line chart');
+
+//     this.lineChartData = {
+//       labels: this.lineChartLabels,
+//       datasets: this.selectedTags.map(tag => ({
+//         label: tag,
+//         data: this.lineChartMap.find(s => s.tag === tag)?.data || []
+//       }))
+//     };
+
+//     // 🔥 force redraw
+//     if (this.lineChart) {
+//       this.lineChart.update();
+//     }
+
+//     console.log('Updated line chart:', this.lineChartData);
+//   }
+
+//   updateCompletionChart() {
+//     console.log('Updating completion chart');
+
+//     this.completionChartData = {
+//       labels: this.completionTags,
+//       datasets: [
+//         {
+//           label: 'Completion Rate (%)',
+//           data: this.completionValues
+//         }
+//       ]
+//     };
+
+//     // 🔥 force redraw
+//     if (this.barChart) {
+//       this.barChart.update();
+//     }
+
+//     console.log('Updated bar chart:', this.completionChartData);
+//   }
+
+//   toggleTag(tag: string) {
+//     if (this.selectedTags.includes(tag)) {
+//       this.selectedTags = this.selectedTags.filter(t => t !== tag);
+//     } else {
+//       this.selectedTags = [...this.selectedTags, tag];
+//     }
+
+//     this.updateLineChart();
+//   }
+// }
+//========================================================
+import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { ChartData } from 'chart.js';
 import { AnalyticsService, SeriesEntry } from '../../services/analytics.service';
-import { FormsModule } from '@angular/forms';   // <-- ADD THIS
+import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
-import { subscribe } from 'diagnostics_channel';
+import { CommonModule } from '@angular/common';
+import { MatChipOption, MatChipSet } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @Component({
   selector: 'app-analytics',
   standalone: true,
   imports: [
-    BaseChartDirective,   // required for charts
-    FormsModule       // required for ngModel
+    BaseChartDirective,
+    FormsModule,
+    CommonModule,
+    MatChipOption,
+    MatChipSet,
+    MatIconModule,
+    MatProgressSpinnerModule,
   ],
   templateUrl: './analytics.component.html'
 })
 export class AnalyticsComponent implements OnInit {
 
+  @ViewChild('lineChart') lineChart?: BaseChartDirective;
+  @ViewChild('barChart') barChart?: BaseChartDirective;
+
   lineChartMap: SeriesEntry[] = [];
   lineChartData: ChartData<'line'> = {
-    labels: [],      // string[]
-    datasets: []     // ChartDataset[]
+    labels: [],
+    datasets: []
   };
-  lineChartLabels: string[] = [];
+
   availableTags: string[] = [];
   selectedTags: string[] = [];
 
@@ -327,93 +580,105 @@ export class AnalyticsComponent implements OnInit {
       }
     ]
   };
-  completionTags: string[] = [];
-  completionValues: number[] = [];
 
+  // Individual flags for each chart
+  completionChartReady = false;
+  lineChartReady = false;
 
+  constructor(
+    private analytics: AnalyticsService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
-
-  constructor(private analytics: AnalyticsService) { }
-
-  // ngOnInit(): void {
-  //   const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-
-  //   this.analytics.getCompletionRateByTag().subscribe(res => {
-  //     this.availableTags = res.labels;
-  //     this.selectedTags = [...this.availableTags];
-  //     this.completionTags = res.labels;
-  //     this.completionValues = res.values.map(v => Math.round(v * 100));
-  //   }
-  //   );
-
-  //   this.analytics.getCompletedPerDay().subscribe(res => {
-  //     this.lineChartLabels = res.labels;
-  //     this.lineChartMap = res.series;
-  //   });
-
-  //   console.log('Available tags:', this.availableTags);
-  //   console.log('Line chart map:', this.lineChartMap);
-  //   console.log('Line chart labels:', this.lineChartLabels);
-  //   console.log('Completion tags:', this.completionTags);
-  //   console.log('Completion values:', this.completionValues);
-  //   console.log('bar chart data:', this.completionChartData); 
-  //   // Collect all days from all tags
-  //   this.lineChartLabels = this.lineChartLabels.sort();
-  //   this.updateLineChart();
-  //   this.updateCompletionChart();
-  // }
   ngOnInit(): void {
+    console.log('ngOnInit called');
 
-  // Completion rate
-  this.analytics.getCompletionRateByTag().subscribe(res => {
-    this.availableTags = res.labels;
-    this.selectedTags = [...this.availableTags];
-    this.completionTags = res.labels;
-    this.completionValues = res.values.map(v => Math.round(v * 100));
+    // COMPLETION RATE
+    this.analytics.getCompletionRateByTag().subscribe({
+      next: (res) => {
+        console.log("Completion API response:", res);
+        
+        this.availableTags = res.labels;
+        this.selectedTags = [];
+        
+        this.completionChartData = {
+          labels: res.labels,
+          datasets: [
+            {
+              label: 'Completion Rate (%)',
+              data: res.values.map(v => Math.round(v * 100))
+            }
+          ]
+        };
 
-    console.log("Completion API result:", res);
-    console.log('bar chart data:', this.completionValues);
+        console.log("Setting completionChartReady to true");
+        console.log("Completion chart data:", this.completionChartData);
+        
+        // Mark as ready and trigger change detection
+        this.completionChartReady = true;
+        this.cdr.detectChanges();
+        
+        console.log("completionChartReady:", this.completionChartReady);
+      },
+      error: (err) => {
+        console.error("Completion API error:", err);
+      }
+    });
 
-    this.updateCompletionChart();   // <-- FIXED
-  });
+    // COMPLETED PER DAY
+    this.analytics.getCompletedPerDay().subscribe({
+      next: (res) => {
+        console.log("Completed per day API response:", res);
+        
+        this.lineChartMap = res.series;
+        
+        this.lineChartData = {
+          labels: res.labels,
+          datasets: this.selectedTags.map(tag => ({
+            label: tag,
+            data: this.lineChartMap.find(s => s.tag === tag)?.data || []
+          }))
+        };
 
-  // Completed per day
-  this.analytics.getCompletedPerDay().subscribe(res => {
-    this.lineChartLabels = res.labels;
-    this.lineChartMap = res.series;
+        console.log("Setting lineChartReady to true");
+        console.log("Line chart data:", this.lineChartData);
+        
+        // Mark as ready and trigger change detection
+        this.lineChartReady = true;
+        this.cdr.detectChanges();
+        
+        console.log("lineChartReady:", this.lineChartReady);
+      },
+      error: (err) => {
+        console.error("Completed per day API error:", err);
+      }
+    });
+  }
 
-    console.log("Completed per day API result:", res);
-    console.log('line chart data:', this.lineChartMap);
-    this.updateLineChart();         // <-- FIXED
-  });
-}
+  toggleTag(tag: string) {
+    console.log("Toggling tag:", tag);
+    
+    if (this.selectedTags.includes(tag)) {
+      this.selectedTags = this.selectedTags.filter(t => t !== tag);
+    } else {
+      this.selectedTags = [...this.selectedTags, tag];
+    }
 
+    console.log("Selected tags:", this.selectedTags);
 
-  updateLineChart() {
-    console.log('Updating line chart with tags:', this.selectedTags);
     this.lineChartData = {
-      labels: this.lineChartLabels,
+      ...this.lineChartData,
       datasets: this.selectedTags.map(tag => ({
         label: tag,
-        data: this.lineChartMap.find(s => s.tag === tag)?.data || [],
-        // tension: 0.2,
-        // fill: false
+        data: this.lineChartMap.find(s => s.tag === tag)?.data || []
       }))
-    }
-    console.log('line chart data after update:', this.lineChartData);
-  }
-  updateCompletionChart() {
-    console.log('Updating completion chart with tags:', this.selectedTags);
-    this.completionChartData = {
-      labels: this.completionTags,
-      datasets: [
-        {
-          label: 'Completion Rate (%)',
-          data: this.completionValues
-        }
-      ]
     };
-    console.log('bar chart data after update:', this.completionChartData);
-  }
 
+    console.log("Updated line chart data:", this.lineChartData);
+
+    // Force update after user interaction
+    setTimeout(() => {
+      this.lineChart?.chart?.update();
+    }, 0);
+  }
 }
