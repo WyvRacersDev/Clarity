@@ -22,9 +22,9 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     // Check authentication and redirect if needed
-    if (!this.authService.isLoggedIn()) {
-      this.router.navigate(['/login']);
-    }
+    // if (!this.authService.isLoggedIn()) {
+    //   this.router.navigate(['/login']);
+    // }
   }
 }
 

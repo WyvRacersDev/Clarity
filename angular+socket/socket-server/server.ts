@@ -7,7 +7,7 @@ import { Server } from "socket.io";
 import { ProjectHandler } from "./utils/project_handler.ts";
 import { UserHandler } from "./utils/user_handler.ts";
 import { SERVER_HOST, SERVER_PORT, FRONTEND_URL, ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN } from "./config.ts";
-import { createCalendarEvent,deleteCalendarEvent } from "./utils/calendar_service.ts";
+import { createCalendarEvent, deleteCalendarEvent } from "./utils/calendar_service.ts";
 
 
 
@@ -19,7 +19,7 @@ import path from "path";
 import { checks_v1alpha, google } from "googleapis";
 
 import { Socket } from "socket.io";
-import {objects_builder} from '../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
+import { objects_builder } from '../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
 import { Project, Grid } from '../shared_models/dist/project.model.js';
 import cors from "cors";
 import type { CorsOptions } from "cors";
@@ -88,7 +88,7 @@ startNotificationService();
 
 // === Paths ===
 
-const project_handler=new ProjectHandler();
+const project_handler = new ProjectHandler();
 const user_handler = new UserHandler();
 app.use('/projects', express.static(project_handler.get_base_path(), {
   setHeaders: (res, filePath) => {
@@ -115,16 +115,16 @@ app.use('/projects', express.static(project_handler.get_base_path(), {
 // Store user sessions: socketId -> username
 const userSessions = new Map<string, string>();
 
-io.on("connection", (socket:Socket) => {
+io.on("connection", (socket: Socket) => {
   console.log("✅ User connected:", socket.id);
-  
+
   // Register user when they identify themselves
   socket.on("identifyUser", (data: { username: string }) => {
     userSessions.set(socket.id, data.username);
     console.log(`[Server] User identified: ${data.username} (socket: ${socket.id})`);
     socket.emit("userIdentified", { success: true, username: data.username });
   });
-  
+
   // Clean up on disconnect
   socket.on("disconnect", () => {
     const username = userSessions.get(socket.id);
@@ -137,12 +137,12 @@ io.on("connection", (socket:Socket) => {
   });
 
   // Receiving method
-  socket.on("screenElement", (raw) => { 
+  socket.on("screenElement", (raw) => {
     console.log("📦 Received element from client:", raw);
 
     // Optional: rebuild for server use
     const element = objects_builder.rebuild(raw); //will be used to store later on (abhi kerna hai)
-    
+
     // Do something locally (save, log, process)
     // ❌ No broadcasting back
   });
@@ -153,21 +153,21 @@ io.on("connection", (socket:Socket) => {
    * Save a project
    * Expected payload: { project: Project, projectType: 'local' | 'hosted' }
    */
- socket.on("saveProject", async (data: { project: any; projectType: 'local' | 'hosted' }) => {
-     try {
-       const projectType = data.projectType || data.project?.project_type || 'local';
+  socket.on("saveProject", async (data: { project: any; projectType: 'local' | 'hosted' }) => {
+    try {
+      const projectType = data.projectType || data.project?.project_type || 'local';
       console.log(`[Server] 💾 Saving project: "${data.project?.name}", Type: "${projectType}"`);
       const result = await project_handler.saveProject(data.project, projectType);
-      
+
       if (result.success) {
         // Send confirmation to the user who saved
         socket.emit("projectSaved", { success: true, message: result.message, projectName: data.project.name });
-        
+
         // For hosted projects, broadcast the update to all connected clients
         if (projectType === 'hosted') {
           const connectedClients = io.sockets.sockets.size;
           console.log(`[Server] 📡 Broadcasting hosted project update: "${data.project.name}" to ${connectedClients} connected clients`);
-          io.emit("hostedProjectUpdated", { 
+          io.emit("hostedProjectUpdated", {
             projectName: data.project.name,
             projectType: 'hosted'
           });
@@ -194,39 +194,39 @@ io.on("connection", (socket:Socket) => {
   socket.on("loadProject", (data: { projectName: string; projectType: 'local' | 'hosted', eventName?: string }) => {
     try {
       const currentUser = userSessions.get(socket.id);
-      
+
       // Load the project
       const result = project_handler.loadProject(data.projectName, data.projectType);
-      
+
       // Use the provided event name if available, otherwise use default
       const eventName = data.eventName || "projectLoaded";
-      
+
       if (result.success && result.project) {
         // Check access permissions
         const isOwner = result.project.owner_name === currentUser;
         const isHosted = data.projectType === 'hosted';
-        
+
         if (data.projectType === 'local' && !isOwner) {
           // Local projects: only owner can access
-          socket.emit(eventName, { 
-            success: false, 
-            message: `Access denied: You can only view your own local projects` 
+          socket.emit(eventName, {
+            success: false,
+            message: `Access denied: You can only view your own local projects`
           });
           return;
         }
-        
+
         // Hosted projects: anyone can view
         // Local projects: owner can view/edit
         const serialized = project_handler.serializeProject(result.project);
         serialized.projectType = data.projectType;
         serialized.isOwner = isOwner; // Add flag to indicate if current user is owner
         serialized.canEdit = isOwner || isHosted; // Can edit if owner, or if hosted (for now, allow editing)
-        
+
         console.log(`[Server] Sending project: name="${serialized.name}", owner="${serialized.owner_name}", currentUser="${currentUser}", isOwner=${isOwner}`);
-        socket.emit(eventName, { 
-          success: true, 
-          project: serialized, 
-          message: result.message 
+        socket.emit(eventName, {
+          success: true,
+          project: serialized,
+          message: result.message
         });
       } else {
         socket.emit(eventName, { success: false, message: result.message });
@@ -247,7 +247,7 @@ io.on("connection", (socket:Socket) => {
   socket.on("listProjects", (data: { projectType: 'local' | 'hosted', requestId?: string }) => {
     try {
       const currentUser = userSessions.get(socket.id);
-      
+
       if (data.projectType === 'hosted') {
         // For hosted projects, show ALL projects (public sharing)
         // Each project includes owner_name so users know who owns it
@@ -265,14 +265,14 @@ io.on("connection", (socket:Socket) => {
       }
     } catch (error: any) {
       console.error("Error in listProjects handler:", error);
-      socket.emit(`projectsListed_${data.projectType}`, { 
-        success: false, 
-        projects: [], 
-        message: `Error: ${error.message}` 
+      socket.emit(`projectsListed_${data.projectType}`, {
+        success: false,
+        projects: [],
+        message: `Error: ${error.message}`
       });
     }
   });
-   // === User Management Socket Events ===
+  // === User Management Socket Events ===
 
   /**
    * Save a user to the backend
@@ -282,11 +282,11 @@ io.on("connection", (socket:Socket) => {
     try {
       console.log(`[Server] 💾 Saving user: "${data.user?.name}"`);
       const result = user_handler.saveUser(data.user);
-      
-      socket.emit("userSaved", { 
-        success: result.success, 
-        message: result.message, 
-        username: data.user?.name 
+
+      socket.emit("userSaved", {
+        success: result.success,
+        message: result.message,
+        username: data.user?.name
       });
     } catch (error: any) {
       console.error("Error in saveUser handler:", error);
@@ -301,16 +301,16 @@ io.on("connection", (socket:Socket) => {
     try {
       console.log(`[Server] 📂 Loading user: "${data.username}"`);
       const result = user_handler.loadUser(data.username);
-      
+
       const eventName = data.eventName || "userLoaded";
-      
+
       if (result.success && result.user) {
         // Serialize the user for transmission
         const serialized = user_handler.serializeUser(result.user);
-        socket.emit(eventName, { 
-          success: true, 
-          user: serialized, 
-          message: result.message 
+        socket.emit(eventName, {
+          success: true,
+          user: serialized,
+          message: result.message
         });
       } else {
         socket.emit(eventName, { success: false, message: result.message });
@@ -321,19 +321,19 @@ io.on("connection", (socket:Socket) => {
       socket.emit(eventName, { success: false, message: `Error: ${error.message}` });
     }
   });
-   /**
-   * List all users
-   */
+  /**
+  * List all users
+  */
   socket.on("listUsers", (data: { requestId?: string }) => {
     try {
       const result = user_handler.listUsers();
       socket.emit("usersListed", result);
     } catch (error: any) {
       console.error("Error in listUsers handler:", error);
-      socket.emit("usersListed", { 
-        success: false, 
-        users: [], 
-        message: `Error: ${error.message}` 
+      socket.emit("usersListed", {
+        success: false,
+        users: [],
+        message: `Error: ${error.message}`
       });
     }
   });
@@ -342,7 +342,7 @@ io.on("connection", (socket:Socket) => {
    * Delete a user
    * Expected payload: { username: string }
    */
-   socket.on("deleteUser", (data: { username: string }) => {
+  socket.on("deleteUser", (data: { username: string }) => {
     try {
       console.log(`[Server] 🗑️ Deleting user: "${data.username}"`);
       const result = user_handler.deleteUser(data.username);
@@ -360,17 +360,17 @@ io.on("connection", (socket:Socket) => {
   socket.on("checkUserExists", (data: { username: string }) => {
     try {
       const exists = user_handler.userExists(data.username);
-      socket.emit("userExistsResult", { 
-        success: true, 
-        exists, 
-        username: data.username 
+      socket.emit("userExistsResult", {
+        success: true,
+        exists,
+        username: data.username
       });
-       } catch (error: any) {
+    } catch (error: any) {
       console.error("Error in checkUserExists handler:", error);
-      socket.emit("userExistsResult", { 
-        success: false, 
-        exists: false, 
-        message: `Error: ${error.message}` 
+      socket.emit("userExistsResult", {
+        success: false,
+        exists: false,
+        message: `Error: ${error.message}`
       });
     }
   });
@@ -382,27 +382,27 @@ io.on("connection", (socket:Socket) => {
   socket.on("uploadFile", async (data: { projectName: string; projectType: 'local' | 'hosted'; fileName: string; fileData: string; fileType: 'image' | 'video'; eventName?: string }) => {
     try {
       const assetsDir = project_handler.getProjectAssetsDirectory(data.projectName, data.projectType);
-      
+
       // Generate a unique filename to avoid conflicts
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(7);
-      const fileExtension = data.fileType === 'image' 
+      const fileExtension = data.fileType === 'image'
         ? (data.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'png')
         : (data.fileName.match(/\.(mp4|webm|ogg)$/i)?.[1] || 'mp4');
-      
+
       const safeFileName = project_handler.sanitizeFilename(data.fileName.replace(/\.[^/.]+$/, '')) || 'file';
       const uniqueFileName = `${safeFileName}_${timestamp}_${randomStr}.${fileExtension}`;
       const filePath = path.join(assetsDir, uniqueFileName);
-      
+
       // Convert base64 to buffer and save
       const base64Data = data.fileData.replace(/^data:.*,/, ''); // Remove data URL prefix
       const buffer = Buffer.from(base64Data, 'base64');
       fs.writeFileSync(filePath, buffer);
-      
+
       // Return relative path from project directory
       const projectDir = project_handler.getProjectDirectory(data.projectType);
       const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/'); // Use forward slashes for web
-      
+
       const eventName = data.eventName || `fileUploaded_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       socket.emit(eventName, {
         success: true,
@@ -426,30 +426,30 @@ io.on("connection", (socket:Socket) => {
   socket.on("deleteFile", async (data: { projectName: string; projectType: 'local' | 'hosted'; filePath: string; eventName?: string }) => {
     try {
       console.log(`[Server] deleteFile called: projectName="${data.projectName}", projectType="${data.projectType}", filePath="${data.filePath}"`);
-      
+
       const projectDir = project_handler.getProjectDirectory(data.projectType);
       console.log(`[Server] Project directory: ${projectDir}`);
-      
+
       const fullFilePath = path.join(projectDir, data.filePath);
       console.log(`[Server] Full file path: ${fullFilePath}`);
-      
+
       // Security check: ensure the file is within the project directory
       const normalizedFilePath = path.normalize(fullFilePath);
       const normalizedProjectDir = path.normalize(projectDir);
       console.log(`[Server] Normalized file path: ${normalizedFilePath}`);
       console.log(`[Server] Normalized project dir: ${normalizedProjectDir}`);
-      
+
       if (!normalizedFilePath.startsWith(normalizedProjectDir)) {
         console.error(`[Server] ✗ Security check failed: file path outside project directory`);
         throw new Error('Invalid file path: outside project directory');
       }
-      
+
       // Check if file exists
       if (fs.existsSync(normalizedFilePath)) {
         console.log(`[Server] ✓ File exists, deleting...`);
         fs.unlinkSync(normalizedFilePath);
         console.log(`[Server] ✓ Successfully deleted file: ${normalizedFilePath}`);
-        
+
         const eventName = data.eventName || `fileDeleted_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         socket.emit(eventName, {
           success: true,
@@ -481,14 +481,14 @@ io.on("connection", (socket:Socket) => {
     try {
       console.log("🗑️ Deleting project:", data.projectName, "Type:", data.projectType);
       const result = project_handler.deleteProject(data.projectName, data.projectType);
-      
+
       // Send confirmation to the user who deleted
       socket.emit("projectDeleted", result);
-      
+
       // For hosted projects, broadcast the deletion to all connected clients
       if (data.projectType === 'hosted' && result.success) {
         console.log(`[Server] Broadcasting hosted project deletion: ${data.projectName}`);
-        io.emit("hostedProjectDeleted", { 
+        io.emit("hostedProjectDeleted", {
           projectName: data.projectName,
           projectType: 'hosted'
         });
@@ -515,50 +515,50 @@ io.on("connection", (socket:Socket) => {
    */
   socket.on("importGoogleContacts", async (data: { username: string }) => {
     console.log(`[Server] 📇 Import Google Contacts requested for: ${data.username}`);
-    
+
     try {
       // First, load the user to check if allow_invite is true
       const userResult = user_handler.loadUser(data.username);
-      
+
       if (!userResult.success || !userResult.user) {
-        socket.emit("contactsImported", { 
-          success: false, 
-          message: `User "${data.username}" not found` 
+        socket.emit("contactsImported", {
+          success: false,
+          message: `User "${data.username}" not found`
         });
         return;
       }
-      
+
       const user = userResult.user;
-      
+
       // Check if allow_invite is true
       if (!user.settings?.allow_invite) {
-        socket.emit("contactsImported", { 
-          success: false, 
-          message: "Contact import is disabled. Enable 'Allow Invites' in settings first." 
+        socket.emit("contactsImported", {
+          success: false,
+          message: "Contact import is disabled. Enable 'Allow Invites' in settings first."
         });
-              return;
+        return;
       }
-      
+
       // Check if tokens exist for this user
       if (!fs.existsSync(TOKEN_PATH)) {
-        socket.emit("contactsImported", { 
-          success: false, 
-          message: "No OAuth tokens found. Please connect to Google first." 
+        socket.emit("contactsImported", {
+          success: false,
+          message: "No OAuth tokens found. Please connect to Google first."
         });
         return;
       }
-      
+
       const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
       const tokens = allTokens.entries[data.username];
-      
+
       if (!tokens) {
-        socket.emit("contactsImported", { 
-          success: false, 
-          message: `No OAuth tokens found for ${data.username}. Please connect to Google first.` 
+        socket.emit("contactsImported", {
+          success: false,
+          message: `No OAuth tokens found for ${data.username}. Please connect to Google first.`
         });
         return;
       }
-        
+
       // Create OAuth client with user's tokens
       const userOAuthClient = new google.auth.OAuth2(
         credentials.web.client_id,
@@ -566,21 +566,21 @@ io.on("connection", (socket:Socket) => {
         credentials.web.redirect_uris[0]
       );
       userOAuthClient.setCredentials(tokens);
-      
+
       // Use People API to fetch contacts
       const people = google.people({ version: "v1", auth: userOAuthClient });
-      
+
       console.log(`[Server] Fetching Google Contacts for ${data.username}...`);
-      
+
       const response = await people.people.connections.list({
         resourceName: "people/me",
         pageSize: 1000,
         personFields: "names,emailAddresses,phoneNumbers",
       });
-      
+
       const connections = response.data.connections || [];
       console.log(`[Server] Found ${connections.length} raw contacts`);
-      
+
       // Extract contacts with emails
       const importedContacts = connections
         .filter((person: any) => person.emailAddresses && person.emailAddresses.length > 0)
@@ -589,10 +589,10 @@ io.on("connection", (socket:Socket) => {
           name: person.names?.[0]?.displayName || "Unknown",
           phone: person.phoneNumbers?.[0]?.value || ""
         }))
-              .filter((contact: any) => contact.contact_detail);
-      
+        .filter((contact: any) => contact.contact_detail);
+
       console.log(`[Server] Extracted ${importedContacts.length} contacts with emails`);
-      
+
       // Load current user data and update contacts
       const currentUserResult = user_handler.loadUser(data.username);
       if (currentUserResult.success && currentUserResult.user) {
@@ -600,11 +600,11 @@ io.on("connection", (socket:Socket) => {
         const existingEmails = new Set(
           (currentUserResult.user.contacts || []).map((c: any) => c.contact_detail?.toLowerCase())
         );
-        
+
         const newContacts = importedContacts.filter(
           (c: any) => !existingEmails.has(c.contact_detail?.toLowerCase())
         );
-        
+
         // Prepare updated user data
         const updatedUserData = {
           ...user_handler.serializeUser(currentUserResult.user),
@@ -613,40 +613,40 @@ io.on("connection", (socket:Socket) => {
             ...newContacts
           ]
         };
-        
+
         // Save updated user
         const saveResult = user_handler.saveUser(updatedUserData);
-          if (saveResult.success) {
+        if (saveResult.success) {
           console.log(`[Server] ✓ Imported ${newContacts.length} new contacts for ${data.username}`);
-          socket.emit("contactsImported", { 
-            success: true, 
+          socket.emit("contactsImported", {
+            success: true,
             message: `Successfully imported ${newContacts.length} new contacts`,
             totalContacts: updatedUserData.contacts.length,
             newContacts: newContacts.length
           });
         } else {
-          socket.emit("contactsImported", { 
-            success: false, 
-            message: `Failed to save contacts: ${saveResult.message}` 
+          socket.emit("contactsImported", {
+            success: false,
+            message: `Failed to save contacts: ${saveResult.message}`
           });
         }
       } else {
-        socket.emit("contactsImported", { 
-          success: false, 
-          message: "Failed to load user data for contact update" 
+        socket.emit("contactsImported", {
+          success: false,
+          message: "Failed to load user data for contact update"
         });
       }
-      
+
     } catch (error: any) {
       console.error("[Server] Error importing Google Contacts:", error);
-      socket.emit("contactsImported", { 
-        success: false, 
-        message: `Failed to import contacts: ${error.message}` 
+      socket.emit("contactsImported", {
+        success: false,
+        message: `Failed to import contacts: ${error.message}`
       });
     }
-      });
+  });
 });
- 
+
 
 server.listen(SERVER_PORT, SERVER_HOST, () => {
   console.log(`🚀 Server running on http://${SERVER_HOST}:${SERVER_PORT}`);
@@ -684,7 +684,7 @@ app.post("/set-redirect-url", express.json(), (req, res) => {
 });
 
 // === Generate auth URL ===
-app.get("/auth", (req:any, res:any) => {
+app.get("/auth", (req: any, res: any) => {
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent", // ensures refresh token is returned
@@ -692,7 +692,7 @@ app.get("/auth", (req:any, res:any) => {
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/drive.metadata.readonly", // add any scopes you want
-            "https://www.googleapis.com/auth/contacts.readonly", // Google Contacts read access
+      "https://www.googleapis.com/auth/contacts.readonly", // Google Contacts read access
     ],
   });
   res.redirect(authUrl);
@@ -707,7 +707,7 @@ export interface TokenStore {
 
   // Normal entries object
   entries: {
-    [email: string]: {id: number; [key: string]: any};
+    [email: string]: { id: number;[key: string]: any };
   };
 
   // Additional dynamic keys at top level
@@ -715,7 +715,7 @@ export interface TokenStore {
 }
 
 // === Handle OAuth callback ===
-app.get("/oauth2callback", async (req:any, res:any) => {
+app.get("/oauth2callback", async (req: any, res: any) => {
   const code = req.query.code;
 
   try {
@@ -727,7 +727,7 @@ app.get("/oauth2callback", async (req:any, res:any) => {
     const userInfo = await oauth2.userinfo.get();
 
     // === Read existing tokens ===
-    let tokenStore:TokenStore = { nextId: 0, entries: {} };
+    let tokenStore: TokenStore = { nextId: 1, entries: {} };
 
     if (fs.existsSync(TOKEN_PATH)) {
       tokenStore = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
@@ -735,23 +735,23 @@ app.get("/oauth2callback", async (req:any, res:any) => {
 
     // === Save credentials for this user ===
     const email = userInfo.data.email;
-    
+
     if (!email)   //ye hamza iqbal ko kisi din mei poochon ga
     {
-        throw new Error("User email is missing");
+      throw new Error("User email is missing");
     }
-    if(tokenStore.entries[email]){
-      tokenStore.entries[email]={id:tokenStore.entries[email].id, ...tokens };
-    }else{
-      tokenStore.entries[email] = {id:tokenStore.nextId, ...tokens };
+    if (tokenStore.entries[email]) {
+      tokenStore.entries[email] = { id: tokenStore.entries[email].id, ...tokens };
+    } else {
+      tokenStore.entries[email] = { id: tokenStore.nextId, ...tokens };
+      tokenStore.nextId += 1;
     }
-    tokenStore.nextId += 1;
-    
-    //console.log("Saved tokens:", tokenStore);
+
+    console.log("Saved tokens:", tokenStore);
     // === Write back to file ===
 
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenStore, null, 2));
-      return res.redirect(`${FRONTEND_URL}/settings?oauth=success&&id=${tokenStore.entries[email].id}`);
+    return res.redirect(`${FRONTEND_URL}/settings?oauth=success&&id=${tokenStore.entries[email].id}`);
   } catch (err) {
     console.error("Error during OAuth callback:", err);
     res.status(500).send("Error retrieving access token");
@@ -778,7 +778,7 @@ app.get("/gmail/user-info", (req, res) => {
   console.log("Lookup for id:", id, "found email:", email);
   if (!email)
     return res.status(404).json({ error: "User not found for given id" });
-
+  console.log("Returning tokens for email:", email);
   return res.json({
     email,
     tokens: tokenStore.entries[email],
@@ -786,7 +786,7 @@ app.get("/gmail/user-info", (req, res) => {
 });
 
 // === Example protected route ===
-app.get("/profile", async (req:any, res:any) => {
+app.get("/profile", async (req: any, res: any) => {
   if (!fs.existsSync(TOKEN_PATH)) {
     return res.send("No tokens found. Please /auth first.");
   }
@@ -802,7 +802,7 @@ app.get("/profile", async (req:any, res:any) => {
 import { calendar_v3 } from "googleapis"; //needed because typescript hates me
 import { fileURLToPath } from "url";
 import { aggregateAnalytics } from "./utils/analytics.ts";
-app.get("/test", async (req:any, res:any) => {
+app.get("/test", async (req: any, res: any) => {
   try {
     const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
 
@@ -841,7 +841,7 @@ app.get("/test", async (req:any, res:any) => {
         events: upcoming.map(e => e.summary || "No Title"),
       });
     }
-  } catch (error:any) {
+  } catch (error: any) {
     console.error("Error reusing tokens:", error);
     res.status(500).send("❌ Failed to reuse tokens. Check console for details.");
   }
@@ -850,41 +850,41 @@ app.get("/test", async (req:any, res:any) => {
 // === Fetch Google Contacts for a user ===
 app.get("/contacts", async (req: any, res: any) => {
   const userEmail = req.query.email;
-  
+
   if (!userEmail) {
     return res.status(400).json({ success: false, message: "Email parameter required" });
   }
-  
+
   console.log(`[Server] Fetching Google Contacts for: ${userEmail}`);
-  
+
   try {
     if (!fs.existsSync(TOKEN_PATH)) {
       return res.status(401).json({ success: false, message: "No tokens found. Please authenticate first." });
     }
-    
+
     const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
     const tokens = allTokens[userEmail];
-    
+
     if (!tokens) {
       return res.status(401).json({ success: false, message: `No tokens found for user: ${userEmail}` });
     }
-      // Create OAuth client with user's tokens
+    // Create OAuth client with user's tokens
     const userOAuthClient = new google.auth.OAuth2(
       credentials.web.client_id,
       credentials.web.client_secret,
       credentials.web.redirect_uris[0]
     );
     userOAuthClient.setCredentials(tokens);
-    
+
     // Use People API to fetch contacts
     const people = google.people({ version: "v1", auth: userOAuthClient });
-    
+
     const response = await people.people.connections.list({
       resourceName: "people/me",
       pageSize: 1000, // Max contacts to fetch
       personFields: "names,emailAddresses,phoneNumbers",
     });
-    
+
     const connections = response.data.connections || [];
     console.log(`[Server] Found ${connections.length} contacts for ${userEmail}`);
     // Extract email addresses from contacts
@@ -896,20 +896,20 @@ app.get("/contacts", async (req: any, res: any) => {
         phone: person.phoneNumbers?.[0]?.value || ""
       }))
       .filter((contact: any) => contact.email); // Only contacts with valid emails
-    
+
     console.log(`[Server] Extracted ${contacts.length} contacts with emails`);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       contacts,
       message: `Found ${contacts.length} contacts with email addresses`
     });
-    
+
   } catch (error: any) {
     console.error("[Server] Error fetching Google Contacts:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: `Failed to fetch contacts: ${error.message}` 
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch contacts: ${error.message}`
     });
   }
 });

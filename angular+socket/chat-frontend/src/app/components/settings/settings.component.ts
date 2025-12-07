@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, Inject } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
@@ -6,6 +6,7 @@ import { GoogleIntegrationService } from '../../services/google-integration.serv
 import { User, settings } from '../../../../../shared_models/models/user.model';
 import { ActivatedRoute, Router } from '@angular/router';
 import { getCurrentServerConfig, saveServerConfig } from '../../config/app.config';
+import { isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'app-settings',
@@ -22,8 +23,8 @@ export class SettingsComponent implements OnInit {
   isConnectingContacts = false;
   isConnectingGmail = false;
   isProcessingOAuth = false;
-    isImportingContacts = false;
-  
+  isImportingContacts = false;
+
   // Contacts
   userContacts: any[] = [];
   importMessage: string = '';
@@ -34,6 +35,7 @@ export class SettingsComponent implements OnInit {
   isSavingServerConfig = false;
 
   constructor(
+    @Inject(PLATFORM_ID) private platformId: Object,
     private dataService: DataService,
     private route: ActivatedRoute,
     private router: Router,
@@ -41,8 +43,8 @@ export class SettingsComponent implements OnInit {
   ) { }
 
   async ngOnInit(): Promise<void> {
-        console.log('[Settings] ngOnInit started');
-    
+    console.log('[Settings] ngOnInit started');
+
     // First, try to get the current user immediately
     const initialUser = this.dataService.getCurrentUser();
     console.log('[Settings] Initial user from getCurrentUser:', initialUser);
@@ -53,13 +55,34 @@ export class SettingsComponent implements OnInit {
         console.log('[Settings] Initial userSettings set with methods');
       }
     }
-            
-        // Load user contacts
-        this.loadUserContacts();
-    
-    // Handle OAuth callback
-    const oauthStatus = this.route.snapshot.queryParamMap.get('oauth');
-    const tokenId = this.route.snapshot.queryParamMap.get('id');
+
+    // Load user contacts
+    this.loadUserContacts();
+
+    if (isPlatformBrowser(this.platformId)) {
+      console.log('[Settings] Running in browser platform');
+
+      // Handle OAuth callback
+      const oauthStatus = this.route.snapshot.queryParamMap.get('oauth');
+      const tokenId = this.route.snapshot.queryParamMap.get('id');
+      console.log('[Settings] OAuth status:', oauthStatus, 'Token ID:', tokenId);
+      if (oauthStatus === 'success' && tokenId) {
+        localStorage.removeItem("oauth_in_progress");
+        // Store the token ID for future use
+        localStorage.setItem("gmail_tokenIndex", tokenId);
+        console.log('[Settings] OAuth successful, token ID stored:', tokenId);
+        // Process OAuth: get email and update username
+        await this.processOAuthCallback(tokenId);
+
+        // Clean the URL by removing query params
+        this.router.navigate(['/settings'], { replaceUrl: true });
+      } else if (this.route.snapshot.queryParamMap.has('oauth')) {
+        // OAuth failed or was cancelled
+        localStorage.removeItem("oauth_in_progress");
+        this.router.navigate(['/settings'], { replaceUrl: true });
+      }
+    }
+
     this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
       if (user && user.settings) {
@@ -76,24 +99,11 @@ export class SettingsComponent implements OnInit {
         }
       }
     });
-    if (oauthStatus === 'success' && tokenId) {
-      localStorage.removeItem("oauth_in_progress");
-      // Store the token ID for future use
-      localStorage.setItem("gmail_tokenIndex", tokenId);
-      console.log('[Settings] OAuth successful, token ID stored:', tokenId);
-      // Process OAuth: get email and update username
-      await this.processOAuthCallback(tokenId);
-
-      // Clean the URL by removing query params
-      this.router.navigate(['/settings'], { replaceUrl: true });
-    } else if (this.route.snapshot.queryParamMap.has('oauth')) {
-      // OAuth failed or was cancelled
-      localStorage.removeItem("oauth_in_progress");
-      this.router.navigate(['/settings'], { replaceUrl: true });
-    }
 
     // Load current server URL
-    this.serverUrl = getCurrentServerConfig();
+    if (isPlatformBrowser(this.platformId)) {
+      this.serverUrl = getCurrentServerConfig();
+    }
   }
   /**
        * Process OAuth callback: update username to email and load projects
@@ -229,17 +239,17 @@ export class SettingsComponent implements OnInit {
     console.log('[Settings] currentUser:', this.currentUser);
 
     if (this.userSettings && this.currentUser) {
-       console.log('[Settings] Calling dataService.updateSettings');
+      console.log('[Settings] Calling dataService.updateSettings');
       this.dataService.updateSettings(this.userSettings);
-    }else {
+    } else {
       console.warn('[Settings] Cannot save settings - userSettings or currentUser is null');
-      
+
       // Try to get the current user if it's null
       if (!this.currentUser) {
         this.currentUser = this.dataService.getCurrentUser();
         console.log('[Settings] Retrieved currentUser:', this.currentUser);
       }
-      
+
       // Try again after getting user
       if (this.userSettings && this.currentUser) {
         console.log('[Settings] Retrying dataService.updateSettings');
@@ -301,7 +311,7 @@ export class SettingsComponent implements OnInit {
     this.serverUrl = 'http://localhost:3000';
     this.saveServerConfig();
   }
-   // Contact import methods
+  // Contact import methods
   async importGoogleContacts(): Promise<void> {
     if (!this.userSettings?.allow_invite) {
       this.importMessage = 'Enable "Allow Invites" to import contacts';
@@ -311,14 +321,14 @@ export class SettingsComponent implements OnInit {
 
     this.isImportingContacts = true;
     this.importMessage = '';
-    
+
     try {
       console.log('[Settings] Starting Google Contacts import...');
       const result = await this.dataService.importGoogleContacts();
-      
+
       this.importSuccess = result.success;
       this.importMessage = result.message;
-      
+
       if (result.success) {
         // Refresh contacts list
         this.loadUserContacts();
@@ -328,7 +338,7 @@ export class SettingsComponent implements OnInit {
       this.importSuccess = false;
       this.importMessage = `Error: ${error.message}`;
     } finally {
-         this.isImportingContacts = false;
+      this.isImportingContacts = false;
     }
   }
 
@@ -340,5 +350,5 @@ export class SettingsComponent implements OnInit {
   canImportContacts(): boolean {
     return this.userSettings?.allow_invite === true && this.isGmailConnected();
   }
-  
+
 }
