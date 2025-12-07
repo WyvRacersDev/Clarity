@@ -21,6 +21,15 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   newProjectName = '';
   projectType: 'local' | 'hosted' = 'local';
   
+  // Error/Alert modal
+  showErrorModal = false;
+  errorMessage = '';
+  
+  // Confirmation modal
+  showConfirmModal = false;
+  confirmMessage = '';
+  projectToDelete: { index: number; project: Project } | null = null;
+  
   // Loading states
   isSaving = false;
   isDeleting = false;
@@ -178,6 +187,50 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.newProjectName = '';
   }
 
+  showError(message: string): void {
+    this.errorMessage = message;
+    this.showErrorModal = true;
+  }
+
+  closeErrorModal(): void {
+    this.showErrorModal = false;
+    this.errorMessage = '';
+  }
+
+  showConfirmation(message: string, index: number, project: Project): void {
+    this.confirmMessage = message;
+    this.projectToDelete = { index, project };
+    this.showConfirmModal = true;
+  }
+
+  closeConfirmModal(): void {
+    this.showConfirmModal = false;
+    this.confirmMessage = '';
+    this.projectToDelete = null;
+  }
+
+  async confirmDelete(): Promise<void> {
+    if (!this.projectToDelete || !this.currentUser) {
+      this.closeConfirmModal();
+      return;
+    }
+
+    const { index, project } = this.projectToDelete;
+    this.deletingProjectIndex = index;
+    this.closeConfirmModal();
+
+    const projectType = (project as any).projectType || 'local';
+    const deleted = await this.dataService.deleteProject(project.name, projectType);
+    this.deletingProjectIndex = null;
+    
+    if (deleted) {
+      console.log('Project deleted successfully');
+    } else {
+      console.error('Failed to delete project from server');
+      this.showError('Failed to delete project. Please try again.');
+    }
+  }
+
   async createProject(): Promise<void> {
     if (this.newProjectName.trim()) {
       const isLocalhost = isLocalhostServer();
@@ -188,11 +241,29 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         return;
       }
       
-      const newProject = this.dataService.createProject(this.newProjectName.trim(), this.projectType);
+      // Store values before closing modal
+      const projectName = this.newProjectName.trim();
+      const projectTypeValue = this.projectType;
+      
+      // Check if project with same name already exists (case-sensitive)
+      if (this.currentUser) {
+        const existingProject = this.currentUser.projects.find(
+          p => p.name === projectName
+        );
+        if (existingProject) {
+          this.showError(`A project named "${projectName}" already exists. Please choose a different name.`);
+          return;
+        }
+      }
+      
+      // Close modal immediately
+      this.closeCreateModal();
+      
+      const newProject = this.dataService.createProject(projectName, projectTypeValue);
       
       if (newProject && this.currentUser) {
-        // Save to server
-        const saved = await this.dataService.saveProject(newProject, this.projectType);
+        // Save to server in the background
+        const saved = await this.dataService.saveProject(newProject, projectTypeValue);
         if (saved) {
           console.log('Project created and saved successfully');
           // Reload projects to show the new one
@@ -201,8 +272,6 @@ export class ProjectsComponent implements OnInit, OnDestroy {
           console.error('Failed to save project to server');
         }
       }
-      
-      this.closeCreateModal();
     }
   }
   
@@ -222,19 +291,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   async deleteProject(index: number, event: Event): Promise<void> {
     event.stopPropagation();
     if (this.currentUser && this.currentUser.projects[index]) {
-      if (confirm('Are you sure you want to delete this project?')) {
-        this.deletingProjectIndex = index;
-        const project = this.currentUser.projects[index];
-        const projectType = (project as any).projectType || 'local';
-        const deleted = await this.dataService.deleteProject(project.name, projectType);
-        this.deletingProjectIndex = null;
-        if (deleted) {
-          console.log('Project deleted successfully');
-        } else {
-          console.error('Failed to delete project from server');
-          alert('Failed to delete project. Please try again.');
-        }
-      }
+      const project = this.currentUser.projects[index];
+      this.showConfirmation('Are you sure you want to delete this project?', index, project);
     }
   }
 }

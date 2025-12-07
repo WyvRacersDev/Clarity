@@ -97,7 +97,9 @@
                           autofocus
                           />
                       }
-                      <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+                      <button class="delete-element-btn" (click)="deleteElement(i)">
+                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
+                      </button>
                     </div>
                     <div class="image-content">
                       <img [src]="getImagePath(element)" [alt]="element.name" />
@@ -129,7 +131,9 @@
                           autofocus
                           />
                       }
-                      <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+                      <button class="delete-element-btn" (click)="deleteElement(i)">
+                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
+                      </button>
                     </div>
                     <div class="video-content">
                       <video controls width="100%">
@@ -163,7 +167,9 @@
                           autofocus
                           />
                       }
-                      <button class="delete-element-btn" (click)="deleteElement(i)">🗑️</button>
+                      <button class="delete-element-btn" (click)="deleteElement(i)">
+                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
+                      </button>
                     </div>
                     <div class="text-content" (dblclick)="startEditingText(element, selectedGridIndex, i)">
                       @if (!isEditingText || editingTextIndex !== i) {
@@ -219,7 +225,7 @@
                         class="delete-element-btn"
                         (click)="deleteElement(i); $event.stopPropagation()"
                         >
-                        🗑️
+                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
                       </button>
                     </div>
                     <!-- TAGS (SMALL TODO CARD) -->
@@ -301,7 +307,7 @@
                 type="text"
                 [(ngModel)]="newGridName"
                 placeholder="Enter grid name"
-                (keyup.enter)="createGrid()"
+                (keydown.enter)="$event.preventDefault(); createGrid()"
                 autofocus
                 />
             </div>

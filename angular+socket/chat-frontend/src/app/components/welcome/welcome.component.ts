@@ -13,6 +13,7 @@ import { AuthService } from '../../services/auth.service';
 export class WelcomeComponent implements OnInit, AfterViewInit {
   @ViewChild('backgroundMusic') audioPlayer!: ElementRef<HTMLAudioElement>;
   isMuted = false;
+  private audioStarted = false;
   
   constructor(
     private authService: AuthService,
@@ -27,9 +28,17 @@ export class WelcomeComponent implements OnInit, AfterViewInit {
   }
   
   ngAfterViewInit(): void {
-    // Set initial volume
+    // Set initial volume and try to play
     if (this.audioPlayer) {
       this.audioPlayer.nativeElement.volume = 0.3;
+      // Try to play audio
+      const playPromise = this.audioPlayer.nativeElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.log('Audio autoplay prevented:', error);
+          // Audio will play after user interaction
+        });
+      }
     }
   }
   
@@ -37,6 +46,17 @@ export class WelcomeComponent implements OnInit, AfterViewInit {
     this.isMuted = !this.isMuted;
     if (this.audioPlayer) {
       this.audioPlayer.nativeElement.muted = this.isMuted;
+      // Try to play if not already playing
+      if (!this.isMuted && this.audioPlayer.nativeElement.paused) {
+        this.audioPlayer.nativeElement.play().catch(err => console.log('Play failed:', err));
+      }
+    }
+  }
+
+  playAudioOnInteraction(): void {
+    if (!this.audioStarted && this.audioPlayer && this.audioPlayer.nativeElement.paused) {
+      this.audioPlayer.nativeElement.play().catch(err => console.log('Play failed:', err));
+      this.audioStarted = true;
     }
   }
 

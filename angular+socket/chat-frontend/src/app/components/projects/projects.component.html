@@ -39,7 +39,7 @@
                 <span class="spinner-small"></span>
               }
               @if (!(isDeleting && deletingProjectIndex === i)) {
-                <span>🗑️</span>
+                <img src="/assets/bin.png" alt="Delete" style="width: 20px; height: 20px;">
               }
             </button>
           </div>
@@ -73,7 +73,7 @@
               type="text"
               [(ngModel)]="newProjectName"
               placeholder="Enter project name"
-              (keyup.enter)="createProject()"
+              (keydown.enter)="$event.preventDefault(); createProject()"
               >
           </div>
           <div class="form-group">
@@ -103,6 +103,45 @@
               <span>Create</span>
             }
           </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Error Modal -->
+  @if (showErrorModal) {
+    <div class="modal-overlay" (click)="closeErrorModal()">
+      <div class="modal-content error-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <img src="/assets/warning.png" alt="Warning" style="width: 24px; height: 24px;">
+          <h2>Error</h2>
+          <button class="close-btn" (click)="closeErrorModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="error-message">{{ errorMessage }}</p>
+        </div>
+        <div class="modal-footer">
+          <button class="submit-btn" (click)="closeErrorModal()">OK</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Confirmation Modal -->
+  @if (showConfirmModal) {
+    <div class="modal-overlay" (click)="closeConfirmModal()">
+      <div class="modal-content confirm-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <img src="/assets/warning.png" alt="Warning" style="width: 24px; height: 24px;">
+          <h2>Are you sure?</h2>
+          <button class="close-btn" (click)="closeConfirmModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="confirm-message">{{ confirmMessage }}</p>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel-btn" (click)="closeConfirmModal()">Cancel</button>
+          <button class="submit-btn delete-confirm-btn" (click)="confirmDelete()">OK</button>
         </div>
       </div>
     </div>
