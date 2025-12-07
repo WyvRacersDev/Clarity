@@ -1,18 +1,30 @@
 <div class="welcome-container">
+  <audio #backgroundMusic autoplay loop>
+    <source src="/assets/welcome-music.mp3" type="audio/mpeg">
+  </audio>
+  
+  <button class="mute-btn" (click)="toggleMute()" [class.muted]="isMuted">
+    <span *ngIf="!isMuted">🔊</span>
+    <span *ngIf="isMuted">🔇</span>
+  </button>
+  
   <div class="stars-background"></div>
   
   <div class="welcome-content">
     <div class="welcome-card">
-      <h1 class="app-title">Welcome to Clarity</h1>
+      <h1 class="app-title">
+        <span class="title-welcome">Welcome to</span>
+        <span class="title-clarity">Clarity</span>
+      </h1>
       
       <div class="welcome-description">
         <p class="main-text">An All-in-One Productivity App</p>
         <div class="credits">
           <p>Created by</p>
           <div class="team-members">
-            <span>Bilal Kashif</span>
-            <span>Mohammad Hamza Iqbal</span>
-            <span>Mawahid Abbas</span>
+            <span class="member-bilal">Bilal Kashif</span>
+            <span class="member-hamza">Mohammad Hamza Iqbal</span>
+            <span class="member-mawahid">Mawahid Abbas</span>
           </div>
         </div>
       </div>
