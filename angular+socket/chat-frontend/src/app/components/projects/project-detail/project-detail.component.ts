@@ -920,8 +920,20 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (!container) return;
 
     const containerRect = container.getBoundingClientRect();
-    const x = event.clientX - containerRect.left - this.elementDragOffsetX;
-    const y = event.clientY - containerRect.top - this.elementDragOffsetY;
+    const elementRect = this.draggedElement.getBoundingClientRect();
+    
+    // Calculate position with offset
+    let x = event.clientX - containerRect.left - this.elementDragOffsetX;
+    let y = event.clientY - containerRect.top - this.elementDragOffsetY;
+    
+    // Get container dimensions (accounting for padding)
+    const containerPadding = 20; // From CSS padding
+    const maxX = container.clientWidth - elementRect.width - containerPadding;
+    const maxY = container.clientHeight - elementRect.height - containerPadding;
+    
+    // Constrain within bounds
+    x = Math.max(0, Math.min(x, maxX));
+    y = Math.max(0, Math.min(y, maxY));
 
     this.draggedElement.style.position = 'absolute';
     this.draggedElement.style.left = x + 'px';
@@ -952,8 +964,20 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
 
     const containerRect = container.getBoundingClientRect();
-    const x = Math.max(0, event.clientX - containerRect.left - this.elementDragOffsetX);
-    const y = Math.max(0, event.clientY - containerRect.top - this.elementDragOffsetY);
+    const elementRect = this.draggedElement.getBoundingClientRect();
+    
+    // Calculate position with offset
+    let x = event.clientX - containerRect.left - this.elementDragOffsetX;
+    let y = event.clientY - containerRect.top - this.elementDragOffsetY;
+    
+    // Get container dimensions (accounting for padding)
+    const containerPadding = 20; // From CSS padding
+    const maxX = container.clientWidth - elementRect.width - containerPadding;
+    const maxY = container.clientHeight - elementRect.height - containerPadding;
+    
+    // Constrain within bounds
+    x = Math.max(0, Math.min(x, maxX));
+    y = Math.max(0, Math.min(y, maxY));
 
     // Save the position to the element
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
