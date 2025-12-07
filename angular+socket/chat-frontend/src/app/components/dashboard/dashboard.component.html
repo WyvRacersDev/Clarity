@@ -50,7 +50,7 @@
     <div class="dashboard-section">
       <div class="section-header">
         <h2>Upcoming Tasks</h2>
-        <a routerLink="/tasks" class="view-all">View All →</a>
+        <a routerLink="/dashboard/tasks" class="view-all">View All →</a>
       </div>
       <div class="tasks-list">
         @if (upcomingTasks.length === 0) {
@@ -78,16 +78,16 @@
     <div class="dashboard-section">
       <div class="section-header">
         <h2>Recent Projects</h2>
-        <a routerLink="/projects" class="view-all">View All →</a>
+        <a routerLink="/dashboard/projects" class="view-all">View All →</a>
       </div>
       <div class="projects-list">
         @if (recentProjects.length === 0) {
           <div class="empty-state">
-            <p>No projects yet. <a routerLink="/projects">Create your first project</a></p>
+            <p>No projects yet. <a routerLink="/dashboard/projects">Create your first project</a></p>
           </div>
         }
         @for (project of recentProjects; track project; let i = $index) {
-          <div class="project-item" [routerLink]="['/projects', getProjectIndex(project)]">
+          <div class="project-item" [routerLink]="['/dashboard/projects', getProjectIndex(project)]">
             <div class="project-icon">
               <img src="/assets/folder.png" alt="Project" class="project-icon-img">
             </div>
@@ -105,19 +105,19 @@
   <div class="quick-actions">
     <h2>Quick Actions</h2>
     <div class="actions-grid">
-      <a routerLink="/projects" class="action-card">
+      <a routerLink="/dashboard/projects" class="action-card">
         <img src="/assets/plus.jpg" alt="New Project" class="action-icon">
         <div class="action-text">New Project</div>
       </a>
-      <a routerLink="/tasks" class="action-card">
+      <a routerLink="/dashboard/tasks" class="action-card">
         <img src="/assets/calender.jpg" alt="Schedule Task" class="action-icon">
         <div class="action-text">Schedule Task</div>
       </a>
-      <a routerLink="/ai-insights" class="action-card">
+      <a routerLink="/dashboard/ai-insights" class="action-card">
         <img src="/assets/robot.png" alt="AI Assistant" class="action-icon">
         <div class="action-text">AI Assistant</div>
       </a>
-      <a routerLink="/analytics" class="action-card">
+      <a routerLink="/dashboard/analytics" class="action-card">
         <img src="/assets/histogram.png" alt="View Analytics" class="action-icon">
         <div class="action-text">View Analytics</div>
       </a>

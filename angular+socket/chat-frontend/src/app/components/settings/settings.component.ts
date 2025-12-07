@@ -76,11 +76,11 @@ export class SettingsComponent implements OnInit {
         await this.processOAuthCallback(tokenId);
 
         // Clean the URL by removing query params
-        this.router.navigate(['/settings'], { replaceUrl: true });
+        this.router.navigate(['/dashboard/settings'], { replaceUrl: true });
       } else if (this.route.snapshot.queryParamMap.has('oauth')) {
         // OAuth failed or was cancelled
         localStorage.removeItem("oauth_in_progress");
-        this.router.navigate(['/settings'], { replaceUrl: true });
+        this.router.navigate(['/dashboard/settings'], { replaceUrl: true });
       }
     }
 

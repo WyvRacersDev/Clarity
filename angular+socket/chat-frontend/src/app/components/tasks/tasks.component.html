@@ -1,7 +1,6 @@
 <div class="tasks-container">
   <div class="tasks-header">
     <h1>Tasks & Calendar</h1>
-    <button class="btn-primary" (click)="openAddTaskModal()">+ New Task</button>
   </div>
 
   <div class="tasks-layout">
@@ -21,10 +20,6 @@
             <div
               class="task-item"
               [style.border-left-color]="getPriorityColor(task.get_priority())">
-              <input
-                type="checkbox"
-                [checked]="task.get_status()"
-                (change)="toggleTaskStatus(task)">
               <div class="task-content">
                 <div class="task-name" [class.completed]="task.get_status()">
                   {{ task.taskname }}
@@ -57,10 +52,6 @@
           @for (task of getUpcomingTasks(); track task) {
             <div
               class="task-item-small">
-              <input
-                type="checkbox"
-                [checked]="task.get_status()"
-                (change)="toggleTaskStatus(task)">
               <div class="task-content-small">
                 <div class="task-name-small">{{ task.taskname }}</div>
                 <div class="task-time-small">{{ formatDateTime(task.get_time()) }}</div>
@@ -81,10 +72,6 @@
           @for (task of getOverdueTasks(); track task) {
             <div
               class="task-item-small overdue">
-              <input
-                type="checkbox"
-                [checked]="task.get_status()"
-                (change)="toggleTaskStatus(task)">
               <div class="task-content-small">
                 <div class="task-name-small">{{ task.taskname }}</div>
                 <div class="task-time-small">{{ formatDateTime(task.get_time()) }}</div>
@@ -101,52 +88,3 @@
     </div>
   </div>
 </div>
-
-<!-- Add Task Modal -->
-@if (showAddTaskModal) {
-  <div class="modal-overlay" (click)="showAddTaskModal = false">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <h2>Add New Task</h2>
-      <div class="form-group">
-        <label>Task Name</label>
-        <input
-          type="text"
-          [(ngModel)]="newTaskName"
-          placeholder="Enter task name"
-          class="modal-input">
-      </div>
-      <div class="form-group">
-        <label>Priority</label>
-        <select [(ngModel)]="newTaskPriority" class="modal-input">
-          <option [value]="1">Low</option>
-          <option [value]="2">Medium</option>
-          <option [value]="3">High</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Date & Time</label>
-        <input
-          type="datetime-local"
-          [(ngModel)]="newTaskTime"
-          class="modal-input">
-      </div>
-      @if (currentUser && currentUser.projects.length > 0) {
-        <div class="form-group">
-          <label>Project</label>
-          <select [(ngModel)]="selectedProjectIndex" class="modal-input">
-            @for (project of currentUser.projects; track project; let i = $index) {
-              <option
-                [value]="i">
-                {{ project.name }}
-              </option>
-            }
-          </select>
-        </div>
-      }
-      <div class="modal-actions">
-        <button class="btn-secondary" (click)="showAddTaskModal = false">Cancel</button>
-        <button class="btn-primary" (click)="addTask()">Add Task</button>
-      </div>
-    </div>
-  </div>
-}

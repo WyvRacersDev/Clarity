@@ -216,7 +216,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   selectProject(index: number): void {
-    this.router.navigate(['/projects', index]);
+    this.router.navigate(['/dashboard/projects', index]);
   }
 
   async deleteProject(index: number, event: Event): Promise<void> {
