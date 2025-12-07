@@ -54,6 +54,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     // Reset loading flags when component initializes
     this.hasLoadedProjects = false;
     this.isLoadingProjects = false;
+    this.isLoading = false; // Reset display loading state
     
     // Get initial user state
     const initialUser = this.dataService.getCurrentUser();
@@ -90,12 +91,6 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       this.cdr.detectChanges();
     });
     
-    this.dataService.listingProjects$.subscribe(loading => {
-      this.isLoading = loading;
-      console.log('Loading projects state changed:', loading);
-      this.cdr.detectChanges();
-    });
-    
     // Listen for hosted project updates (broadcasted to all clients)
     this.hostedProjectUpdateSubscription = this.socketService.onHostedProjectUpdated().subscribe((data: any) => {
       console.log('[ProjectsComponent] Hosted project updated by another user, reloading projects list...');
@@ -112,6 +107,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Reset loading states
+    this.isLoading = false;
+    this.isLoadingProjects = false;
+    
     if (this.userSubscription) {
       this.userSubscription.unsubscribe();
     }
@@ -135,6 +134,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     }
     
     this.isLoadingProjects = true;
+    this.isLoading = true; // Set display loading state
     this.hasLoadedProjects = false; // Reset before loading
     try {
       console.log('Loading projects from server...');
@@ -173,6 +173,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       this.hasLoadedProjects = false; // Reset on error so it can retry
     } finally {
       this.isLoadingProjects = false;
+      this.isLoading = false; // Reset display loading state
       console.log('Loading projects completed');
       this.cdr.detectChanges(); // Force change detection
     }
