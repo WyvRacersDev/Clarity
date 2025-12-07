@@ -22,11 +22,25 @@
           "y_pos": 200,
           "x_scale": 1,
           "y_scale": 1,
-          "scheduled_tasks": []
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "heheha",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-07T15:18:30.446Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-07T15:18:35.350Z",
+              "calendar_event_id": null
+            }
+          ],
+          "collaborators": [],
+          "tags": []
         }
       ]
     }
   ],
   "project_type": "hosted",
-  "lastModified": "2025-11-30T10:15:46.628Z"
+  "lastModified": "2025-12-07T15:18:38.074Z"
 }
