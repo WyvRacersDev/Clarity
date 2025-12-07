@@ -37,6 +37,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   showConfirmModal = false;
   confirmMessage = '';
   gridToDelete: { index: number; grid: Grid } | null = null;
+  elementToDelete: { index: number; element: Screen_Element } | null = null;
   showAddElementModal = false;
   newElementType: 'ToDoLst' | 'Image' | 'Video' | 'Text_document' = 'ToDoLst';
   showAddTaskModal = false;
@@ -51,6 +52,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   isEditingText = false;
   editingTextIndex = -1;
   editingTextContent = '';
+  
+  // Image/Video name prompts
+  showImageNameModal = false;
+  showVideoNameModal = false;
+  newImageName = '';
+  newVideoName = '';
+  pendingImageFile: File | null = null;
+  pendingVideoFile: File | null = null;
 
   // Full-screen todo list view
   showFullScreenTodo = false;
@@ -104,6 +113,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   // Loading states
   isSaving = false;
   isLoading = false;
+  private savingTimeout: any = null;
+  private loadingTimeout: any = null;
 
   // Subscriptions
   private hostedProjectUpdateSubscription: any;
@@ -134,11 +145,49 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.dataService.savingProject$.subscribe(loading => {
       this.isSaving = loading;
       console.log('Project detail - Saving state changed:', loading);
+      
+      // Clear any existing timeout
+      if (this.savingTimeout) {
+        clearTimeout(this.savingTimeout);
+        this.savingTimeout = null;
+      }
+      
+      // Safety timeout: force clear saving state after 5 seconds
+      if (loading) {
+        this.savingTimeout = setTimeout(() => {
+          if (this.isSaving) {
+            console.warn('[ProjectDetail] Force clearing stuck saving state after timeout');
+            this.isSaving = false;
+            this.cdr.detectChanges();
+          }
+          this.savingTimeout = null;
+        }, 5000);
+      }
+      
       this.cdr.detectChanges();
     });
 
     this.dataService.loadingProject$.subscribe(loading => {
       this.isLoading = loading;
+      
+      // Clear any existing timeout
+      if (this.loadingTimeout) {
+        clearTimeout(this.loadingTimeout);
+        this.loadingTimeout = null;
+      }
+      
+      // Safety timeout: force clear loading state after 5 seconds
+      if (loading) {
+        this.loadingTimeout = setTimeout(() => {
+          if (this.isLoading) {
+            console.warn('[ProjectDetail] Force clearing stuck loading state after timeout');
+            this.isLoading = false;
+            this.cdr.detectChanges();
+          }
+          this.loadingTimeout = null;
+        }, 5000);
+      }
+      
       this.cdr.detectChanges();
     });
 
@@ -270,6 +319,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.showConfirmModal = false;
     this.confirmMessage = '';
     this.gridToDelete = null;
+    this.elementToDelete = null;
   }
 
   async confirmDeleteGrid(): Promise<void> {
@@ -284,6 +334,46 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     await this.dataService.deleteGrid(this.projectIndex, index);
     if (this.selectedGridIndex >= this.project.grid.length) {
       this.selectedGridIndex = Math.max(0, this.project.grid.length - 1);
+    }
+  }
+
+  async confirmDeleteElement(): Promise<void> {
+    if (!this.elementToDelete || !this.project) {
+      this.closeConfirmModal();
+      return;
+    }
+
+    const { index } = this.elementToDelete;
+    this.closeConfirmModal();
+
+    // Safety timeout to clear loading states if operation takes too long
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[ProjectDetail] Delete operation timeout - forcing loading states to clear');
+      this.isSaving = false;
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }, 10000); // 10 second timeout
+
+    try {
+      // Get element before deletion to check if it's Image/Video
+      const element = this.project.grid[this.selectedGridIndex].Screen_elements[index];
+      console.log(`[ProjectDetail] Deleting element at index ${index}:`, element);
+
+      // Remove from grid (this will also delete file and save)
+      await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, index);
+
+      // Clear the safety timeout
+      clearTimeout(safetyTimeout);
+
+      // Reload to ensure sync with server
+      this.loadProject();
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('[ProjectDetail] Error deleting element:', error);
+      clearTimeout(safetyTimeout);
+      this.isSaving = false;
+      this.isLoading = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -357,8 +447,31 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.fileInput = document.createElement('input');
     this.fileInput.type = 'file';
     this.fileInput.accept = 'image/*';
-    this.fileInput.onchange = () => this.handleImageUpload();
+    this.fileInput.onchange = () => {
+      if (this.fileInput && this.fileInput.files && this.fileInput.files.length > 0) {
+        this.pendingImageFile = this.fileInput.files[0];
+        this.newImageName = '';
+        this.showImageNameModal = true;
+      }
+    };
     this.fileInput.click();
+  }
+  
+  async confirmImageUpload(): Promise<void> {
+    if (!this.pendingImageFile || !this.newImageName.trim()) {
+      return;
+    }
+    
+    this.showImageNameModal = false;
+    await this.handleImageUpload(this.pendingImageFile, this.newImageName.trim());
+    this.pendingImageFile = null;
+    this.newImageName = '';
+  }
+  
+  cancelImageUpload(): void {
+    this.showImageNameModal = false;
+    this.pendingImageFile = null;
+    this.newImageName = '';
   }
 
   triggerVideoUpload(): void {
@@ -369,14 +482,36 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.fileInput = document.createElement('input');
     this.fileInput.type = 'file';
     this.fileInput.accept = 'video/*';
-    this.fileInput.onchange = () => this.handleVideoUpload();
+    this.fileInput.onchange = () => {
+      if (this.fileInput && this.fileInput.files && this.fileInput.files.length > 0) {
+        this.pendingVideoFile = this.fileInput.files[0];
+        this.newVideoName = '';
+        this.showVideoNameModal = true;
+      }
+    };
     this.fileInput.click();
   }
+  
+  async confirmVideoUpload(): Promise<void> {
+    if (!this.pendingVideoFile || !this.newVideoName.trim()) {
+      return;
+    }
+    
+    this.showVideoNameModal = false;
+    await this.handleVideoUpload(this.pendingVideoFile, this.newVideoName.trim());
+    this.pendingVideoFile = null;
+    this.newVideoName = '';
+  }
+  
+  cancelVideoUpload(): void {
+    this.showVideoNameModal = false;
+    this.pendingVideoFile = null;
+    this.newVideoName = '';
+  }
 
-  async handleImageUpload(): Promise<void> {
-    if (!this.fileInput || !this.fileInput.files || !this.project) return;
+  async handleImageUpload(file: File, imageName: string): Promise<void> {
+    if (!file || !this.project) return;
 
-    const file = this.fileInput.files[0];
     const reader = new FileReader();
 
     reader.onload = async (e: any) => {
@@ -394,7 +529,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           const serverUrl = getServerConfig();
           const localPath = `${serverUrl}/projects/${projectType}/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Image uploaded, using path: ${localPath}`);
-          const element = new Image(localPath, 400, 300, 'New Image');
+          const element = new Image(localPath, 400, 300, imageName);
           element.set_x_scale(300); // width
           element.set_y_scale(200); // height
           console.log(`[ProjectDetail] Created Image element:`, {
@@ -419,10 +554,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     reader.readAsDataURL(file);
   }
 
-  async handleVideoUpload(): Promise<void> {
-    if (!this.fileInput || !this.fileInput.files || !this.project) return;
+  async handleVideoUpload(file: File, videoName: string): Promise<void> {
+    if (!file || !this.project) return;
 
-    const file = this.fileInput.files[0];
     const reader = new FileReader();
 
     reader.onload = async (e: any) => {
@@ -440,7 +574,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           const serverUrl = getServerConfig();
           const localPath = `${serverUrl}/projects/${projectType}/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Video uploaded, using path: ${localPath}`);
-          const element = new Video(localPath, 400, 300, 'New Video');
+          const element = new Video(localPath, 400, 300, videoName);
           element.set_x_scale(400); // width
           element.set_y_scale(300); // height
           console.log(`[ProjectDetail] Created Video element:`, {
@@ -542,33 +676,35 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   async submitAddTextDocument(): Promise<void> {
-    if (!this.project || this.selectedGridIndex < 0 || !this.newTextDocumentName.trim()) return;
+    if (!this.project || this.selectedGridIndex < 0 || !this.newTextDocumentName.trim()) {
+      return;
+    }
+
+    // Store values before closing modal
+    const documentName = this.newTextDocumentName.trim();
+    const documentContent = this.newTextDocumentContent || '';
+
+    // Close modal first to provide immediate feedback
+    this.closeAddTextModal();
 
     const element = new Text_document(
-      this.newTextDocumentName.trim(),
+      documentName,
       200,
       200,
-      this.newTextDocumentContent || ''
+      documentContent
     );
     await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
     this.socketService.emitElementUpdate(element, this.project.name, this.project.grid[this.selectedGridIndex].name);
     this.loadProject(); // Reload to see the changes
     this.cdr.detectChanges();
-    this.closeAddTextModal();
   }
 
   async deleteElement(elementIndex: number): Promise<void> {
-    if (this.project && this.selectedGridIndex >= 0) {
-      // Get element before deletion to check if it's Image/Video
+    if (this.project && this.selectedGridIndex >= 0 && this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex]) {
       const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
-      console.log(`[ProjectDetail] Deleting element at index ${elementIndex}:`, element);
-
-      // Remove from grid (this will also delete file and save)
-      await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, elementIndex);
-
-      // Reload to ensure sync with server
-      this.loadProject();
-      this.cdr.detectChanges();
+      this.elementToDelete = { index: elementIndex, element };
+      this.confirmMessage = `Are you sure you want to delete the element "${element.name}"?`;
+      this.showConfirmModal = true;
     }
   }
 
@@ -664,7 +800,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (event) {
       event.stopPropagation();
     }
-    // Don't open if we're dragging or just finished dragging
+    // Don't open if we're editing a name, dragging, or just finished dragging
+    if (this.editingElementNameIndex === elementIndex && this.editingElementNameGridIndex === this.selectedGridIndex) {
+      return;
+    }
     if (this.isDraggingEnabled || this.justFinishedDragging) {
       this.justFinishedDragging = false;
       return;
@@ -1263,6 +1402,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
     if (this.elementUpdateSubscription) {
       this.elementUpdateSubscription.unsubscribe();
+    }
+    
+    // Clear any pending timeouts
+    if (this.savingTimeout) {
+      clearTimeout(this.savingTimeout);
+    }
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
     }
   }
 

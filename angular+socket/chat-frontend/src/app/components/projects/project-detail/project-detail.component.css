@@ -223,7 +223,7 @@
   width: fit-content;
   height: fit-content;
   max-height: 600px;
-  overflow: visible;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -256,8 +256,7 @@
 .element-header h3 {
   margin: 0;
   font-size: 1rem;
-  color: #FFFFFF;
-  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+  color: #000000;
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -1027,8 +1026,8 @@
 }
 
 .task-priority-select option {
-  color: #000000 !important;
-  background: #000000 !important;
+  color: #FFFFFF !important;
+  background: #1a1a1a !important;
 }
 
 .task-priority-select option:checked,
@@ -1198,8 +1197,8 @@
 }
 
 .priority-select-fullscreen option {
-  color: #000000 !important;
-  background: #000000 !important;
+  color: #FFFFFF !important;
+  background: #1a1a1a !important;
 }
 
 .priority-select-fullscreen option:checked,

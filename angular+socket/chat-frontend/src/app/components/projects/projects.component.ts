@@ -35,6 +35,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   isDeleting = false;
   isLoading = false;
   deletingProjectIndex: number | null = null;
+  private loadingTimeout: any = null;
   
   // Prevent infinite loops
   private isLoadingProjects = false;
@@ -107,6 +108,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Clear any pending timeouts
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+    }
+    
     // Reset loading states
     this.isLoading = false;
     this.isLoadingProjects = false;
@@ -136,6 +142,21 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.isLoadingProjects = true;
     this.isLoading = true; // Set display loading state
     this.hasLoadedProjects = false; // Reset before loading
+    
+    // Safety timeout: force clear loading state after 5 seconds
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+    }
+    this.loadingTimeout = setTimeout(() => {
+      if (this.isLoading || this.isLoadingProjects) {
+        console.warn('[ProjectsComponent] Force clearing stuck loading state after timeout');
+        this.isLoading = false;
+        this.isLoadingProjects = false;
+        this.cdr.detectChanges();
+      }
+      this.loadingTimeout = null;
+    }, 5000);
+    
     try {
       console.log('Loading projects from server...');
       const isLocalhost = isLocalhostServer();
@@ -172,6 +193,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       console.error('Error loading projects from server:', error);
       this.hasLoadedProjects = false; // Reset on error so it can retry
     } finally {
+      // Clear the safety timeout since we're done
+      if (this.loadingTimeout) {
+        clearTimeout(this.loadingTimeout);
+        this.loadingTimeout = null;
+      }
+      
       this.isLoadingProjects = false;
       this.isLoading = false; // Reset display loading state
       console.log('Loading projects completed');
