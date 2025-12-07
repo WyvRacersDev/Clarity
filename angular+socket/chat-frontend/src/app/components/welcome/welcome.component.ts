@@ -1,16 +1,19 @@
-import { Component, OnInit } from '@angular/core';
-
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-welcome',
   standalone: true,
-  imports: [],
+  imports: [CommonModule],
   templateUrl: './welcome.component.html',
   styleUrls: ['./welcome.component.css']
 })
-export class WelcomeComponent implements OnInit {
+export class WelcomeComponent implements OnInit, AfterViewInit {
+  @ViewChild('backgroundMusic') audioPlayer!: ElementRef<HTMLAudioElement>;
+  isMuted = false;
+  
   constructor(
     private authService: AuthService,
     private router: Router
@@ -20,6 +23,20 @@ export class WelcomeComponent implements OnInit {
     // If user is already logged in, redirect to dashboard
     if (this.authService.isLoggedIn()) {
       this.router.navigate(['/dashboard']);
+    }
+  }
+  
+  ngAfterViewInit(): void {
+    // Set initial volume
+    if (this.audioPlayer) {
+      this.audioPlayer.nativeElement.volume = 0.3;
+    }
+  }
+  
+  toggleMute(): void {
+    this.isMuted = !this.isMuted;
+    if (this.audioPlayer) {
+      this.audioPlayer.nativeElement.muted = this.isMuted;
     }
   }
 
