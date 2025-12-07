@@ -165,7 +165,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         data.projectName === this.project.name) {
         console.log('[ProjectDetail] Hosted project deleted by another user');
         alert('This project has been deleted by another user.');
-        this.router.navigate(['/projects']);
+        this.router.navigate(['/dashboard/projects']);
       }
     });
 

@@ -252,7 +252,6 @@
   letter-spacing: 1px;
   animation: fadeIn 0.8s ease-out 1.9s backwards;
 }
-}
 
 .enter-btn:hover {
   transform: translateY(-3px);
