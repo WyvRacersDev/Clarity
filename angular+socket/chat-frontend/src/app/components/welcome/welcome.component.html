@@ -1,9 +1,9 @@
-<div class="welcome-container">
-  <audio #backgroundMusic autoplay loop>
+<div class="welcome-container" (click)="playAudioOnInteraction()">
+  <audio #backgroundMusic loop>
     <source src="/assets/welcome-music.mp3" type="audio/mpeg">
   </audio>
   
-  <button class="mute-btn" (click)="toggleMute()" [class.muted]="isMuted">
+  <button class="mute-btn" (click)="toggleMute(); $event.stopPropagation()" [class.muted]="isMuted">
     <span *ngIf="!isMuted">🔊</span>
     <span *ngIf="isMuted">🔇</span>
   </button>
