@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, Inject } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, Inject, ChangeDetectorRef } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
@@ -39,7 +39,8 @@ export class SettingsComponent implements OnInit {
     private dataService: DataService,
     private route: ActivatedRoute,
     private router: Router,
-    private googleIntegration: GoogleIntegrationService
+    private googleIntegration: GoogleIntegrationService,
+    private cdr: ChangeDetectorRef
   ) { }
 
   async ngOnInit(): Promise<void> {
@@ -183,15 +184,20 @@ export class SettingsComponent implements OnInit {
   async connectGoogleCalendar(): Promise<void> {
     this.isConnectingCalendar = true;
     try {
-      await this.googleIntegration.connectGoogleCalendar();
-      if (this.userSettings) {
+      const result = await this.googleIntegration.connectGoogleCalendar();
+      console.log('[Settings] connectGoogleCalendar result:', result);
+      if (result && this.userSettings) {
         this.userSettings.allow_google_calender = true;
         this.saveSettings();
       }
+      // Trigger change detection to update the UI immediately
+      this.cdr.detectChanges();
     } catch (error) {
       console.error('Error connecting Google Calendar:', error);
     } finally {
       this.isConnectingCalendar = false;
+      // Trigger change detection again when connection completes
+      this.cdr.detectChanges();
     }
   }
 
@@ -206,11 +212,16 @@ export class SettingsComponent implements OnInit {
   async connectGoogleContacts(): Promise<void> {
     this.isConnectingContacts = true;
     try {
-      await this.googleIntegration.connectGoogleContacts();
+      const result = await this.googleIntegration.connectGoogleContacts();
+      console.log('[Settings] connectGoogleContacts result:', result);
+      // Trigger change detection to update the UI immediately
+      this.cdr.detectChanges();
     } catch (error) {
       console.error('Error connecting Google Contacts:', error);
     } finally {
       this.isConnectingContacts = false;
+      // Trigger change detection again when connection completes
+      this.cdr.detectChanges();
     }
   }
 
@@ -222,10 +233,14 @@ export class SettingsComponent implements OnInit {
     this.isConnectingGmail = true;
     try {
       await this.googleIntegration.connectGmail();
+      // Note: Gmail uses OAuth redirect, so change detection happens on return
+      this.cdr.detectChanges();
     } catch (error) {
       console.error('Error connecting Gmail:', error);
     } finally {
       this.isConnectingGmail = false;
+      // Trigger change detection again when connection completes
+      this.cdr.detectChanges();
     }
   }
 
@@ -259,7 +274,9 @@ export class SettingsComponent implements OnInit {
   }
 
   isGoogleCalendarConnected(): boolean {
-    return this.googleIntegration.isCalendarConnected();
+    const connected = this.googleIntegration.isCalendarConnected();
+    console.log('[Settings] isGoogleCalendarConnected check:', connected);
+    return connected;
   }
 
   isGoogleContactsConnected(): boolean {
@@ -333,12 +350,18 @@ export class SettingsComponent implements OnInit {
         // Refresh contacts list
         this.loadUserContacts();
       }
+      // Trigger change detection to update the UI immediately
+      this.cdr.detectChanges();
     } catch (error: any) {
       console.error('[Settings] Error importing contacts:', error);
       this.importSuccess = false;
       this.importMessage = `Error: ${error.message}`;
+      // Trigger change detection on error
+      this.cdr.detectChanges();
     } finally {
       this.isImportingContacts = false;
+      // Trigger change detection when import completes
+      this.cdr.detectChanges();
     }
   }
 

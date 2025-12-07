@@ -79,16 +79,20 @@ import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: '',
+    component: WelcomeComponent
+  },
+  {
     path: 'login',
     component: WelcomeComponent
   },
   {
-    path: '',
+    path: 'dashboard',
     component: LayoutComponent,
     canActivate: [authGuard],
     children: [
       {
-        path: 'dashboard',
+        path: '',
         component: DashboardComponent
       },
       {
@@ -114,17 +118,11 @@ export const routes: Routes = [
       {
         path: 'settings',
         component: SettingsComponent
-      },
-      {
-        // IMPORTANT: Empty path redirect must be LAST in children array
-        path: '',
-        redirectTo: 'dashboard',
-        pathMatch: 'full'
       }
     ]
   },
   {
     path: '**',
-    redirectTo: 'login'
+    redirectTo: ''
   }
 ];

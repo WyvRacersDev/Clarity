@@ -31,8 +31,10 @@ export class GoogleIntegrationService {
     // In a real implementation, this would use Google OAuth
     // For now, we'll simulate the connection
     return new Promise((resolve) => {
+      console.log('[GoogleIntegration] Connecting to Google Calendar...');
       setTimeout(() => {
         this.isGoogleCalendarConnected = true;
+        console.log('[GoogleIntegration] Google Calendar connected. State:', this.isGoogleCalendarConnected);
         this.saveConnectionStatus();
         this.updateUserSettings();
         resolve(true);

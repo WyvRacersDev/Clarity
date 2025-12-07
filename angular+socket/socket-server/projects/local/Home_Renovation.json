@@ -1,0 +1,285 @@
+{
+  "owner_name": "l230757@lhr.nu.edu.pk",
+  "name": "Home Renovation",
+  "projectType": "local",
+  "grid": [
+    {
+      "name": "Planning",
+      "Screen_elements": [
+        {
+          "type": "ToDoLst",
+          "name": "Budget & Research",
+          "x_pos": 150,
+          "y_pos": 80,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Get contractor quotes",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-09T10:00:00.000Z",
+              "completion_time": "2025-11-08T15:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Choose paint colors",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-13T14:00:00.000Z",
+              "completion_time": "2025-11-14T10:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Order kitchen cabinets",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-16T12:00:00.000Z",
+              "completion_time": "2025-11-16T11:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Buy light fixtures",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-11-19T15:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "personal",
+            "home",
+            "shopping"
+          ]
+        },
+        {
+          "type": "ToDoLst",
+          "name": "Permits & Legal",
+          "x_pos": 450,
+          "y_pos": 80,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Apply for building permit",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-11T09:00:00.000Z",
+              "completion_time": "2025-11-10T16:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Review contractor agreement",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-14T13:00:00.000Z",
+              "completion_time": "2025-11-15T09:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "personal",
+            "home",
+            "urgent"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Execution",
+      "Screen_elements": [
+        {
+          "type": "ToDoLst",
+          "name": "Construction Tasks",
+          "x_pos": 150,
+          "y_pos": 80,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Kitchen demolition",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-20T08:00:00.000Z",
+              "completion_time": "2025-11-20T17:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Install new flooring",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-11-25T16:00:00.000Z",
+              "completion_time": "2025-11-25T15:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Paint walls",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-11-28T14:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Install cabinets",
+              "priority": 1,
+              "is_done": true,
+              "time": "2025-12-01T12:00:00.000Z",
+              "completion_time": "2025-12-01T11:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.068Z",
+              "calendar_event_id": null
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "personal",
+            "home"
+          ]
+        },
+        {
+          "type": "ToDoLst",
+          "name": "Final Touches",
+          "x_pos": 450,
+          "y_pos": 80,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Install light fixtures",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-03T10:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.069Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Deep clean kitchen",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-05T13:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.069Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Final walkthrough",
+              "priority": 1,
+              "is_done": false,
+              "time": "2025-12-06T11:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.069Z",
+              "calendar_event_id": null
+            }
+          ],
+          "collaborators": [],
+          "tags": [
+            "personal",
+            "home"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Miscellaneous",
+      "Screen_elements": [
+        {
+          "type": "ToDoLst",
+          "name": "Other Items",
+          "x_pos": 150,
+          "y_pos": 80,
+          "x_scale": 1,
+          "y_scale": 1,
+          "scheduled_tasks": [
+            {
+              "type": "scheduled_task",
+              "taskname": "Update home insurance",
+              "priority": 2,
+              "is_done": true,
+              "time": "2025-11-22T15:00:00.000Z",
+              "completion_time": "2025-11-22T14:00:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.069Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Take before/after photos",
+              "priority": 3,
+              "is_done": true,
+              "time": "2025-11-30T12:00:00.000Z",
+              "completion_time": "2025-11-30T11:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.069Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Organize housewarming party",
+              "priority": 2,
+              "is_done": false,
+              "time": "2025-12-08T18:00:00.000Z",
+              "completion_time": null,
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.069Z",
+              "calendar_event_id": null
+            },
+            {
+              "type": "scheduled_task",
+              "taskname": "Thank contractor team",
+              "priority": 3,
+              "is_done": true,
+              "time": "2025-12-02T10:00:00.000Z",
+              "completion_time": "2025-12-02T09:30:00.000Z",
+              "completed_by": null,
+              "creation_time": "2025-12-07T19:00:00.069Z",
+              "calendar_event_id": null
+            }
+          ],
+          "collaborators": [],
+          "tags": []
+        }
+      ]
+    }
+  ],
+  "project_type": "local",
+  "lastModified": "2025-12-07T19:00:00.194Z"
+}
