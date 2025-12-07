@@ -28,6 +28,15 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   selectedGridIndex: number = 0;
   showCreateGridModal = false;
   newGridName = '';
+  
+  // Error/Alert modal
+  showErrorModal = false;
+  errorMessage = '';
+  
+  // Confirmation modal
+  showConfirmModal = false;
+  confirmMessage = '';
+  gridToDelete: { index: number; grid: Grid } | null = null;
   showAddElementModal = false;
   newElementType: 'ToDoLst' | 'Image' | 'Video' | 'Text_document' = 'ToDoLst';
   showAddTaskModal = false;
@@ -241,10 +250,61 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.newGridName = '';
   }
 
+  showError(message: string): void {
+    this.errorMessage = message;
+    this.showErrorModal = true;
+  }
+
+  closeErrorModal(): void {
+    this.showErrorModal = false;
+    this.errorMessage = '';
+  }
+
+  showConfirmation(message: string, index: number, grid: Grid): void {
+    this.confirmMessage = message;
+    this.gridToDelete = { index, grid };
+    this.showConfirmModal = true;
+  }
+
+  closeConfirmModal(): void {
+    this.showConfirmModal = false;
+    this.confirmMessage = '';
+    this.gridToDelete = null;
+  }
+
+  async confirmDeleteGrid(): Promise<void> {
+    if (!this.gridToDelete || !this.project) {
+      this.closeConfirmModal();
+      return;
+    }
+
+    const { index } = this.gridToDelete;
+    this.closeConfirmModal();
+
+    await this.dataService.deleteGrid(this.projectIndex, index);
+    if (this.selectedGridIndex >= this.project.grid.length) {
+      this.selectedGridIndex = Math.max(0, this.project.grid.length - 1);
+    }
+  }
+
   async createGrid(): Promise<void> {
     if (this.newGridName.trim() && this.projectIndex >= 0) {
-      await this.dataService.createGrid(this.projectIndex, this.newGridName.trim());
+      // Store grid name before closing modal
+      const gridName = this.newGridName.trim();
+      
+      // Check if grid with same name already exists in this project (case-sensitive)
+      if (this.project) {
+        const existingGrid = this.project.grid.find(g => g.name === gridName);
+        if (existingGrid) {
+          this.showError(`A grid named "${gridName}" already exists in this project. Please choose a different name.`);
+          return;
+        }
+      }
+      
+      // Close modal immediately
       this.closeCreateGridModal();
+      
+      await this.dataService.createGrid(this.projectIndex, gridName);
       if (this.project) {
         this.selectedGridIndex = this.project.grid.length - 1;
       }
@@ -252,11 +312,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   async deleteGrid(index: number): Promise<void> {
-    if (this.project && confirm(`Delete grid "${this.project.grid[index].name}"?`)) {
-      await this.dataService.deleteGrid(this.projectIndex, index);
-      if (this.selectedGridIndex >= this.project.grid.length) {
-        this.selectedGridIndex = Math.max(0, this.project.grid.length - 1);
-      }
+    if (this.project && this.project.grid[index]) {
+      const grid = this.project.grid[index];
+      this.showConfirmation(`Are you sure you want to delete the grid "${grid.name}"?`, index, grid);
     }
   }
 
