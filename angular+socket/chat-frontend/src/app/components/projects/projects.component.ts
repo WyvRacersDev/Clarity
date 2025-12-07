@@ -143,7 +143,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.isLoading = true; // Set display loading state
     this.hasLoadedProjects = false; // Reset before loading
     
-    // Safety timeout: force clear loading state after 5 seconds
+    // Safety timeout: force clear loading state after 15 seconds
     if (this.loadingTimeout) {
       clearTimeout(this.loadingTimeout);
     }
@@ -152,10 +152,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         console.warn('[ProjectsComponent] Force clearing stuck loading state after timeout');
         this.isLoading = false;
         this.isLoadingProjects = false;
+        this.hasLoadedProjects = true;
         this.cdr.detectChanges();
       }
       this.loadingTimeout = null;
-    }, 5000);
+    }, 15000);
     
     try {
       console.log('Loading projects from server...');
