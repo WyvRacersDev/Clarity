@@ -5,7 +5,26 @@
   "grid": [
     {
       "name": "hello",
-      "Screen_elements": []
+      "Screen_elements": [
+        {
+          "type": "Image",
+          "name": "New Image",
+          "x_pos": 249,
+          "y_pos": 0,
+          "x_scale": 300,
+          "y_scale": 200,
+          "imagepath": "http://localhost:3000/projects/local/hello_assets/check_1765143422608_u80uiw.png"
+        },
+        {
+          "type": "Image",
+          "name": "New Image",
+          "x_pos": 347,
+          "y_pos": 266,
+          "x_scale": 300,
+          "y_scale": 200,
+          "imagepath": "http://localhost:3000/projects/local/hello_assets/student_id_page-0001_1765144185379_25l6vo.jpg"
+        }
+      ]
     },
     {
       "name": "hello",
@@ -17,5 +36,5 @@
     }
   ],
   "project_type": "local",
-  "lastModified": "2025-12-07T21:15:56.662Z"
+  "lastModified": "2025-12-07T21:50:04.176Z"
 }

@@ -102,7 +102,6 @@
   object-fit: contain;
   flex-shrink: 0;
   display: block;
-  vertical-align: middle;
 }
 
 .empty-state {
