@@ -12,8 +12,7 @@
           "x_pos": 0,
           "y_pos": 15,
           "x_scale": 1,
-          "y_scale": 1,
-          "Text_field": ""
+          "y_scale": 1
         },
         {
           "type": "Video",
@@ -22,8 +21,7 @@
           "y_pos": 4,
           "x_scale": 400,
           "y_scale": 300,
-          "VideoPath": "http://localhost:3000/projects/local/hello_assets/WhatsApp_Video_2024-06-13_at_23_06_55_50489c6a_1765145372799_heazn.mp4",
-          "videoBase64": null
+          "VideoPath": "http://localhost:3000/projects/local/hello_assets/WhatsApp_Video_2024-06-13_at_23_06_55_50489c6a_1765145372799_heazn.mp4"
         },
         {
           "type": "Image",
@@ -32,8 +30,7 @@
           "y_pos": 158,
           "x_scale": 300,
           "y_scale": 200,
-          "imagepath": "http://localhost:3000/projects/local/hello_assets/1_1765145394556_mo1jwn.jpg",
-          "ImageBase64": null
+          "imagepath": "http://localhost:3000/projects/local/hello_assets/1_1765145394556_mo1jwn.jpg"
         },
         {
           "type": "ToDoLst",
@@ -51,7 +48,7 @@
               "time": "2025-12-08T22:29:00.000Z",
               "completion_time": null,
               "completed_by": null,
-              "creation_time": "2025-12-07T22:30:00.056Z",
+              "creation_time": "2025-12-07T22:57:36.320Z",
               "calendar_event_id": null
             }
           ],
@@ -76,8 +73,7 @@
           "y_pos": 300,
           "x_scale": 400,
           "y_scale": 300,
-          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765145879502_gxx79.mp4",
-          "videoBase64": null
+          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765145879502_gxx79.mp4"
         },
         {
           "type": "Video",
@@ -86,8 +82,7 @@
           "y_pos": 469,
           "x_scale": 400,
           "y_scale": 300,
-          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765145993630_bu2hmd.mp4",
-          "videoBase64": null
+          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765145993630_bu2hmd.mp4"
         },
         {
           "type": "Video",
@@ -96,8 +91,7 @@
           "y_pos": 300,
           "x_scale": 400,
           "y_scale": 300,
-          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765146153034_835iuf.mp4",
-          "videoBase64": null
+          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765146153034_835iuf.mp4"
         },
         {
           "type": "Video",
@@ -106,8 +100,16 @@
           "y_pos": 476,
           "x_scale": 400,
           "y_scale": 300,
-          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765146469556_uebnm.mp4",
-          "videoBase64": null
+          "VideoPath": "http://localhost:3000/projects/local/hello_assets/DOSBox_0_74-3__Cpu_speed__3000_cycles__Frameskip_0__Program__PHAS5_2024-12-05_21-54-54_1765146469556_uebnm.mp4"
+        },
+        {
+          "type": "Image",
+          "name": "hi",
+          "x_pos": 400,
+          "y_pos": 300,
+          "x_scale": 300,
+          "y_scale": 200,
+          "imagepath": "http://localhost:3000/projects/local/hello_assets/system_sequence_1765148268651_c2kjv6.jpg"
         }
       ]
     },
@@ -121,5 +123,5 @@
     }
   ],
   "project_type": "local",
-  "lastModified": "2025-12-07T22:30:00.116Z"
+  "lastModified": "2025-12-07T22:57:48.679Z"
 }

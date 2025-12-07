@@ -152,7 +152,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         this.savingTimeout = null;
       }
       
-      // Safety timeout: force clear saving state after 5 seconds
+      // Safety timeout: force clear saving state after 15 seconds
       if (loading) {
         this.savingTimeout = setTimeout(() => {
           if (this.isSaving) {
@@ -161,7 +161,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
             this.cdr.detectChanges();
           }
           this.savingTimeout = null;
-        }, 5000);
+        }, 15000);
       }
       
       this.cdr.detectChanges();
@@ -176,7 +176,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         this.loadingTimeout = null;
       }
       
-      // Safety timeout: force clear loading state after 5 seconds
+      // Safety timeout: force clear loading state after 15 seconds
       if (loading) {
         this.loadingTimeout = setTimeout(() => {
           if (this.isLoading) {
@@ -185,7 +185,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
             this.cdr.detectChanges();
           }
           this.loadingTimeout = null;
-        }, 5000);
+        }, 15000);
       }
       
       this.cdr.detectChanges();
