@@ -3,10 +3,10 @@ import cron from "node-cron";
 // import fs from "fs";
 // import path from "path";
 //import { objects_builder } from '../../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
-import { ProjectHandler } from "./project_handler.ts";
+//import { ProjectHandler } from "./project_handler.ts";
 import fs from "fs";
 import { google } from "googleapis";
-
+import axios from "axios";
 
 
 const CREDENTIALS_PATH = "../credentials.json";
@@ -32,43 +32,35 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: env.GOOGLE_APP_USER,
-pass: env.GOOGLE_APP_PASSWORD  // app password (not your real password)
+    pass: env.GOOGLE_APP_PASSWORD  // app password (not your real password)
   }
 });
-async function sendEmail(userEmail: string,projectName: string, taskName: string) {
-    await transporter.sendMail({
-  from: `Clarity <${env.GOOGLE_APP_USER}>`,
-  to: userEmail,
-  subject: "Task Due Soon",
-  html: `<p>You have a task "${taskName}" due in project "${projectName}" in 24 hours.</p>`
-});
-}
 
 function getOAuthClient() {
-  const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8")).installed;
+  const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8"));
 
   return new google.auth.OAuth2(
-    creds.client_id,
-    creds.client_secret,
-    creds.redirect_uris[0]
+    creds.web.client_id,
+    creds.web.client_secret,
+    creds.web.redirect_uris[0]
   );
 }
 
-export function getAuthForUser(email: string) {
+function getAuthForUser(email: string) {
   const tokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf8"));
 
-  if (!tokens[email]) {
+  if (!tokens.entries[email]) {
     throw new Error("No OAuth token for " + email);
   }
 
   const client = getOAuthClient();
-  client.setCredentials(tokens[email]);
+  client.setCredentials(tokens.entries[email]);
 
   return client;
 }
 
 
-async function sendEmailWithGmailAuth(auth: any, to:string, subject:string, message:string) {
+async function sendEmailWithGmailAuth(auth: any, to: string, subject: string, message: string) {
   const gmail = google.gmail({ version: "v1", auth });
 
   const email = [
@@ -92,3 +84,27 @@ async function sendEmailWithGmailAuth(auth: any, to:string, subject:string, mess
     },
   });
 }
+async function generatePublicLink(): Promise<string> {
+  try {
+    // Fetch public IP
+    const res = await axios.get("https://api.ipify.org?format=json");
+    const publicIP = res.data.ip;
+
+    // Build URL using port 3000
+    const link = `http://${publicIP}:3000`;
+
+    //console.log("Public IP:", publicIP);
+   // console.log("Your accessible link:", link);
+    return link;
+  } catch (error: Error | any) {
+    console.error("[invitation_service] Could not fetch public IP:", error.message);
+  }
+  return ""
+}
+
+export async function invite(from: string, to: string, subject: string) {
+  let message=`<p>You have been invited to join the project. Click <a href=${await generatePublicLink()}>here</a> to accept the invitation.</p>`;
+  await sendEmailWithGmailAuth(getAuthForUser(from), to, subject, message);
+}
+
+invite("l230757@lhr.nu.edu.pk","l230613@lhr.nu.edu.pk","Project Invitation");

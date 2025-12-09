@@ -36,7 +36,8 @@ pass: env.GOOGLE_APP_PASSWORD  // app password (not your real password)
   }
 });
 async function sendEmail(userEmail: string,projectName: string, taskName: string) {
-    await transporter.sendMail({
+  console.log(`Sending email to ${userEmail} about task "${taskName}" in project "${projectName}"`);  
+  await transporter.sendMail({
   from: `Clarity <${env.GOOGLE_APP_USER}>`,
   to: userEmail,
   subject: "Task Due Soon",
@@ -115,7 +116,9 @@ export function checkUpcomingTasks(): void {
                                 console.log("Task due soon:", task.taskname);
                                 task.set_notified(true);
                                 projectHandler.saveProject(data,data.project_type);
+                                if(data.get_owner_name() && data.get_owner_name()!=="Demo User"){
                                 sendEmail(data.get_owner_name(), data.name, task.taskname);
+                                }
                                 // send email here
                             }
                         }
