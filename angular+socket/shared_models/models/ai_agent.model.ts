@@ -1,5 +1,6 @@
 //pls bilal complete
 import { AI_Tools } from "../models/analytics.model"  
+import { User } from "./user.model";
 
 
 export class AI_agent
@@ -14,7 +15,7 @@ export class AI_agent
         this.api_key=api_key
     }
 
-    chat(user_input:string)
+    chat(user_input:string,user:User)
     {
 
     }

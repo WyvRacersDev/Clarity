@@ -4,6 +4,6 @@ export class AI_agent {
         this.chat_history = [];
         this.api_key = api_key;
     }
-    chat(user_input) {
+    chat(user_input, user) {
     }
 }

@@ -88,14 +88,14 @@
             </div>
             <p>Start a conversation to get AI-powered insights</p>
             <div class="suggested-questions">
-              <button class="suggestion-btn" (click)="userInput = 'How can I improve my productivity?'; sendMessage()">
-                How can I improve my productivity?
+              <button class="suggestion-btn" (click)="userInput = 'Summarize project YOOO'; sendMessage()">
+                Summarize project YOOO
               </button>
-              <button class="suggestion-btn" (click)="userInput = 'What tasks should I prioritize?'; sendMessage()">
-                What tasks should I prioritize?
+              <button class="suggestion-btn" (click)="userInput = 'Suggest schedule for YOOO'; sendMessage()">
+                suggest schedule for YOOO
               </button>
-              <button class="suggestion-btn" (click)="userInput = 'Help me schedule my tasks'; sendMessage()">
-                Help me schedule my tasks
+              <button class="suggestion-btn" (click)="userInput = 'send an invite to Bilal Kashif'; sendMessage()">
+                send an invite to Bilal Kashif
               </button>
             </div>
           </div>
@@ -106,7 +106,8 @@
             class="chat-message"
             [class.user-message]="message.role === 'user'"
             [class.ai-message]="message.role === 'ai'">
-            <div class="message-content">{{ message.content }}</div>
+            <!-- <div class="message-content">{{ message.content }}</div> -->
+             <div [innerHTML]="message.content"></div>
           </div>
         }
 

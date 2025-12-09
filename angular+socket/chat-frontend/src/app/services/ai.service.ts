@@ -1,42 +1,66 @@
-// import { Injectable } from '@angular/core';
-// import { User } from '../../../../shared_models/models/user.model';
-// import { AnalyticsService } from './analytics.service';
+import { Injectable,PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { User } from '../../../../shared_models/models/user.model';
+import { AnalyticsService } from './analytics.service';
+import { DataService } from './data.service';
+import { Observable, tap } from 'rxjs';
 
-// export interface AIMessage {
-//   role: 'user' | 'assistant';
-//   content: string;
-//   timestamp: Date;
-// }
+export interface AIMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
 
-// @Injectable({
-//   providedIn: 'root'
-// })
-// export class AIService {
-//   private chatHistory: AIMessage[] = [];
+@Injectable({
+  providedIn: 'root'
+})
+export class AIService {
+    chatHistory: AIMessage[] = [];
 
-//   constructor(private analyticsService: AnalyticsService) {}
+  constructor(private analyticsService: AnalyticsService,
+    private http: HttpClient,
+    private dataService: DataService,
+    
+  ) {this.loadInitialData();}
+  loadInitialData():void{
+    if(!isPlatformBrowser(PLATFORM_ID)) return;
+    if(this.dataService.getCurrentUser()==null) return;
+    //this.http.get<string>(`http://localhost:3000/ai-assistant/set-user-name?username=${this.dataService.getCurrentUser()?.name!}`).subscribe();
+  }
+
+ chat(input: string): Observable<string> {
+        // Add user message to history
+    console.log("Sending to AIService chat:", input);
+        this.chatHistory.push({
+      role: 'user',
+      content: input,
+      timestamp: new Date()
+    });
+    console.log("Current user in AIService chat:", this.dataService.getCurrentUser());
+    return this.http.get<string>(`http://localhost:3000/ai-assistant/chat-agent?username=${this.dataService.getCurrentUser()?.name}&input=${input}`).pipe(
+      tap((response: string) => {
+        // Now response is a real string, not an observable
+        this.chatHistory.push({
+          role: 'assistant',
+          content: response,
+          timestamp: new Date()
+        });
+      })
+    );
+  }
 
 //   async sendMessage(userInput: string, user: User | null): Promise<string> {
 //     if (!user) {
 //       return 'Please log in to use the AI assistant.';
 //     }
 
-//     // Add user message to history
-//     this.chatHistory.push({
-//       role: 'user',
-//       content: userInput,
-//       timestamp: new Date()
-//     });
+
 
 //     // Process the message and generate response
 //     const response = await this.processMessage(userInput.toLowerCase(), user);
     
-//     // Add assistant response to history
-//     this.chatHistory.push({
-//       role: 'assistant',
-//       content: response,
-//       timestamp: new Date()
-//     });
+
 
 //     return response;
 //   }
@@ -119,12 +143,12 @@
 //     return count;
 //   }
 
-//   getChatHistory(): AIMessage[] {
-//     return this.chatHistory;
-//   }
+  getChatHistory(): AIMessage[] {
+    return this.chatHistory;
+  }
 
-//   clearChatHistory(): void {
-//     this.chatHistory = [];
-//   }
-// }
+  clearChatHistory(): void {
+    this.chatHistory = [];
+  }
+}
 
