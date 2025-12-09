@@ -62,7 +62,7 @@ export class ProjectHandler {
                     // Use toJSON if available, otherwise serialize manually
                     if (element.toJSON && typeof element.toJSON === 'function') {
                         const serialized = element.toJSON();
-                       // console.log(`[ProjectHandler] Element serialized via toJSON():`, serialized);
+                        // console.log(`[ProjectHandler] Element serialized via toJSON():`, serialized);
                         return serialized;
                     }
 
@@ -146,25 +146,6 @@ export class ProjectHandler {
         try {
             let old_task_ids: string[] = [];
             let new_Task_ids: string[] = [];
-            //load old version of project to compare tasks
-            const existingProjectResult = this.loadProject(project.name, projectType);
-            if (existingProjectResult.success && existingProjectResult.project !== undefined) {
-
-                for (let grid of existingProjectResult.project.grid) {
-                    if (grid.Screen_elements && Array.isArray(grid.Screen_elements)) {
-                        for (const element of grid.Screen_elements) {
-                            // Check if this is a ToDoLst
-                            if (element.type === 'ToDoLst' || (element.scheduled_tasks && Array.isArray(element.scheduled_tasks))) {
-                                const tasks = element.scheduled_tasks || [];
-                                for (const task of tasks) {
-                                    old_task_ids.push(task.calendar_event_id);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
 
             // Get the username from the socket session
             const username = project.owner_name;
@@ -174,8 +155,29 @@ export class ProjectHandler {
                 try {
                     // Load user to check calendar settings
                     const userResult = user_handler.loadUser(username);
-                    if (userResult.success && userResult.user?.settings?.allow_google_calender) {
+                    if (userResult.success && userResult.user?.settings?.allow_google_calender && userResult.user?.name !== "Demo User") {
                         console.log(`[Server] 📅 Calendar integration enabled for ${username}, checking for new tasks...`);
+
+
+                        //load old version of project to compare tasks
+                        const existingProjectResult = this.loadProject(project.name, projectType);
+                        if (existingProjectResult.success && existingProjectResult.project !== undefined) {
+
+                            for (let grid of existingProjectResult.project.grid) {
+                                if (grid.Screen_elements && Array.isArray(grid.Screen_elements)) {
+                                    for (const element of grid.Screen_elements) {
+                                        // Check if this is a ToDoLst
+                                        if (element.type === 'ToDoLst' || (element.scheduled_tasks && Array.isArray(element.scheduled_tasks))) {
+                                            const tasks = element.scheduled_tasks || [];
+                                            for (const task of tasks) {
+                                                old_task_ids.push(task.calendar_event_id);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
 
                         // Find all tasks in the project
                         let hasNewTasks = false;
@@ -222,8 +224,8 @@ export class ProjectHandler {
                     } else {
                         console.log(`[Server] ℹ️ Calendar integration not enabled for ${username}`);
                     }
-                    for(let id of old_task_ids){
-                        if(!new_Task_ids.includes(id) && id!==null){
+                    for (let id of old_task_ids) {
+                        if (!new_Task_ids.includes(id) && id !== null) {
                             //delete calendar event
                             const deleteResult = await deleteCalendarEvent(
                                 username,
