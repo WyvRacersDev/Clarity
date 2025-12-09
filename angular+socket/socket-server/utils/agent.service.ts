@@ -10,15 +10,16 @@ import { invite } from "./invitation_service.ts";
 import { User } from "../../shared_models/dist/user.model.js";
 const projectHandler = new ProjectHandler();
 const userHandler = new UserHandler();
-let curr_user: User;
+//let curr_user: User;
 
 //first send an API call to set the user name
-export async function setUserName(email: string): Promise<boolean> {
-    let user = userHandler.loadUser(email);
-    curr_user = user.user!;
-    return user.success;
-}
-class Chat_Agent extends AI_agent {
+// export async function setUserName(email: string): Promise<boolean> {
+//     console.log("[Chat_Agent] Setting user name to:", email);
+//     let user = userHandler.loadUser(email);
+//     curr_user = user.user!;
+//     return user.success;
+// }
+export class Chat_Agent extends AI_agent {
     private model: ChatGoogleGenerativeAI;
     private summarise_prompt: ChatPromptTemplate;
     private suggest_schedule_prompt: ChatPromptTemplate;
@@ -78,21 +79,34 @@ class Chat_Agent extends AI_agent {
 
         return textOutput;
     }
-    async send_invite(user_email: string, project_name: string): Promise<string> {
-        if(curr_user===null){
-        console.error("[Chat_Agent] No current user set. Call setUserName() first.");
+    async send_invite(invitee: string, project_name: string,username:string): Promise<string> {
+        let curr_user = userHandler.loadUser(username).user!;
+        console.log("[Chat_Agent] current user:", curr_user);
+        if (curr_user === null) {
+            console.error("[Chat_Agent] No current user set. Call setUserName() first.");
+        }   
+        if(curr_user.contacts===undefined || curr_user.contacts.length===0){
+            return `You have no contacts saved. Please add contacts before sending invites.`;
         }
-        let contacts= curr_user.get_contacts();
-        let contact_found=false;
-        for(let contact of contacts){
-            if(contact.email===user_email){
-                contact_found=true;
+        let contacts = curr_user.contacts;
+        let contact_found = "";
+        for (let contact of contacts) {
+            console.log(`[Chat_Agent] checking contact: ${contact.name} with invitee: ${invitee}`);
+            if (contact.name === invitee) {
+                contact_found = contact.contact_detail;
                 break;
             }
-        return `Invite sent to ${user_email} for project ${project_name}`;
+        }
+        if (contact_found === "") {
+            return `Contact "${invitee}" not found in your contacts.`;
+        }
+        await invite(curr_user.name, contact_found, `Invitation to join project ${project_name}`);
+        return `Invite sent to ${contact_found} for project ${project_name}`;
     }
 
-    async chat(user_input: string): Promise<string> {
+
+    async chat(user_input: string,username:string): Promise<string> {
+        console.log("[Chat_Agent] Received user input:", user_input);
         const summarise_match = user_input.match(/summarize project[:\s]+(.+)/i);
 
         if (summarise_match) {
@@ -103,6 +117,7 @@ class Chat_Agent extends AI_agent {
             }
             if (curr_project.success) {
                 let summary = await this.summarise_project(curr_project.project!);
+                console.log("summary:",summary);
                 return summary;
             } else {
                 return `Project "${projectName}" not found.`;
@@ -129,13 +144,13 @@ class Chat_Agent extends AI_agent {
 
             // clean up trailing punctuation
             const cleanedName = personName.replace(/[.!?]+$/, "");
-            
-            return `Extracted invite target: ${cleanedName}`;
+            return await this.send_invite(cleanedName, "all Project",username);
+             //`Sent invite to ${cleanedName}. Check your email for details.`;
         }
 
         return "No valid command found in the input.";
     }
 }
-const agent = new Chat_Agent(process.env.GEMINI_API_KEY!);
-console.log(await agent.chat("suggest schedule for project Mobile App Development"));
+//const agent = new Chat_Agent(process.env.GEMINI_API_KEY!);
+//console.log(await agent.chat("suggest schedule for project Mobile App Development"));
 //summarise_projects();

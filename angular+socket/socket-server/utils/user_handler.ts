@@ -101,6 +101,7 @@ export class UserHandler {
         }
         return {
             type: 'contact',
+            name: c.name,
             contact_detail: c.contact_detail || c
         };
     }

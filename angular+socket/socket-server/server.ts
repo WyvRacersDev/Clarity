@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import { ProjectHandler } from "./utils/project_handler.ts";
 import { UserHandler } from "./utils/user_handler.ts";
 import { SERVER_HOST, SERVER_PORT, FRONTEND_URL, ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN } from "./config.ts";
+import {Chat_Agent} from "./utils/agent.service.ts";
 import { createCalendarEvent, deleteCalendarEvent } from "./utils/calendar_service.ts";
 
 
@@ -90,6 +91,7 @@ startNotificationService();
 
 const project_handler = new ProjectHandler();
 const user_handler = new UserHandler();
+const agent = new Chat_Agent(process.env.GEMINI_API_KEY!);
 app.use('/projects', express.static(project_handler.get_base_path(), {
   setHeaders: (res, filePath) => {
     // Set appropriate content types
@@ -693,6 +695,9 @@ app.get("/auth", (req: any, res: any) => {
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/drive.metadata.readonly", // add any scopes you want
       "https://www.googleapis.com/auth/contacts.readonly", // Google Contacts read access
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/gmail.modify"
     ],
   });
   res.redirect(authUrl);
@@ -751,7 +756,7 @@ app.get("/oauth2callback", async (req: any, res: any) => {
     // === Write back to file ===
 
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenStore, null, 2));
-    return res.redirect(`${FRONTEND_URL}/settings?oauth=success&&id=${tokenStore.entries[email].id}`);
+    return res.redirect(`${FRONTEND_URL}/dashboard/settings?oauth=success&&id=${tokenStore.entries[email].id}`);
   } catch (err) {
     console.error("Error during OAuth callback:", err);
     res.status(500).send("Error retrieving access token");
@@ -926,6 +931,21 @@ app.get("/analytics/completion-rate-by-tag", async (req, res) => {
   const days = Number(req.query.days ?? 30);
   const { completionRateByTag } = await aggregateAnalytics(days);
   res.json(completionRateByTag);
+});
+
+// app.get("/ai-assistant/set-user-name", async (req, res) => {
+// const username = String(req.query.username ?? "Demo User");
+//   console.log("Set AI Assistant username to:", username);  
+// let result=await setUserName(username);
+//   res.json(result);
+// });
+
+app.get("/ai-assistant/chat-agent", async (req, res) => {
+const input = String(req.query.input ?? "");
+const username= String(req.query.username ?? "Demo User");
+  console.log("AI Assistant chat input:", input);
+  let result=await agent.chat(input,username);
+  res.json(result);
 });
 
 

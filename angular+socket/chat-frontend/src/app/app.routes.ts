@@ -76,6 +76,7 @@ import { AnalyticsComponent } from './components/analytics/analytics.component';
 import { AiInsightsComponent } from './components/ai-insights/ai-insights.component';
 import { SettingsComponent } from './components/settings/settings.component';
 import { authGuard } from './guards/auth.guard';
+import { AIAssistantComponent } from './components/ai-assistant/ai-assistant.component';
 
 export const routes: Routes = [
   {

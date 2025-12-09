@@ -1,50 +1,29 @@
 {
   "type": "User",
   "name": "l230757@lhr.nu.edu.pk",
-  "contacts": [],
+  "contacts": [
+    {
+      "type": "contact",
+      "name": "Bilal Kashif",
+      "contact_detail": "bilal2006kashif@gmail.com"
+    },
+    {
+      "type": "contact",
+      "name": "Mawahid Abbas",
+      "contact_detail": "l230613@lhr.nu.edu.pk"
+    },
+    {
+      "type": "contact",
+      "name": "Hamza Iqbal",
+      "contact_detail": "l230848@lhr.nu.edu.pk"
+    }
+  ],
   "settings": {
     "type": "settings",
     "recieve_notifications": true,
     "allow_invite": true,
-    "allow_google_calender": true
+    "allow_google_calender": false
   },
-  "projectReferences": [
-    {
-      "name": "Fitness Challenge",
-      "projectType": "local"
-    },
-    {
-      "name": "Mobile App Development",
-      "projectType": "local"
-    },
-    {
-      "name": "YOOO",
-      "projectType": "local"
-    },
-    {
-      "name": "Fitness Challenge",
-      "projectType": "local"
-    },
-    {
-      "name": "hi",
-      "projectType": "local"
-    },
-    {
-      "name": "Home Renovation",
-      "projectType": "local"
-    },
-    {
-      "name": "Mobile App Development",
-      "projectType": "local"
-    },
-    {
-      "name": "Website Redesign",
-      "projectType": "local"
-    },
-    {
-      "name": "anything",
-      "projectType": "hosted"
-    }
-  ],
-  "lastModified": "2025-12-07T15:34:31.303Z"
+  "projectReferences": [],
+  "lastModified": "2025-12-09T19:31:27.314Z"
 }

@@ -7,10 +7,7 @@ import cron from "node-cron";
 import fs from "fs";
 import { google } from "googleapis";
 import axios from "axios";
-
-
-const CREDENTIALS_PATH = "../credentials.json";
-const TOKENS_PATH = "../tokens.json";
+import {SERVER_HOST,SERVER_PORT} from "../config.ts";
 
 import nodemailer from "nodemailer";
 
@@ -21,6 +18,8 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const CREDENTIALS_PATH = path.resolve(__dirname, "../credentials.json");
+const TOKENS_PATH = path.resolve(__dirname, "../tokens.json");
 // console.log("DIRNAME:", __dirname);
 // console.log("RESOLVED PATH:", path.resolve(__dirname, "../.env"));
 
@@ -84,27 +83,25 @@ async function sendEmailWithGmailAuth(auth: any, to: string, subject: string, me
     },
   });
 }
-async function generatePublicLink(): Promise<string> {
-  try {
-    // Fetch public IP
-    const res = await axios.get("https://api.ipify.org?format=json");
-    const publicIP = res.data.ip;
+// async function generatePublicLink(): Promise<string> {
+//   try {
+//     // Fetch public IP
+//     const res = await axios.get("https://api.ipify.org?format=json");
+//     const publicIP = res.data.ip;
 
-    // Build URL using port 3000
-    const link = `http://${publicIP}:3000`;
+//     // Build URL using port 3000
+//     const link = `http://${publicIP}:3000`;
 
-    //console.log("Public IP:", publicIP);
-   // console.log("Your accessible link:", link);
-    return link;
-  } catch (error: Error | any) {
-    console.error("[invitation_service] Could not fetch public IP:", error.message);
-  }
-  return ""
-}
+//     //console.log("Public IP:", publicIP);
+//    // console.log("Your accessible link:", link);
+//     return link;
+//   } catch (error: Error | any) {
+//     console.error("[invitation_service] Could not fetch public IP:", error.message);
+//   }
+//   return ""
+// }
 
 export async function invite(from: string, to: string, subject: string) {
-  let message=`<p>You have been invited to join the project. Click <a href=${await generatePublicLink()}>here</a> to accept the invitation.</p>`;
+  let message=`<p>You have been invited to join the project. Enter ${SERVER_HOST}:${SERVER_PORT} to accept the invitation.</p>`;
   await sendEmailWithGmailAuth(getAuthForUser(from), to, subject, message);
 }
-
-invite("l230757@lhr.nu.edu.pk","l230613@lhr.nu.edu.pk","Project Invitation");

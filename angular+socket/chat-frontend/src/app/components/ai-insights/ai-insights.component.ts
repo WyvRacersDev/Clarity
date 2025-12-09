@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-
+import { AIMessage, AIService } from '../../services/ai.service';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
@@ -7,6 +7,9 @@ import { Project } from '../../../../../shared_models/models/project.model';
 import { scheduled_task, ToDoLst, Screen_Element } from '../../../../../shared_models/models/screen_elements.model';
 import { Grid } from '../../../../../shared_models/models/project.model';
 import dayjs from 'dayjs';
+import { firstValueFrom } from 'rxjs';
+import { marked } from "marked";
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-ai-insights',
@@ -16,6 +19,7 @@ import dayjs from 'dayjs';
   styleUrls: ['./ai-insights.component.css']
 })
 export class AiInsightsComponent implements OnInit {
+//  aiChatMessages: AIMessage[] = [];
   currentUser: User | null = null;
   insights: string[] = [];
   bottlenecks: string[] = [];
@@ -24,7 +28,7 @@ export class AiInsightsComponent implements OnInit {
   userInput = '';
   isLoading = false;
 
-  constructor(private dataService: DataService) {}
+  constructor(private dataService: DataService, private aiService: AIService,   private sanitizer: DomSanitizer) { }
 
   ngOnInit(): void {
     this.dataService.currentUser$.subscribe(user => {
@@ -78,7 +82,7 @@ export class AiInsightsComponent implements OnInit {
     if (totalTasks > 0) {
       const completionRate = (completedTasks / totalTasks) * 100;
       this.insights.push(`You have completed ${completionRate.toFixed(1)}% of your tasks.`);
-      
+
       if (completionRate >= 80) {
         this.insights.push('Excellent productivity! You\'re maintaining a high completion rate.');
       } else if (completionRate >= 60) {
@@ -116,32 +120,75 @@ export class AiInsightsComponent implements OnInit {
     }
   }
 
-  sendMessage(): void {
+  // sendMessage(): void {
+  //   if (!this.userInput.trim()) return;
+
+  //   this.aiChatMessages.push({ role: 'user', content: this.userInput });
+  //   const userMessage = this.userInput;
+  //   this.userInput = '';
+  //   this.isLoading = true;
+
+  //   // Simulate AI response (in real implementation, this would call an AI service)
+  //   setTimeout(() => {
+  //     let response = '';
+  //     const lowerInput = userMessage.toLowerCase();
+
+  //     if (lowerInput.includes('schedule') || lowerInput.includes('calendar')) {
+  //       response = 'I can help you schedule tasks. Would you like me to suggest optimal times based on your current workload?';
+  //     } else if (lowerInput.includes('task') || lowerInput.includes('todo')) {
+  //       response = 'Based on your task history, I recommend focusing on high-priority items first. Would you like me to identify your most important tasks?';
+  //     } else if (lowerInput.includes('productivity') || lowerInput.includes('improve')) {
+  //       response = 'Your productivity analysis shows good progress. Consider breaking down large tasks and using time-blocking techniques.';
+  //     } else {
+  //       response = 'I\'m here to help with task management, scheduling, and productivity insights. How can I assist you today?';
+  //     }
+
+  //     this.aiChatMessages.push({ role: 'ai', content: response });
+  //     this.isLoading = false;
+  //   }, 1000);
+  // }
+  async sendMessage(): Promise<void> {
+    console.log("sendMessage called");
     if (!this.userInput.trim()) return;
 
-    this.aiChatMessages.push({ role: 'user', content: this.userInput });
-    const userMessage = this.userInput;
+    const userMessage = this.userInput.trim();
     this.userInput = '';
-    this.isLoading = true;
 
-    // Simulate AI response (in real implementation, this would call an AI service)
-    setTimeout(() => {
-      let response = '';
-      const lowerInput = userMessage.toLowerCase();
 
-      if (lowerInput.includes('schedule') || lowerInput.includes('calendar')) {
-        response = 'I can help you schedule tasks. Would you like me to suggest optimal times based on your current workload?';
-      } else if (lowerInput.includes('task') || lowerInput.includes('todo')) {
-        response = 'Based on your task history, I recommend focusing on high-priority items first. Would you like me to identify your most important tasks?';
-      } else if (lowerInput.includes('productivity') || lowerInput.includes('improve')) {
-        response = 'Your productivity analysis shows good progress. Consider breaking down large tasks and using time-blocking techniques.';
-      } else {
-        response = 'I\'m here to help with task management, scheduling, and productivity insights. How can I assist you today?';
-      }
+    // Add user message immediately
+    const userMsg = {
+      role: 'user',
+      content: userMessage,
+     // timestamp: new Date()
+    };
+    this.aiChatMessages.push({
+      role: 'user',
+      content: userMessage,
+     // timestamp: new Date()
+    });
 
-      this.aiChatMessages.push({ role: 'ai', content: response });
-      this.isLoading = false;
-    }, 1000);
+    try {
+      // Get AI response
+      const response = await firstValueFrom(
+        this.aiService.chat(userMessage)
+      );
+      console.log("AI response received:", response);
+      marked.setOptions({ async: false });
+      const htmlString = marked.parse(response) as string;
+      //const htmlString: string = marked.parseInline(response);
+      // Response is already added by the service, but we need to update our local messages
+     // const history = this.aiService.getChatHistory();
+      this.aiChatMessages.push({role:"ai",content:htmlString}); ;
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      this.aiChatMessages.push({
+        role: 'ai',
+        content: 'Sorry, I encountered an error. Please try again.',
+
+      });
+    } finally {
+
+    }
   }
 }
 

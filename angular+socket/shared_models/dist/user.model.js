@@ -37,6 +37,9 @@ export class User {
             return false;
         }
     }
+    get_contacts() {
+        return this.contacts;
+    }
     toJSON() {
         return {
             type: 'User',
@@ -87,12 +90,14 @@ export class settings {
     }
 }
 export class contact {
-    constructor(detail) {
+    constructor(name, detail) {
+        this.name = name;
         this.contact_detail = detail;
     }
     toJSON() {
         return {
             type: 'contact',
+            name: this.name,
             contact_detail: this.contact_detail
         };
     }
@@ -143,8 +148,8 @@ export class user_builder {
             return s;
         }
         // Handle contact object
-        if (obj.type === 'contact' || (obj.contact_detail !== undefined && !obj.name)) {
-            return new contact(obj.contact_detail || '');
+        if (obj.type === 'contact' || (obj.contact_detail !== undefined && obj.name !== undefined)) {
+            return new contact(obj.name || '', obj.contact_detail || '');
         }
         // Handle User object
         if (obj.type === 'User' || (obj.name !== undefined && obj.settings !== undefined)) {
@@ -176,6 +181,6 @@ export class user_builder {
      * Rebuild contact from JSON
      */
     static rebuildContact(obj) {
-        return new contact(obj?.contact_detail || '');
+        return new contact(obj?.name || '', obj?.contact_detail || '');
     }
 }

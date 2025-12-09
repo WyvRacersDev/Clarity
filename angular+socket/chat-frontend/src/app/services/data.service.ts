@@ -786,6 +786,7 @@ const user = this.currentUserSubject.value;
       settings: this.serializeSettings(user.settings),
       contacts: user.contacts.map((c: any) => ({
         type: 'contact',
+        name: c.name,
         contact_detail: c.contact_detail
       })),
       projectReferences: user.projects.map(p => ({
