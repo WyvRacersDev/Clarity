@@ -93,7 +93,6 @@ export class AiInsightsComponent implements OnInit {
       }
     });
 
-    // Generate insights
     if (totalTasks > 0) {
       const completionRate = (completedTasks / totalTasks) * 100;
       this.insights.push(`You have completed ${completionRate.toFixed(1)}% of your tasks.`);
@@ -107,7 +106,6 @@ export class AiInsightsComponent implements OnInit {
       }
     }
 
-    // Identify bottlenecks
     if (overdueTasks > 0) {
       this.bottlenecks.push(`You have ${overdueTasks} overdue task(s). Consider reviewing and rescheduling them.`);
     }
@@ -116,7 +114,7 @@ export class AiInsightsComponent implements OnInit {
       this.bottlenecks.push('No projects created yet. Start organizing your work into projects.');
     }
 
-    // Generate suggestions
+
     if (totalTasks > 10 && completedTasks / totalTasks < 0.7) {
       this.suggestions.push('Consider using the priority system more effectively. Focus on high-priority tasks first.');
     }
@@ -129,64 +127,33 @@ export class AiInsightsComponent implements OnInit {
       this.suggestions.push('Organize your work into multiple projects for better structure.');
     }
 
-    // Add default suggestions if none
+
     if (this.suggestions.length === 0) {
       this.suggestions.push('Keep up the great work! Maintain your current productivity patterns.');
     }
   }
 
-  // sendMessage(): void {
-  //   if (!this.userInput.trim()) return;
 
-  //   this.aiChatMessages.push({ role: 'user', content: this.userInput });
-  //   const userMessage = this.userInput;
-  //   this.userInput = '';
-  //   this.isLoading = true;
-
-  //   // Simulate AI response (in real implementation, this would call an AI service)
-  //   setTimeout(() => {
-  //     let response = '';
-  //     const lowerInput = userMessage.toLowerCase();
-
-  //     if (lowerInput.includes('schedule') || lowerInput.includes('calendar')) {
-  //       response = 'I can help you schedule tasks. Would you like me to suggest optimal times based on your current workload?';
-  //     } else if (lowerInput.includes('task') || lowerInput.includes('todo')) {
-  //       response = 'Based on your task history, I recommend focusing on high-priority items first. Would you like me to identify your most important tasks?';
-  //     } else if (lowerInput.includes('productivity') || lowerInput.includes('improve')) {
-  //       response = 'Your productivity analysis shows good progress. Consider breaking down large tasks and using time-blocking techniques.';
-  //     } else {
-  //       response = 'I\'m here to help with task management, scheduling, and productivity insights. How can I assist you today?';
-  //     }
-
-  //     this.aiChatMessages.push({ role: 'ai', content: response });
-  //     this.isLoading = false;
-  //   }, 1000);
-  // }
   async sendMessage(): Promise<void> {
     console.log("sendMessage called");
     if (!this.userInput.trim()) return;
 
     const userMessage = this.userInput.trim();
     this.userInput = '';
-    // Clear highlight overlay
     this.highlightedInput = "";
 
 
-    // Add user message immediately
     const userMsg = {
       role: 'user',
       content: userMessage,
-      // timestamp: new Date()
     };
     this.aiChatMessages.push({
       role: 'user',
       content: userMessage,
-      // timestamp: new Date()
     });
 
 
     try {
-      // Get AI response
       this.isLoading = true;
       const response = await firstValueFrom(
         this.aiService.chat(userMessage)
@@ -195,9 +162,6 @@ export class AiInsightsComponent implements OnInit {
       console.log("AI response received:", response);
       marked.setOptions({ async: false });
       const htmlString = marked.parse(response) as string;
-      //const htmlString: string = marked.parseInline(response);
-      // Response is already added by the service, but we need to update our local messages
-      // const history = this.aiService.getChatHistory();
       this.aiChatMessages.push({ role: "ai", content: htmlString });;
       this.cd.detectChanges();
     } catch (err: any) {
@@ -285,17 +249,7 @@ export class AiInsightsComponent implements OnInit {
       if (input) input.setSelectionRange(newText.length, newText.length);
     });
   }
-  // updateHighlightedInput() {
-  //   let html = this.userInput;
-
-  //   this.validCommands.forEach(cmd => {
-  //     const escaped = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  //     const regex = new RegExp('@' + escaped, "g");
-  //     html = html.replace(regex, `<span class="highlight-command">@${cmd}</span>`);
-  //   });
-
-  //   this.highlightedInput = this.sanitizer.bypassSecurityTrustHtml(html);
-  // }
+ 
   updateHighlightedInput() {
     let html = this.userInput;
 

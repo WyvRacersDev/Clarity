@@ -9,7 +9,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { DataService } from '../../services/data.service';
 
-// Register Chart.js components
 Chart.register(...registerables);
 
 @Component({
@@ -58,7 +57,7 @@ export class AnalyticsComponent implements OnInit {
   completionChartReady = false;
   lineChartReady = false;
 
-  // Chart options
+ 
   lineChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -168,7 +167,7 @@ export class AnalyticsComponent implements OnInit {
   ngOnInit(): void {
     console.log('Analytics Component Initialized');
 
-    // COMPLETION RATE
+
     this.analytics.getCompletionRateByTag(30,this.dataService.getCurrentUser()?.name || "Demo User").subscribe({
       next: (res) => {
         console.log("Completion API response:", res);
@@ -199,7 +198,7 @@ export class AnalyticsComponent implements OnInit {
       }
     });
 
-    // COMPLETED PER DAY
+
     this.analytics.getCompletedPerDay(30,this.dataService.getCurrentUser()?.name || "Demo User").subscribe({
       next: (res) => {
         console.log("📈 Completed per day API response:", res);
@@ -208,7 +207,7 @@ export class AnalyticsComponent implements OnInit {
         
         this.lineChartData = {
           labels: res.labels,
-          datasets: []  // Start empty until tags are selected
+          datasets: [] 
         };
 
         console.log("Line chart ready");
@@ -225,7 +224,7 @@ export class AnalyticsComponent implements OnInit {
   toggleTag(tag: string) {
     console.log("Toggling tag:", tag);
     
-    // Prevent rapid clicks
+  
     const index = this.selectedTags.indexOf(tag);
     if (index > -1) {
       this.selectedTags.splice(index, 1);
@@ -235,7 +234,7 @@ export class AnalyticsComponent implements OnInit {
 
     console.log("Selected tags:", this.selectedTags);
 
-    // Update chart data
+  
     this.lineChartData = {
       labels: this.lineChartData.labels,
       datasets: this.selectedTags.map((selectedTag, index) => {
@@ -261,7 +260,7 @@ export class AnalyticsComponent implements OnInit {
 
     console.log("Updated line chart data");
 
-    // Force chart update
+    
     this.cdr.detectChanges();
     setTimeout(() => {
       this.lineChart?.chart?.update();

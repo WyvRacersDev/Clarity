@@ -20,7 +20,7 @@ export class GoogleIntegrationService {
     private http: HttpClient,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    // Load connection status from localStorage
+
     this.loadConnectionStatus();
   }
     private getServerUrl(): string {
@@ -28,8 +28,6 @@ export class GoogleIntegrationService {
   }
 
   connectGoogleCalendar(): Promise<boolean> {
-    // In a real implementation, this would use Google OAuth
-    // For now, we'll simulate the connection
     return new Promise((resolve) => {
       console.log('[GoogleIntegration] Connecting to Google Calendar...');
       setTimeout(() => {
@@ -111,7 +109,7 @@ async connectGmail(): Promise<any>  {
   }
 
   private saveConnectionStatus(): void {
-    // Only access localStorage in browser environment
+
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }
@@ -124,7 +122,7 @@ async connectGmail(): Promise<any>  {
   }
 
   private loadConnectionStatus(): void {
-    // Only access localStorage in browser environment
+ 
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }

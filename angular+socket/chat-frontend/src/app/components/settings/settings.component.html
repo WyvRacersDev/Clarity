@@ -5,7 +5,7 @@
   </div>
 
   <div class="settings-sections">
-    <!-- Notification Settings -->
+
     <div class="settings-section">
       <h2>Notifications</h2>
       <div class="setting-item">
@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <!-- Collaboration Settings -->
+
     <div class="settings-section">
       <h2>Collaboration</h2>
       <div class="setting-item">
@@ -45,14 +45,12 @@
       </div>
     </div>
 
-    <!-- Google Integrations -->
     <div class="settings-section">
       <h2>Google Integrations</h2>
       <p class="section-description">
         Connect your Google services to sync calendars, contacts, and emails
       </p>
 
-      <!-- Google Calendar -->
       <div class="integration-item">
         <div class="integration-info">
           <div class="integration-icon">📅</div>
@@ -90,7 +88,7 @@
           </div>
         </div>
 
-        <!-- Google Contacts -->
+
         <div class="integration-item">
           <div class="integration-info">
             <div class="integration-icon">👥</div>
@@ -130,7 +128,6 @@
             </div>
           </div>
 
-          <!-- Gmail -->
           <div class="integration-item">
             <div class="integration-info">
               <div class="integration-icon">📧</div>
@@ -163,7 +160,7 @@
             </div>
           </div>
         </div>
-        <!-- Import Contacts Section -->
+
         @if (isGmailConnected()) {
           <div class="settings-section">
             <h2>Import Contacts</h2>
@@ -204,7 +201,7 @@
                   {{ importMessage }}
                 </div>
               }
-              <!-- Contacts List -->
+
               @if (userContacts.length > 0) {
                 <div class="contacts-list">
                   <h3>Imported Contacts ({{ userContacts.length }})</h3>
@@ -226,7 +223,7 @@
             </div>
           </div>
         }
-        <!-- Server Configuration -->
+
         <div class="settings-section">
           <h2>Server Configuration</h2>
           <p class="section-description">
@@ -274,7 +271,7 @@
           </div>
         </div>
 
-        <!-- Account Info -->
+     
         <div class="settings-section">
           <h2>Account Information</h2>
           <div class="account-info">

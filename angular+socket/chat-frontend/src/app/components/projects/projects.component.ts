@@ -20,23 +20,23 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   showCreateModal = false;
   newProjectName = '';
   projectType: 'local' | 'hosted' = 'local';
-  
+
   // Error/Alert modal
   showErrorModal = false;
   errorMessage = '';
-  
+
   // Confirmation modal
   showConfirmModal = false;
   confirmMessage = '';
   projectToDelete: { index: number; project: Project } | null = null;
-  
+
   // Loading states
   isSaving = false;
   isDeleting = false;
   isLoading = false;
   deletingProjectIndex: number | null = null;
   private loadingTimeout: any = null;
-  
+
   // Prevent infinite loops
   private isLoadingProjects = false;
   private hasLoadedProjects = false;
@@ -49,14 +49,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     private socketService: SocketService,
     private router: Router,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     // Reset loading flags when component initializes
     this.hasLoadedProjects = false;
     this.isLoadingProjects = false;
     this.isLoading = false; // Reset display loading state
-    
+
     // Get initial user state
     const initialUser = this.dataService.getCurrentUser();
     if (initialUser) {
@@ -64,12 +64,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       // Load projects immediately if user is already set
       this.loadProjectsFromServer();
     }
-    
+
     // Subscribe to user changes
     this.userSubscription = this.dataService.currentUser$.subscribe(async user => {
       const previousUserName = this.currentUser?.name;
       this.currentUser = user;
-      
+
       // Only load projects if:
       // 1. User is set
       // 2. User actually changed (different user ID)
@@ -79,44 +79,43 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         await this.loadProjectsFromServer();
       }
     });
-    
+
     // Subscribe to loading states
     this.dataService.savingProject$.subscribe(loading => {
       this.isSaving = loading;
       console.log('Saving state changed:', loading);
       this.cdr.detectChanges();
     });
-    
+
     this.dataService.deletingProject$.subscribe(loading => {
       this.isDeleting = loading;
       this.cdr.detectChanges();
     });
-    
-    // Listen for hosted project updates (broadcasted to all clients)
-    this.hostedProjectUpdateSubscription = this.socketService.onHostedProjectUpdated().subscribe((data: any) => {
+
+      this.hostedProjectUpdateSubscription = this.socketService.onHostedProjectUpdated().subscribe((data: any) => {
       console.log('[ProjectsComponent] Hosted project updated by another user, reloading projects list...');
-      // Reload projects list to show updates
+
       this.loadProjectsFromServer();
     });
-    
-    // Listen for hosted project deletions
+
+
     this.hostedProjectDeleteSubscription = this.socketService.onHostedProjectDeleted().subscribe((data: any) => {
       console.log('[ProjectsComponent] Hosted project deleted by another user, reloading projects list...');
-      // Reload projects list to remove deleted project
+
       this.loadProjectsFromServer();
     });
   }
 
   ngOnDestroy(): void {
-    // Clear any pending timeouts
+
     if (this.loadingTimeout) {
       clearTimeout(this.loadingTimeout);
     }
-    
-    // Reset loading states
+
+ 
     this.isLoading = false;
     this.isLoadingProjects = false;
-    
+
     if (this.userSubscription) {
       this.userSubscription.unsubscribe();
     }
@@ -133,18 +132,17 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       console.log('No current user, skipping load');
       return;
     }
-    
+
     if (this.isLoadingProjects) {
       console.log('Already loading projects, skipping');
       return;
     }
-    
+
     this.isLoadingProjects = true;
-    this.isLoading = true; // Set display loading state
-    this.hasLoadedProjects = false; // Reset before loading
-    
-    // Safety timeout: force clear loading state after 15 seconds
-    if (this.loadingTimeout) {
+    this.isLoading = true; 
+    this.hasLoadedProjects = false; 
+
+     if (this.loadingTimeout) {
       clearTimeout(this.loadingTimeout);
     }
     this.loadingTimeout = setTimeout(() => {
@@ -157,32 +155,30 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       }
       this.loadingTimeout = null;
     }, 15000);
-    
+
     try {
       console.log('Loading projects from server...');
       const isLocalhost = isLocalhostServer();
       console.log(`[ProjectsComponent] Server is localhost: ${isLocalhost}`);
-      
-      // Only load local projects if server is localhost
-      // Always load hosted projects
+
+
       const loadPromises: Promise<Project[]>[] = [
         this.dataService.listProjects('hosted')
       ];
-      
+
       if (isLocalhost) {
         loadPromises.push(this.dataService.listProjects('local'));
       }
-      
+
       const results = await Promise.all(loadPromises);
       const hostedProjects = results[0];
       const localProjects = isLocalhost ? results[1] : [];
-      
-      // SIMPLE: Just combine the projects - they're already correctly typed from their directories
+
       console.log(`[ProjectsComponent] Local projects (only if localhost):`, localProjects.map(p => p.name));
       console.log(`[ProjectsComponent] Hosted projects:`, hostedProjects.map(p => p.name));
       const allProjects = [...localProjects, ...hostedProjects];
       console.log(`[ProjectsComponent] All projects:`, allProjects.map(p => ({ name: p.name, type: (p as any).projectType })));
-      
+
       if (this.currentUser) {
         this.currentUser.projects.length = 0;
         this.currentUser.projects.push(...allProjects);
@@ -192,18 +188,17 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error loading projects from server:', error);
-      this.hasLoadedProjects = false; // Reset on error so it can retry
+      this.hasLoadedProjects = false;
     } finally {
-      // Clear the safety timeout since we're done
       if (this.loadingTimeout) {
         clearTimeout(this.loadingTimeout);
         this.loadingTimeout = null;
       }
-      
+
       this.isLoadingProjects = false;
-      this.isLoading = false; // Reset display loading state
+      this.isLoading = false;
       console.log('Loading projects completed');
-      this.cdr.detectChanges(); // Force change detection
+      this.cdr.detectChanges();
     }
   }
 
@@ -251,7 +246,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     const projectType = (project as any).projectType || 'local';
     const deleted = await this.dataService.deleteProject(project.name, projectType);
     this.deletingProjectIndex = null;
-    
+
     if (deleted) {
       console.log('Project deleted successfully');
     } else {
@@ -263,18 +258,15 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   async createProject(): Promise<void> {
     if (this.newProjectName.trim()) {
       const isLocalhost = isLocalhostServer();
-      
-      // Only allow creating local projects if server is localhost
       if (this.projectType === 'local' && !isLocalhost) {
         alert('Local projects can only be created when connected to a localhost server. Please switch to hosted projects or connect to localhost.');
         return;
       }
-      
-      // Store values before closing modal
+
+
       const projectName = this.newProjectName.trim();
       const projectTypeValue = this.projectType;
-      
-      // Check if project with same name already exists (case-sensitive)
+
       if (this.currentUser) {
         const existingProject = this.currentUser.projects.find(
           p => p.name === projectName
@@ -284,18 +276,18 @@ export class ProjectsComponent implements OnInit, OnDestroy {
           return;
         }
       }
-      
-      // Close modal immediately
+
+
       this.closeCreateModal();
-      
+
       const newProject = this.dataService.createProject(projectName, projectTypeValue);
-      
+
       if (newProject && this.currentUser) {
-        // Save to server in the background
+
         const saved = await this.dataService.saveProject(newProject, projectTypeValue);
         if (saved) {
           console.log('Project created and saved successfully');
-          // Reload projects to show the new one
+
           await this.loadProjectsFromServer();
         } else {
           console.error('Failed to save project to server');
@@ -303,14 +295,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       }
     }
   }
-  
-  // Check if local projects are available (only on localhost)
+
+
   isLocalProjectsAvailable(): boolean {
     return isLocalhostServer();
   }
 
   isLocalProject(project: Project): boolean {
-    return (project as any).isLocal !== false; // Default to local if not set
+    return (project as any).isLocal !== false;
   }
 
   selectProject(index: number): void {
