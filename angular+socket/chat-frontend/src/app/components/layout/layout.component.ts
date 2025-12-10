@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { GoogleIntegrationService } from '../../services/google-integration.service';
 
 @Component({
   selector: 'app-layout',
@@ -16,7 +17,8 @@ export class LayoutComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private google_service:GoogleIntegrationService
   ) {}
 
   ngOnInit(): void {
@@ -29,6 +31,7 @@ export class LayoutComponent implements OnInit {
 
   logout(): void {
     this.authService.logout();
+    this.google_service.disconnectGmail();
   }
 
   isActiveRoute(route: string): boolean {

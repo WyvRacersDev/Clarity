@@ -183,21 +183,30 @@ export class SettingsComponent implements OnInit {
 
   async connectGoogleCalendar(): Promise<void> {
     this.isConnectingCalendar = true;
-    try {
-      const result = await this.googleIntegration.connectGoogleCalendar();
-      console.log('[Settings] connectGoogleCalendar result:', result);
-      if (result && this.userSettings) {
-        this.userSettings.allow_google_calender = true;
-        this.saveSettings();
+    
+    if(this.googleIntegration.isGmailConnected())
+    {
+      try {
+        const result = await this.googleIntegration.connectGoogleCalendar();
+        console.log('[Settings] connectGoogleCalendar result:', result);
+        if (result && this.userSettings) {
+          this.userSettings.allow_google_calender = true;
+          this.saveSettings();
+        }
+        // Trigger change detection to update the UI immediately
+        this.cdr.detectChanges();
+      } catch (error) {
+        console.error('Error connecting Google Calendar:', error);
+      } finally {
+        this.isConnectingCalendar = false;
+        // Trigger change detection again when connection completes
+        this.cdr.detectChanges();
       }
-      // Trigger change detection to update the UI immediately
-      this.cdr.detectChanges();
-    } catch (error) {
-      console.error('Error connecting Google Calendar:', error);
-    } finally {
+    }
+    else
+    {
       this.isConnectingCalendar = false;
-      // Trigger change detection again when connection completes
-      this.cdr.detectChanges();
+      this.saveSettings();
     }
   }
 
@@ -211,17 +220,25 @@ export class SettingsComponent implements OnInit {
 
   async connectGoogleContacts(): Promise<void> {
     this.isConnectingContacts = true;
-    try {
-      const result = await this.googleIntegration.connectGoogleContacts();
-      console.log('[Settings] connectGoogleContacts result:', result);
-      // Trigger change detection to update the UI immediately
-      this.cdr.detectChanges();
-    } catch (error) {
-      console.error('Error connecting Google Contacts:', error);
-    } finally {
+    if(this.googleIntegration.isGmailConnected())
+      {
+      try {
+        const result = await this.googleIntegration.connectGoogleContacts();
+        console.log('[Settings] connectGoogleContacts result:', result);
+        // Trigger change detection to update the UI immediately
+        this.cdr.detectChanges();
+      } catch (error) {
+        console.error('Error connecting Google Contacts:', error);
+      } finally {
+        this.isConnectingContacts = false;
+        // Trigger change detection again when connection completes
+        this.cdr.detectChanges();
+      }
+    }
+    else
+    {
       this.isConnectingContacts = false;
-      // Trigger change detection again when connection completes
-      this.cdr.detectChanges();
+      this.saveSettings();
     }
   }
 

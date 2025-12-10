@@ -83,6 +83,9 @@ async connectGmail(): Promise<any>  {
 
   disconnectGmail(): void {
     this.isGmailConnectedStatus = false;
+    this.isGoogleContactsConnected = false;
+    this.isGoogleCalendarConnected=false;
+    // ye integration kerne walay ko akal do pls 
     this.saveConnectionStatus();
     this.updateUserSettings();
   }
