@@ -1,6 +1,23 @@
 {
   "type": "User",
   "name": "l230757@lhr.nu.edu.pk",
+  "contacts": [
+    {
+      "type": "contact",
+      "name": "Bilal Kashif",
+      "contact_detail": "bilal2006kashif@gmail.com"
+    },
+    {
+      "type": "contact",
+      "name": "Mawahid Abbas",
+      "contact_detail": "l230613@lhr.nu.edu.pk"
+    },
+    {
+      "type": "contact",
+      "name": "Hamza Iqbal",
+      "contact_detail": "l230848@lhr.nu.edu.pk"
+    }
+  ],
   "settings": {
     "type": "settings",
     "recieve_notifications": true,
@@ -8,5 +25,5 @@
     "allow_google_calender": false
   },
   "projectReferences": [],
-  "lastModified": "2025-12-10T15:19:07.778Z"
+  "lastModified": "2025-12-10T15:48:28.229Z"
 }
