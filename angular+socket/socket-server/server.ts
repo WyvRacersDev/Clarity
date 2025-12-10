@@ -922,14 +922,17 @@ app.get("/contacts", async (req: any, res: any) => {
 // Route: completed-per-day
 app.get("/analytics/completed-per-day", async (req, res) => {
   const days = Number(req.query.days ?? 30);
-  const { completedPerDay } = await aggregateAnalytics(days);
+  const username = String(req.query.username ?? "Demo User");
+  const { completedPerDay } = await aggregateAnalytics(days, username);
   res.json(completedPerDay);
 });
 
 // Route: completion-rate-by-tag
 app.get("/analytics/completion-rate-by-tag", async (req, res) => {
   const days = Number(req.query.days ?? 30);
-  const { completionRateByTag } = await aggregateAnalytics(days);
+  const username = String(req.query.username ?? "Demo User");
+  console.log("Analytics request for completion-rate-by-tag for user:", username, "days:", days);
+  const { completionRateByTag } = await aggregateAnalytics(days, username);
   res.json(completionRateByTag);
 });
 

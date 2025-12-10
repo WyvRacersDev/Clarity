@@ -165,6 +165,8 @@ export class AiInsightsComponent implements OnInit {
 
     const userMessage = this.userInput.trim();
     this.userInput = '';
+    // Clear highlight overlay
+    this.highlightedInput = "";
 
 
     // Add user message immediately

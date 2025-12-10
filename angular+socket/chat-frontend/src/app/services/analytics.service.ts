@@ -181,12 +181,12 @@ export interface CompletionRateByTagResponse {
 export class AnalyticsService {
   constructor(private http: HttpClient) {}
 
-  getCompletedPerDay(days = 30): Observable<CompletedPerDayResponse> {
-    return this.http.get<CompletedPerDayResponse>(`http://localhost:3000/analytics/completed-per-day?days=${days}`);
+  getCompletedPerDay(days = 30,username: string): Observable<CompletedPerDayResponse> {
+    return this.http.get<CompletedPerDayResponse>(`http://localhost:3000/analytics/completed-per-day?days=${days}&username=${username}`);
   }
 
-  getCompletionRateByTag(days = 30): Observable<CompletionRateByTagResponse> {
-    return this.http.get<CompletionRateByTagResponse>(`http://localhost:3000/analytics/completion-rate-by-tag?days=${days}`);
+  getCompletionRateByTag(days = 30,username:string): Observable<CompletionRateByTagResponse> {
+    return this.http.get<CompletionRateByTagResponse>(`http://localhost:3000/analytics/completion-rate-by-tag?days=${days}&username=${username}`);
   }
 }
 //=============================================================
