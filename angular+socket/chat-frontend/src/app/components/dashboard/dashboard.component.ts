@@ -73,11 +73,6 @@ export class DashboardComponent implements OnInit {
       .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
       .slice(0, 5);
 
-    // Calculate productivity score
-    //this.productivityScore = this.analyticsService.calculateProductivityScore(
-    //  this.totalTasks,
-    //  this.completedTasks
-    //);
   }
 
   getCompletionPercentage(): number {
