@@ -22,6 +22,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   // Make Math available in template
   Math = Math;
 
+  // Comparison function for ngValue in select elements
+  comparePriority = (o1: any, o2: any) => {
+    return o1 === o2;
+  };
+
   currentUser: User | null = null;
   project: Project | null = null;
   projectIndex: number = -1;
@@ -42,10 +47,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   newElementType: 'ToDoLst' | 'Image' | 'Video' | 'Text_document' = 'ToDoLst';
   showAddTaskModal = false;
   newTaskName = '';
-  newTaskPriority = 2;
+  newTaskPriority: number | null = null; // Changed to null to require selection
   newTaskTime = '';
   taskColumnIndex = -1;
   taskElementIndex = -1;
+  private lastSaveTimestamp = 0; // Track when we last saved to prevent reload loop
   showAddTextModal = false;
   newTextDocumentName = '';
   newTextDocumentContent = '';
@@ -205,6 +211,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         console.log(`[ProjectDetail] Current project: name="${this.project.name}", type="${(this.project as any).projectType}"`);
         if ((this.project as any).projectType === 'hosted' &&
           data.projectName === this.project.name) {
+          
+          // Check if we just saved (within last 2 seconds) - if so, skip reload to avoid interrupting user
+          const timeSinceLastSave = Date.now() - this.lastSaveTimestamp;
+          if (timeSinceLastSave < 2000) {
+            console.log(`[ProjectDetail] ℹ️ Skipping reload - we just saved ${timeSinceLastSave}ms ago`);
+            return;
+          }
+          
           console.log('[ProjectDetail] ✓ Hosted project updated by another user, reloading from server...');
           this.reloadProjectFromServer();
         } else {
@@ -759,6 +773,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   closeAddTaskModal(): void {
     this.showAddTaskModal = false;
     this.newTaskName = '';
+    this.newTaskPriority = null;
     this.taskColumnIndex = -1;
     this.taskElementIndex = -1;
   }
@@ -792,9 +807,17 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       await this.dataService.addElementToGrid(this.projectIndex, this.taskColumnIndex, todoList);
     }
 
+    // Ensure priority is a number (it should be set by validation, but just in case)
+    const priority = typeof this.newTaskPriority === 'string' ? 
+      parseInt(this.newTaskPriority, 10) : (this.newTaskPriority || 2);
+    
     // Create new task
-    const task = new scheduled_task(this.newTaskName.trim(), this.newTaskPriority, new Date().toISOString());
+    const task = new scheduled_task(this.newTaskName.trim(), priority, new Date().toISOString());
     todoList.add_task(task);
+    
+    // Track save timestamp for hosted projects
+    this.lastSaveTimestamp = Date.now();
+    
     await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
     this.loadProject(); // Reload to see the changes
     this.cdr.detectChanges();
@@ -846,11 +869,19 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     }
 
-    const task = new scheduled_task(this.newTaskName.trim(), this.newTaskPriority, taskTime);
+    // Ensure priority is a number (it should be set by validation, but just in case)
+    const priority = typeof this.newTaskPriority === 'string' ? 
+      parseInt(this.newTaskPriority, 10) : (this.newTaskPriority || 2);
+
+    const task = new scheduled_task(this.newTaskName.trim(), priority, taskTime);
     this.fullScreenTodoElement.add_task(task);
+    
+    // Track save timestamp for hosted projects
+    this.lastSaveTimestamp = Date.now();
+    
     await this.saveFullScreenTodo();
     this.newTaskName = '';
-    this.newTaskPriority = 2;
+    this.newTaskPriority = null;
     this.newTaskTime = '';
   }
 
@@ -904,6 +935,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   async saveFullScreenTodo(): Promise<void> {
     if (!this.project || this.fullScreenTodoGridIndex < 0 || this.fullScreenTodoElementIndex < 0) return;
 
+    // Track save timestamp for hosted projects
+    this.lastSaveTimestamp = Date.now();
+    
     await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
     this.loadProject();
 

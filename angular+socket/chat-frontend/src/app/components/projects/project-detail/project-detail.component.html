@@ -386,16 +386,17 @@
         </div>
         <div class="form-group">
           <label>Priority</label>
-          <select [(ngModel)]="newTaskPriority">
-            <option [value]="1">🔴 High</option>
-            <option [value]="2">🟡 Medium</option>
-            <option [value]="3">🟢 Low</option>
+          <select [(ngModel)]="newTaskPriority" [compareWith]="comparePriority">
+            <option [ngValue]="null" disabled selected>Select priority...</option>
+            <option [ngValue]="1">🔴 High</option>
+            <option [ngValue]="2">🟡 Medium</option>
+            <option [ngValue]="3">🟢 Low</option>
           </select>
         </div>
       </div>
       <div class="modal-footer">
         <button class="cancel-btn" (click)="closeAddTaskModal()">Cancel</button>
-        <button class="submit-btn" (click)="submitAddTask()" [disabled]="!newTaskName.trim()">
+        <button class="submit-btn" (click)="submitAddTask()" [disabled]="!newTaskName.trim() || !newTaskPriority">
           Add Task
         </button>
       </div>
@@ -537,15 +538,17 @@
             class="add-task-input"
             />
           <input type="datetime-local" [(ngModel)]="newTaskTime" class="task-date-input" />
-          <select [(ngModel)]="newTaskPriority" class="task-priority-select">
-            <option [value]="1">🔴 High</option>
-            <option [value]="2">🟡 Medium</option>
-            <option [value]="3">🟢 Low</option>
+          <label>Priority</label>
+          <select [(ngModel)]="newTaskPriority" class="task-priority-select" [compareWith]="comparePriority">
+            <option [ngValue]="null" disabled selected>Select priority...</option>
+            <option [ngValue]="1">🔴 High</option>
+            <option [ngValue]="2">🟡 Medium</option>
+            <option [ngValue]="3">🟢 Low</option>
           </select>
           <button
             class="add-task-button"
             (click)="addTaskToFullScreenTodo()"
-            [disabled]="!newTaskName.trim()"
+            [disabled]="!newTaskName.trim() || !newTaskPriority"
             >
             +
           </button>
@@ -597,15 +600,9 @@
                 <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
               </div>
               <div class="task-actions">
-                <select
-                  [value]="task.get_priority()"
-                  (change)="onPriorityChange(task, $event)"
-                  class="priority-select-fullscreen"
-                  >
-                  <option [value]="1">🔴 High</option>
-                  <option [value]="2">🟡 Medium</option>
-                  <option [value]="3">🟢 Low</option>
-                </select>
+                <span class="task-priority-display">
+                  {{ task.get_priority() === 1 ? '🔴 High' : task.get_priority() === 2 ? '🟡 Medium' : '🟢 Low' }}
+                </span>
                 <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
               </div>
             </div>
@@ -648,15 +645,9 @@
                     <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
                   </div>
                   <div class="task-actions">
-                    <select
-                      [value]="task.get_priority()"
-                      (change)="onPriorityChange(task, $event)"
-                      class="priority-select-fullscreen"
-                      >
-                      <option [value]="1">🔴 High</option>
-                      <option [value]="2">🟡 Medium</option>
-                      <option [value]="3">🟢 Low</option>
-                    </select>
+                    <span class="task-priority-display">
+                      {{ task.get_priority() === 1 ? '🔴 High' : task.get_priority() === 2 ? '🟡 Medium' : '🟢 Low' }}
+                    </span>
                     <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
                   </div>
                 </div>

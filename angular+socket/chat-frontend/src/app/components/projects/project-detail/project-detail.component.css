@@ -1381,3 +1381,69 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
 }
+
+/* Priority Required Modal */
+.priority-modal {
+  max-width: 500px;
+}
+
+.priority-modal .modal-header h2 {
+  color: #00D4FF;
+  flex: 1;
+}
+
+.priority-message {
+  color: #FFFFFF;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 20px 0;
+  text-align: center;
+}
+
+.priority-info {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.priority-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.priority-option:hover {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: rgba(0, 212, 255, 0.5);
+  transform: translateX(5px);
+}
+
+.priority-icon {
+  font-size: 1.5rem;
+  min-width: 30px;
+  text-align: center;
+}
+
+.priority-label {
+  color: #FFFFFF;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+/* Task Priority Display (read-only) */
+.task-priority-display {
+  padding: 6px 12px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 6px;
+  color: #FFFFFF;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  font-weight: 500;
+}
