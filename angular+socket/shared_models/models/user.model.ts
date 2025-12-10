@@ -1,6 +1,4 @@
 import { Project } from "../models/project.model";
-import{ Gmail } from "../models/Gmail.model"  //ye bilal kere ga lol 
-
 import {ToDoLst,scheduled_task} from "./screen_elements.model"
 
 import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)

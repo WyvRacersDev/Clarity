@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AIMessage, AIService } from '../../services/ai.service';
 import { FormsModule } from '@angular/forms';
@@ -38,8 +38,11 @@ export class AiInsightsComponent implements OnInit {
   filteredCommands: string[] = [];
   cursorPosition = 0;
   highlightedInput: SafeHtml = "";
+ 
 
-  constructor(private dataService: DataService, private aiService: AIService, private sanitizer: DomSanitizer) { }
+  constructor(private dataService: DataService, private aiService: AIService, private sanitizer: DomSanitizer
+    , private cd: ChangeDetectorRef
+  ) { }
 
   ngOnInit(): void {
     this.dataService.currentUser$.subscribe(user => {
@@ -181,11 +184,14 @@ export class AiInsightsComponent implements OnInit {
       // timestamp: new Date()
     });
 
+
     try {
       // Get AI response
+      this.isLoading = true;
       const response = await firstValueFrom(
         this.aiService.chat(userMessage)
       );
+      this.isLoading = false;
       console.log("AI response received:", response);
       marked.setOptions({ async: false });
       const htmlString = marked.parse(response) as string;
@@ -193,13 +199,50 @@ export class AiInsightsComponent implements OnInit {
       // Response is already added by the service, but we need to update our local messages
       // const history = this.aiService.getChatHistory();
       this.aiChatMessages.push({ role: "ai", content: htmlString });;
-    } catch (error) {
-      console.error('Error getting AI response:', error);
-      this.aiChatMessages.push({
-        role: 'ai',
-        content: 'Sorry, I encountered an error. Please try again.',
+      this.cd.detectChanges();
+    } catch (err: any) {
+      this.isLoading = false;
+      console.error('Error getting AI response:', err);
+      if (err.status === 429 || err.code === 429) {
+        this.aiChatMessages.push({
+          role: 'ai',
+          content: "Rate limit exceeded. Please try again later.",
 
-      });
+        });
+      }
+
+
+      else if (err.status === 400 || err.code === 400) {
+        this.aiChatMessages.push({
+          role: 'ai',
+          content: "Unauthorized access to AI service. Please check your API model.",
+
+        });
+      }
+
+
+      else if (err.status === 401 || err.code === 401) {
+        this.aiChatMessages.push({
+          role: 'ai',
+          content: "Unauthorized access to AI service. Please check your API credentials.",
+
+        });
+      }
+      else if (err.status === 500 || err.code === 500) {
+        this.aiChatMessages.push({
+          role: 'ai',
+          content: "Something went wrong with the AI service. Please try again later.",
+
+        });
+      } else {
+        this.aiChatMessages.push({
+          role: 'ai',
+          content: 'Sorry, I encountered an error. Please try again.',
+
+        });
+      }
+      this.isLoading = false;
+      this.cd.detectChanges();
     } finally {
 
     }
