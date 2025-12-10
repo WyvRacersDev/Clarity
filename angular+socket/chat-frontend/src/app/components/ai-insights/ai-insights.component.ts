@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { AIMessage, AIService } from '../../services/ai.service';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
@@ -11,15 +12,16 @@ import { firstValueFrom } from 'rxjs';
 import { marked } from "marked";
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
+
 @Component({
   selector: 'app-ai-insights',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CommonModule],
   templateUrl: './ai-insights.component.html',
   styleUrls: ['./ai-insights.component.css']
 })
 export class AiInsightsComponent implements OnInit {
-//  aiChatMessages: AIMessage[] = [];
+  //  aiChatMessages: AIMessage[] = [];
   currentUser: User | null = null;
   insights: string[] = [];
   bottlenecks: string[] = [];
@@ -27,14 +29,24 @@ export class AiInsightsComponent implements OnInit {
   aiChatMessages: { role: 'user' | 'ai'; content: string }[] = [];
   userInput = '';
   isLoading = false;
+  validCommands = [
+    "Summarize project ",
+    "Suggest schedule for project",
+    "Send an invite to "
+  ];
+  showCommandDropdown = false;
+  filteredCommands: string[] = [];
+  cursorPosition = 0;
+  highlightedInput: SafeHtml = "";
 
-  constructor(private dataService: DataService, private aiService: AIService,   private sanitizer: DomSanitizer) { }
+  constructor(private dataService: DataService, private aiService: AIService, private sanitizer: DomSanitizer) { }
 
   ngOnInit(): void {
     this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
       this.analyzeProductivity();
     });
+    this.updateHighlightedInput();
   }
 
   analyzeProductivity(): void {
@@ -153,18 +165,20 @@ export class AiInsightsComponent implements OnInit {
 
     const userMessage = this.userInput.trim();
     this.userInput = '';
+    // Clear highlight overlay
+    this.highlightedInput = "";
 
 
     // Add user message immediately
     const userMsg = {
       role: 'user',
       content: userMessage,
-     // timestamp: new Date()
+      // timestamp: new Date()
     };
     this.aiChatMessages.push({
       role: 'user',
       content: userMessage,
-     // timestamp: new Date()
+      // timestamp: new Date()
     });
 
     try {
@@ -177,8 +191,8 @@ export class AiInsightsComponent implements OnInit {
       const htmlString = marked.parse(response) as string;
       //const htmlString: string = marked.parseInline(response);
       // Response is already added by the service, but we need to update our local messages
-     // const history = this.aiService.getChatHistory();
-      this.aiChatMessages.push({role:"ai",content:htmlString}); ;
+      // const history = this.aiService.getChatHistory();
+      this.aiChatMessages.push({ role: "ai", content: htmlString });;
     } catch (error) {
       console.error('Error getting AI response:', error);
       this.aiChatMessages.push({
@@ -190,5 +204,70 @@ export class AiInsightsComponent implements OnInit {
 
     }
   }
+  onUserInputChange(event: any) {
+    const value = this.userInput;
+    this.cursorPosition = event.target.selectionStart;
+
+    // Find the @ being typed
+    const match = value.slice(0, this.cursorPosition).match(/@([A-Za-z ]*)$/);
+
+    if (match) {
+      const textAfterAt = match[1].toLowerCase();
+
+      this.filteredCommands = this.validCommands.filter(cmd =>
+        cmd.toLowerCase().includes(textAfterAt)
+      );
+
+      this.showCommandDropdown = this.filteredCommands.length > 0;
+    } else {
+      this.showCommandDropdown = false;
+    }
+
+    this.updateHighlightedInput();
+  }
+  selectCommand(cmd: string) {
+    const textBefore = this.userInput.slice(0, this.cursorPosition);
+    const textAfter = this.userInput.slice(this.cursorPosition);
+
+    const newText = textBefore.replace(/@[\w ]*$/, '@' + cmd) + textAfter;
+
+    this.userInput = newText;
+
+    this.showCommandDropdown = false;
+    this.updateHighlightedInput();
+
+    // Move cursor to end
+    setTimeout(() => {
+      const input = document.querySelector('.chat-input') as HTMLInputElement;
+      if (input) input.setSelectionRange(newText.length, newText.length);
+    });
+  }
+  // updateHighlightedInput() {
+  //   let html = this.userInput;
+
+  //   this.validCommands.forEach(cmd => {
+  //     const escaped = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  //     const regex = new RegExp('@' + escaped, "g");
+  //     html = html.replace(regex, `<span class="highlight-command">@${cmd}</span>`);
+  //   });
+
+  //   this.highlightedInput = this.sanitizer.bypassSecurityTrustHtml(html);
+  // }
+  updateHighlightedInput() {
+    let html = this.userInput;
+
+    this.validCommands.forEach(cmd => {
+      const escaped = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Match @ + command case-insensitive
+      const regex = new RegExp(`@${escaped}`, "gi");
+
+      html = html.replace(regex, `<span class="highlight-command">@${cmd}</span>`);
+    });
+
+    this.highlightedInput = this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+
 }
 

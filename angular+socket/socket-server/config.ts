@@ -12,6 +12,7 @@
  */
 
 // Server binding configuration
+export const SHARED_SERVER= "192.0.0.1"//dummy value
 export const SERVER_HOST = process.env.SERVER_HOST || '0.0.0.0'; // '0.0.0.0' = all interfaces, 'localhost' = local only
 export const SERVER_PORT = parseInt(process.env.SERVER_PORT || '3000', 10);
 
