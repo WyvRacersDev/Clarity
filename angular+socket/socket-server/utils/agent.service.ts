@@ -8,6 +8,7 @@ import { Project } from "../../shared_models/dist/project.model.js";
 import { AI_agent } from "../../shared_models/dist/ai_agent.model.js"
 import { invite } from "./invitation_service.ts";
 import { User } from "../../shared_models/dist/user.model.js";
+import { text } from "stream/consumers";
 const projectHandler = new ProjectHandler();
 const userHandler = new UserHandler();
 //let curr_user: User;
@@ -23,6 +24,7 @@ export class Chat_Agent extends AI_agent {
     private model: ChatGoogleGenerativeAI;
     private summarise_prompt: ChatPromptTemplate;
     private suggest_schedule_prompt: ChatPromptTemplate;
+    private default_prompt : ChatPromptTemplate;
     constructor(api_key: string) {
         super(api_key);
         this.model = new ChatGoogleGenerativeAI({
@@ -35,6 +37,10 @@ export class Chat_Agent extends AI_agent {
         ]);
         this.suggest_schedule_prompt = ChatPromptTemplate.fromMessages([
             ["system", "You are a helpful assistant that suggests project schedules.Given the project name, description, and tasks, provide a suggested schedule to complete the project on time. Break down the tasks into manageable steps with estimated timeframes."],
+            ["human", "{input}"]
+        ]);
+        this.default_prompt = ChatPromptTemplate.fromMessages([
+            ["system", "You are a helpful assistant for a productivity app called clarity.use the username given to address the user"],
             ["human", "{input}"]
         ]);
     }
@@ -79,13 +85,13 @@ export class Chat_Agent extends AI_agent {
 
         return textOutput;
     }
-    async send_invite(invitee: string, project_name: string,username:string): Promise<string> {
+    async send_invite(invitee: string, project_name: string, username: string): Promise<string> {
         let curr_user = userHandler.loadUser(username).user!;
         console.log("[Chat_Agent] current user:", curr_user);
         if (curr_user === null) {
             console.error("[Chat_Agent] No current user set. Call setUserName() first.");
-        }   
-        if(curr_user.contacts===undefined || curr_user.contacts.length===0){
+        }
+        if (curr_user.contacts === undefined || curr_user.contacts.length === 0) {
             return `You have no contacts saved. Please add contacts before sending invites.`;
         }
         let contacts = curr_user.contacts;
@@ -105,7 +111,7 @@ export class Chat_Agent extends AI_agent {
     }
 
 
-    async chat(user_input: string,username:string): Promise<string> {
+    async chat(user_input: string, username: string): Promise<string> {
         console.log("[Chat_Agent] Received user input:", user_input);
         const summarise_match = user_input.match(/summarize project[:\s]+(.+)/i);
 
@@ -117,7 +123,7 @@ export class Chat_Agent extends AI_agent {
             }
             if (curr_project.success) {
                 let summary = await this.summarise_project(curr_project.project!);
-                console.log("summary:",summary);
+                console.log("summary:", summary);
                 return summary;
             } else {
                 return `Project "${projectName}" not found.`;
@@ -144,11 +150,24 @@ export class Chat_Agent extends AI_agent {
 
             // clean up trailing punctuation
             const cleanedName = personName.replace(/[.!?]+$/, "");
-            return await this.send_invite(cleanedName, "all Project",username);
-             //`Sent invite to ${cleanedName}. Check your email for details.`;
+            return await this.send_invite(cleanedName, "all Project", username);
+            //`Sent invite to ${cleanedName}. Check your email for details.`;
         }
+        const chain = RunnableSequence.from([this.default_prompt, this.model]);
+        const response = await chain.invoke({ input: `username is ${username}, ${user_input}` });
 
-        return "No valid command found in the input.";
+                let textOutput = "";
+
+        if (Array.isArray(response.content)) {
+            textOutput = response.content
+                .map(block => ("text" in block ? block.text : ""))
+                .join("");
+        } else if (typeof response.content === "string") {
+            textOutput = response.content;
+        } else {
+            textOutput = "";
+        }
+        return textOutput;
     }
 }
 //const agent = new Chat_Agent(process.env.GEMINI_API_KEY!);

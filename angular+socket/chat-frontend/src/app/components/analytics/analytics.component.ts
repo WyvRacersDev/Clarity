@@ -7,6 +7,7 @@ import { CommonModule } from '@angular/common';
 import { MatChipOption, MatChipSet } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { DataService } from '../../services/data.service';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -160,14 +161,15 @@ export class AnalyticsComponent implements OnInit {
 
   constructor(
     private analytics: AnalyticsService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private dataService: DataService
   ) {}
 
   ngOnInit(): void {
     console.log('Analytics Component Initialized');
 
     // COMPLETION RATE
-    this.analytics.getCompletionRateByTag().subscribe({
+    this.analytics.getCompletionRateByTag(30,this.dataService.getCurrentUser()?.name || "Demo User").subscribe({
       next: (res) => {
         console.log("Completion API response:", res);
         
@@ -198,7 +200,7 @@ export class AnalyticsComponent implements OnInit {
     });
 
     // COMPLETED PER DAY
-    this.analytics.getCompletedPerDay().subscribe({
+    this.analytics.getCompletedPerDay(30,this.dataService.getCurrentUser()?.name || "Demo User").subscribe({
       next: (res) => {
         console.log("📈 Completed per day API response:", res);
         

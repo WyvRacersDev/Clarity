@@ -107,7 +107,7 @@ function parseISODateOrNull(s?: string | null): Date | null {
   return d;
 }
 
-export async function aggregateAnalytics(days = 30) {
+export async function aggregateAnalytics(days = 30,username:string) {
   const now = Date.now();
   if (cache && (now - cache.timestamp) < CACHE_TTL_MS && cache.days === days) {
     return {
@@ -115,10 +115,14 @@ export async function aggregateAnalytics(days = 30) {
       completionRateByTag: cache.completionRateByTag
     };
   }
-
+    console.log(`[analytics] aggregating analytics for past ${days} days for user "${username}"...`);
 //  const projects = await loadProjectFiles();
-    const projects= project_handler.listProjects("local").projects;
+    let projects= project_handler.listProjects("local").projects;
     projects.concat(project_handler.listProjects("hosted").projects);
+    projects=projects.filter((p) =>(
+      p.owner_name === username)
+    );
+    console.log(`[analytics] aggregating analytics for user "${username}", found ${projects.length} projects.`);
     //console.log(`[analytics] loaded ${projects.length} projects for analytics.`);
   const tasks: ModTask[] = [];
   for (const p of projects) {
@@ -145,7 +149,7 @@ export async function aggregateAnalytics(days = 30) {
   earliestDate.setDate(earliestDate.getDate() - (days - 1));
   // go through tasks and collect those completed within timeframe
   for (const t of tasks) {
-    //console.log(`[analytics] processing task:`, t);
+  //  console.log(`[analytics] processing task:`, t);
     const isDone = !!t.task.is_done;
     const completion = parseISODateOrNull(t.task.completion_time ?? null);
     if (!isDone || !completion) continue; // only completed tasks count for the time-series
@@ -237,7 +241,7 @@ export async function aggregateAnalytics(days = 30) {
     completedPerDay,
     completionRateByTag
   };
-
+  
   return { completedPerDay, completionRateByTag };
 }
 
