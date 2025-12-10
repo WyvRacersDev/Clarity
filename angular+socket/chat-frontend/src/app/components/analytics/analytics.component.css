@@ -1,11 +1,13 @@
 .analytics-container {
-  padding: 30px;
+  padding: 40px;
   max-width: 1400px;
   margin: 0 auto;
+  background: #000000;
+  min-height: 100vh;
 }
 
 .analytics-header {
-  margin-bottom: 30px;
+  margin-bottom: 40px;
 }
 
 .analytics-header h1 {
@@ -13,10 +15,11 @@
   color: #FFFFFF;
   margin: 0 0 10px 0;
   font-weight: 700;
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
 }
 
 .subtitle {
-  color: #666;
+  color: #999999;
   font-size: 1.1rem;
   margin: 0;
 }
@@ -29,13 +32,21 @@
 }
 
 .stat-card {
-  background: white;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(0, 168, 232, 0.05) 100%);
+  border: 2px solid rgba(0, 212, 255, 0.3);
   border-radius: 12px;
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  border-color: #00D4FF;
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.3);
+  transform: translateY(-2px);
 }
 
 .stat-icon {
@@ -47,6 +58,7 @@
   justify-content: center;
   background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%);
   border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
 }
 
 .stat-content {
@@ -56,12 +68,13 @@
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #333;
+  color: #FFFFFF;
   margin-bottom: 4px;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
 }
 
 .stat-label {
-  color: #666;
+  color: #999999;
   font-size: 0.9rem;
 }
 
@@ -73,10 +86,17 @@
 }
 
 .chart-card {
-  background: white;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.03) 0%, rgba(0, 168, 232, 0.03) 100%);
+  border: 2px solid rgba(0, 212, 255, 0.2);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.2);
 }
 
 .chart-card.full-width {
@@ -94,19 +114,21 @@
 
 .chart-placeholder {
   font-size: 1.2rem;
-  color: #0099FF;
+  color: #00D4FF;
   font-weight: 600;
   margin: 0 0 10px 0;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 
 .chart-note {
-  color: #999;
+  color: #999999;
   font-size: 0.9rem;
   margin: 0;
 }
 
 .bottlenecks-section {
-  background: #fff4e6;
+  background: linear-gradient(135deg, rgba(255, 153, 0, 0.05) 0%, rgba(243, 156, 18, 0.05) 100%);
+  border: 2px solid rgba(243, 156, 18, 0.3);
   border-radius: 12px;
   padding: 24px;
   margin-top: 30px;
@@ -115,9 +137,10 @@
 
 .bottlenecks-section h2 {
   font-size: 1.5rem;
-  color: #333;
+  color: #FFFFFF;
   margin: 0 0 20px 0;
   font-weight: 600;
+  text-shadow: 0 0 10px rgba(243, 156, 18, 0.3);
 }
 
 .bottlenecks-list {
@@ -131,8 +154,15 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: white;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(243, 156, 18, 0.2);
   border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.bottleneck-item:hover {
+  background: rgba(243, 156, 18, 0.1);
+  border-color: rgba(243, 156, 18, 0.4);
 }
 
 .bottleneck-icon {
@@ -140,7 +170,7 @@
 }
 
 .bottleneck-text {
-  color: #333;
+  color: #FFFFFF;
   font-weight: 500;
 }
 
@@ -149,17 +179,26 @@
 }
 
 .insight-card {
-  background: white;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(58, 255, 111, 0.05) 100%);
+  border: 2px solid rgba(0, 212, 255, 0.3);
   border-radius: 12px;
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.insight-card:hover {
+  border-color: #00D4FF;
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.3);
+  transform: translateY(-2px);
 }
 
 .insight-card.positive {
-  border-left: 4px solid #27ae60;
+  border-left: 4px solid #3AFF6F;
+  background: linear-gradient(135deg, rgba(58, 255, 111, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
 }
 
 .insight-icon {
@@ -169,12 +208,84 @@
 .insight-content h3 {
   margin: 0 0 8px 0;
   font-size: 1.3rem;
-  color: #333;
+  color: #FFFFFF;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
 }
 
 .insight-content p {
   margin: 0;
-  color: #666;
+  color: #999999;
+}
+
+/* Tag Selector Styles */
+h2 {
+  color: #FFFFFF;
+  font-size: 1.8rem;
+  margin: 40px 0 20px 0;
+  font-weight: 600;
+  text-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+}
+
+.tag-selector {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(0, 168, 232, 0.05) 100%);
+  border: 2px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+}
+
+.tag-selector mat-chip-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tag-selector ::ng-deep .mat-mdc-chip {
+  background: rgba(0, 212, 255, 0.1) !important;
+  color: #FFFFFF !important;
+  border: 2px solid rgba(0, 212, 255, 0.3) !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+  font-size: 0.95rem !important;
+  padding: 8px 16px !important;
+  height: auto !important;
+  pointer-events: auto !important;
+  user-select: none !important;
+}
+
+.tag-selector ::ng-deep .mat-mdc-chip:hover {
+  background: rgba(0, 212, 255, 0.2) !important;
+  border-color: #00D4FF !important;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5) !important;
+}
+
+.tag-selector ::ng-deep .mat-mdc-chip.mat-mdc-chip-selected,
+.tag-selector ::ng-deep .mat-mdc-chip-option.mat-mdc-chip-selected {
+  background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%) !important;
+  border-color: #3AFF6F !important;
+  box-shadow: 0 0 15px rgba(58, 255, 111, 0.5) !important;
+  color: #FFFFFF !important;
+}
+
+.tag-selector ::ng-deep .mat-mdc-chip .mdc-evolution-chip__action {
+  padding: 0 !important;
+  pointer-events: auto !important;
+}
+
+.tag-selector ::ng-deep .mat-mdc-chip .mdc-evolution-chip__cell,
+.tag-selector ::ng-deep .mat-mdc-chip .mdc-evolution-chip__text-label {
+  color: #FFFFFF !important;
+  pointer-events: none !important;
+}
+
+.tag-selector ::ng-deep .mat-mdc-chip-action {
+  pointer-events: auto !important;
+}
+
+/* Chart Container Styles */
+canvas {
+  max-width: 100%;
+  height: auto !important;
 }
 
 @media (max-width: 768px) {
@@ -188,6 +299,10 @@
 
   .chart-wrapper {
     height: 300px;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
   }
 }
 

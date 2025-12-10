@@ -607,9 +607,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   async onTaskToggle(task: any): Promise<void> {
     if (task.get_status()) {
       task.mark_incomplete();
-    } else
-      task.mark_complete(this.currentUser);
-    task.toggle_done_status();
+    } else {
+      const username = this.currentUser?.name || 'Unknown User';
+      task.mark_complete(username);
+    }
     this.dataService.updateCurrentUser();
     // Save the project to persist changes
     if (this.project) {
