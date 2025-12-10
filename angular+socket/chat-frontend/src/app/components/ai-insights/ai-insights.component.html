@@ -10,21 +10,20 @@
       <!-- Productivity Insights -->
       <div class="insight-section">
         <h2>
-          <img src="/assets/histogram.png" alt="Productivity" class="section-icon">
+          <img src="/assets/histogram.png" alt="Productivity" class="section-icon" />
           Productivity Insights
         </h2>
         <div class="insights-list">
           @for (insight of insights; track insight) {
-            <div class="insight-item">
-              <img src="/assets/check.jpg" alt="Insight" class="insight-icon">
-              <span>{{ insight }}</span>
-            </div>
-          }
-          @if (insights.length === 0) {
-            <div class="empty-state success">
-              <img src="/assets/check.jpg" alt="Check" class="empty-state-icon">
-              <span>No insights available yet. Start creating projects and tasks!</span>
-            </div>
+          <div class="insight-item">
+            <img src="/assets/check.jpg" alt="Insight" class="insight-icon" />
+            <span>{{ insight }}</span>
+          </div>
+          } @if (insights.length === 0) {
+          <div class="empty-state success">
+            <img src="/assets/check.jpg" alt="Check" class="empty-state-icon" />
+            <span>No insights available yet. Start creating projects and tasks!</span>
+          </div>
           }
         </div>
       </div>
@@ -32,21 +31,20 @@
       <!-- Bottlenecks -->
       <div class="insight-section">
         <h2>
-          <img src="/assets/warning.png" alt="Bottlenecks" class="section-icon">
+          <img src="/assets/warning.png" alt="Bottlenecks" class="section-icon" />
           Bottlenecks
         </h2>
         <div class="insights-list">
           @for (bottleneck of bottlenecks; track bottleneck) {
-            <div class="insight-item warning">
-              <img src="/assets/warning.png" alt="Warning" class="insight-icon">
-              <span>{{ bottleneck }}</span>
-            </div>
-          }
-          @if (bottlenecks.length === 0) {
-            <div class="empty-state success">
-              <img src="/assets/check.jpg" alt="Check" class="empty-state-icon">
-              <span>No bottlenecks detected. Great work!</span>
-            </div>
+          <div class="insight-item warning">
+            <img src="/assets/warning.png" alt="Warning" class="insight-icon" />
+            <span>{{ bottleneck }}</span>
+          </div>
+          } @if (bottlenecks.length === 0) {
+          <div class="empty-state success">
+            <img src="/assets/check.jpg" alt="Check" class="empty-state-icon" />
+            <span>No bottlenecks detected. Great work!</span>
+          </div>
           }
         </div>
       </div>
@@ -54,20 +52,19 @@
       <!-- Suggestions -->
       <div class="insight-section">
         <h2>
-          <img src="/assets/bulb.png" alt="Suggestions" class="section-icon">
+          <img src="/assets/bulb.png" alt="Suggestions" class="section-icon" />
           Suggestions
         </h2>
         <div class="insights-list">
           @for (suggestion of suggestions; track suggestion) {
-            <div class="insight-item suggestion">
-              <img src="/assets/bulb.png" alt="Suggestion" class="insight-icon">
-              <span>{{ suggestion }}</span>
-            </div>
-          }
-          @if (suggestions.length === 0) {
-            <div class="empty-state">
-              <span>No suggestions at this time.</span>
-            </div>
+          <div class="insight-item suggestion">
+            <img src="/assets/bulb.png" alt="Suggestion" class="insight-icon" />
+            <span>{{ suggestion }}</span>
+          </div>
+          } @if (suggestions.length === 0) {
+          <div class="empty-state">
+            <span>No suggestions at this time.</span>
+          </div>
           }
         </div>
       </div>
@@ -82,43 +79,49 @@
 
       <div class="chat-messages">
         @if (aiChatMessages.length === 0) {
-          <div class="empty-chat">
-            <div class="empty-icon">
-              <img src="/assets/robot.png" alt="AI Assistant" class="robot-icon">
-            </div>
-            <p>Start a conversation to get AI-powered insights</p>
-            <div class="suggested-questions">
-              <button class="suggestion-btn" (click)="userInput = 'Summarize project YOOO'; sendMessage()">
-                Summarize project YOOO
-              </button>
-              <button class="suggestion-btn" (click)="userInput = 'Suggest schedule for YOOO'; sendMessage()">
-                suggest schedule for YOOO
-              </button>
-              <button class="suggestion-btn" (click)="userInput = 'send an invite to Bilal Kashif'; sendMessage()">
-                send an invite to Bilal Kashif
-              </button>
-            </div>
+        <div class="empty-chat">
+          <div class="empty-icon">
+            <img src="/assets/robot.png" alt="AI Assistant" class="robot-icon" />
           </div>
-        }
-
-        @for (message of aiChatMessages; track message) {
-          <div
-            class="chat-message"
-            [class.user-message]="message.role === 'user'"
-            [class.ai-message]="message.role === 'ai'">
-            <!-- <div class="message-content">{{ message.content }}</div> -->
-             <div [innerHTML]="message.content"></div>
+          <p>Start a conversation to get AI-powered insights</p>
+          <div class="suggested-questions">
+            <button
+              class="suggestion-btn"
+              (click)="userInput = 'Summarize project YOOO'; sendMessage()"
+            >
+              Summarize project YOOO
+            </button>
+            <button
+              class="suggestion-btn"
+              (click)="userInput = 'Suggest schedule for YOOO'; sendMessage()"
+            >
+              suggest schedule for YOOO
+            </button>
+            <button
+              class="suggestion-btn"
+              (click)="userInput = 'send an invite to Bilal Kashif'; sendMessage()"
+            >
+              send an invite to Bilal Kashif
+            </button>
           </div>
-        }
-
-        @if (isLoading) {
-          <div class="chat-message ai-message">
-            <div class="typing-indicator">AI is thinking...</div>
-          </div>
+        </div>
+        } @for (message of aiChatMessages; track message) {
+        <div
+          class="chat-message"
+          [class.user-message]="message.role === 'user'"
+          [class.ai-message]="message.role === 'ai'"
+        >
+          <!-- <div class="message-content">{{ message.content }}</div> -->
+          <div [innerHTML]="message.content"></div>
+        </div>
+        } @if (isLoading) {
+        <div class="chat-message ai-message">
+          <div class="typing-indicator">AI is thinking...</div>
+        </div>
         }
       </div>
 
-      <div class="chat-input-container">
+      <!-- <div class="chat-input-container">
         <input
           type="text"
           class="chat-input"
@@ -132,8 +135,29 @@
           [disabled]="!userInput.trim() || isLoading">
           Send
         </button>
+      </div> -->
+      <div class="input-wrapper">
+        <div class="input-highlight" [innerHTML]="highlightedInput"></div>
+
+        <input
+          type="text"
+          class="chat-input"
+          [(ngModel)]="userInput"
+          placeholder="Ask a question..."
+          (input)="onUserInputChange($event)"
+          (keyup.enter)="sendMessage()"
+        />
+
+        <div class="command-dropdown" *ngIf="showCommandDropdown">
+          <div
+            class="command-option"
+            *ngFor="let cmd of filteredCommands"
+            (click)="selectCommand(cmd)"
+          >
+            @{{ cmd }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
-

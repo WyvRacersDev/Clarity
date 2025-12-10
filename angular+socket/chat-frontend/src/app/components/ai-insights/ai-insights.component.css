@@ -291,5 +291,68 @@
   }
 }
 
+.input-wrapper {
+  position: relative;
+}
 
+.chat-input {
+  z-index:10;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  position: relative;
+  background: transparent;
+  color: transparent; /* Make input text invisible */
+  caret-color: black;
+  z-index: 10;
+}
 
+.input-highlight {
+  z-index: 5;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 12px;
+  width: 100%;
+  font-size: 16px;
+  color: black;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.highlight-command {
+  color: #007bff;
+  font-weight: 600;
+}
+
+/* .command-dropdown {
+  background: white;
+  border: 1px solid #ccc;
+  position: absolute;
+  width: 100%;
+  margin-top: 5px;
+  z-index: 20;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+} */
+ .command-dropdown {
+  position: absolute;
+  bottom: 100%;       /* 👈 THIS moves it above */
+  left: 0;
+  width: 100%;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px 0;
+  z-index: 9999;
+}
+
+.command-option {
+  padding: 10px;
+  color:#007bff;
+  cursor: pointer;
+}
+
+.command-option:hover {
+  background: #f0f0f0;
+}

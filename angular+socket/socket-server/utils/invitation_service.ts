@@ -7,7 +7,7 @@ import cron from "node-cron";
 import fs from "fs";
 import { google } from "googleapis";
 import axios from "axios";
-import {SERVER_HOST,SERVER_PORT} from "../config.ts";
+import {SHARED_SERVER,SERVER_PORT} from "../config.ts";
 
 import nodemailer from "nodemailer";
 
@@ -102,6 +102,6 @@ async function sendEmailWithGmailAuth(auth: any, to: string, subject: string, me
 // }
 
 export async function invite(from: string, to: string, subject: string) {
-  let message=`<p>You have been invited to join the project. Enter ${SERVER_HOST}:${SERVER_PORT} to accept the invitation.</p>`;
+  let message=`<p>You have been invited to join the project. Enter ${SHARED_SERVER}:${SERVER_PORT} to accept the invitation.</p>`;
   await sendEmailWithGmailAuth(getAuthForUser(from), to, subject, message);
 }
