@@ -147,7 +147,8 @@
           (input)="onUserInputChange($event)"
           (keyup.enter)="sendMessage()"
         />
-
+        <!-- Spinner visible while loading -->
+        <div *ngIf="isLoading" class="spinner"></div>
         <div class="command-dropdown" *ngIf="showCommandDropdown">
           <div
             class="command-option"
