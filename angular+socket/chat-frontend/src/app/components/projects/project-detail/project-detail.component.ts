@@ -231,6 +231,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     document.addEventListener('mousemove', (e) => this.onDocumentMouseMove(e));
     document.addEventListener('mouseup', (e) => this.onDocumentMouseUp(e));
     document.addEventListener('mousedown', (e) => this.onDocumentMouseDown(e));
+    
+    //TOUCH CONTROLS KIS NEI ADD KERNE THAY?????
+    document.addEventListener('touchmove', (e) => this.onDocumentTouchMove(e), { passive: false });
+    document.addEventListener('touchend', (e) => this.onDocumentTouchEnd(e));
+    document.addEventListener('touchstart', (e) => this.onDocumentTouchStart(e));
   }
 
   loadProject(): void {
@@ -1052,6 +1057,30 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }, 500);
   }
 
+  onElementTouchStart(event: TouchEvent, element: Screen_Element, gridIndex: number, elementIndex: number): void {
+  const target = event.target as HTMLElement;
+  const card = event.currentTarget as HTMLElement;
+
+  if (target.tagName === 'BUTTON' || target.closest('button')) {
+    return;
+  }
+
+  if (!card) return;
+
+  const touch = event.touches[0];
+
+  this.longPressTimer = setTimeout(() => {
+    this.isDraggingEnabled = true;
+    const rect = card.getBoundingClientRect();
+    this.elementDragOffsetX = touch.clientX - rect.left;
+    this.elementDragOffsetY = touch.clientY - rect.top;
+    this.draggedElementIndex = elementIndex;
+    this.draggedElement = card;
+    card.style.opacity = '0.7';
+    card.classList.add('dragging-active');
+  }, 500);
+}
+
   onDocumentMouseMove(event: MouseEvent): void {
     if (!this.isDraggingEnabled || this.draggedElement === null || !this.project) return;
 
@@ -1079,6 +1108,41 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.draggedElement.style.top = y + 'px';
     this.draggedElement.style.zIndex = '1000';
   }
+
+  onDocumentTouchMove(event: TouchEvent): void {
+  if (this.isPanning) {
+    event.preventDefault();
+    const touch = event.touches[0];
+    this.canvasPanX = touch.clientX - this.panStartX;
+    this.canvasPanY = touch.clientY - this.panStartY;
+    return;
+  }
+
+  if (this.isDraggingEnabled && this.draggedElement !== null && this.project) {
+    event.preventDefault();
+    const touch = event.touches[0];
+    const container = document.querySelector('.elements-grid') as HTMLElement;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = this.draggedElement.getBoundingClientRect();
+
+    let x = touch.clientX - containerRect.left - this.elementDragOffsetX;
+    let y = touch.clientY - containerRect.top - this.elementDragOffsetY;
+
+    const containerPadding = 20;
+    const maxX = container.clientWidth - elementRect.width - containerPadding;
+    const maxY = container.clientHeight - elementRect.height - containerPadding;
+
+    x = Math.max(0, Math.min(x, maxX));
+    y = Math.max(0, Math.min(y, maxY));
+
+    this.draggedElement.style.position = 'absolute';
+    this.draggedElement.style.left = x + 'px';
+    this.draggedElement.style.top = y + 'px';
+    this.draggedElement.style.zIndex = '1000';
+  }
+}
 
   async onDocumentMouseUp(event: MouseEvent): Promise<void> {
     // Clear long-press timer
@@ -1149,6 +1213,75 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.justFinishedDragging = false;
     }, 100);
   }
+
+  async onDocumentTouchEnd(event: TouchEvent): Promise<void> {
+  if (this.longPressTimer) {
+    clearTimeout(this.longPressTimer);
+    this.longPressTimer = null;
+  }
+
+  if (this.isPanning) {
+    this.isPanning = false;
+    return;
+  }
+
+  if (!this.isDraggingEnabled) {
+    return;
+  }
+
+  if (this.draggedElement === null || !this.project) {
+    this.isDraggingEnabled = false;
+    return;
+  }
+
+  const container = document.querySelector('.elements-grid') as HTMLElement;
+  if (!container) {
+    this.isDraggingEnabled = false;
+    return;
+  }
+
+  const touch = event.changedTouches[0];
+  const containerRect = container.getBoundingClientRect();
+  const elementRect = this.draggedElement.getBoundingClientRect();
+
+  let x = touch.clientX - containerRect.left - this.elementDragOffsetX;
+  let y = touch.clientY - containerRect.top - this.elementDragOffsetY;
+
+  const containerPadding = 20;
+  const maxX = container.clientWidth - elementRect.width - containerPadding;
+  const maxY = container.clientHeight - elementRect.height - containerPadding;
+
+  x = Math.max(0, Math.min(x, maxX));
+  y = Math.max(0, Math.min(y, maxY));
+
+  const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
+  if (element) {
+    if ((element as any).set_xpos) {
+      (element as any).set_xpos(x);
+      (element as any).set_ypos(y);
+    } else {
+      (element as any).x_pos = x;
+      (element as any).y_pos = y;
+    }
+
+    const projectType = (this.project as any).projectType;
+    if (projectType) {
+      await this.dataService.saveProject(this.project, projectType);
+    }
+  }
+
+  this.draggedElement.style.opacity = '1';
+  this.draggedElement.style.cursor = 'grab';
+  this.draggedElement.classList.remove('dragging-active');
+  this.draggedElement = null;
+  this.draggedElementIndex = -1;
+  this.isDraggingEnabled = false;
+  this.justFinishedDragging = true;
+
+  setTimeout(() => {
+    this.justFinishedDragging = false;
+  }, 100);
+}
 
   onElementMouseLeave(): void {
     // Only clear timer, don't stop dragging on leave
@@ -1333,6 +1466,18 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.onCanvasMouseDown(event);
     }
   }
+
+  onDocumentTouchStart(event: TouchEvent): void {
+  // Handle canvas panning
+  if ((event.target as HTMLElement).closest('.canvas-container') && 
+      !(event.target as HTMLElement).closest('.canvas-element')) {
+    const touch = event.touches[0];
+    this.isPanning = true;
+    this.panStartX = touch.clientX - this.canvasPanX;
+    this.panStartY = touch.clientY - this.canvasPanY;
+  }
+}
+
   async addTagToTodoList(todo: any) {
     const tag = this.editingTagInput.trim();
     if (!tag) return;

@@ -70,6 +70,8 @@
                 [ngStyle]="getElementStyle(element)"
                 (mousedown)="onElementMouseDown($event, i)"
                 (mouseleave)="onElementMouseLeave()"
+                (touchstart)="onElementTouchStart($event, element, selectedGridIndex, i)"
+                
                 draggable="false"
                 >
                 <!-- Image -->
