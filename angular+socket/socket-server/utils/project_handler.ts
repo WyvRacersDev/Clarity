@@ -196,7 +196,7 @@ export class ProjectHandler {
                                                 if (!task.calendar_event_id && task.time && task.taskname) {
                                                     console.log(`[Server] 📅 Creating calendar event for task: "${task.taskname}"`);
 
-                                                    const calendarResult = await createCalendarEvent(
+                                                    const calendarResult = createCalendarEvent(
                                                         username,
                                                         task.taskname,
                                                         task.time
@@ -227,7 +227,7 @@ export class ProjectHandler {
                     for (let id of old_task_ids) {
                         if (!new_Task_ids.includes(id) && id !== null) {
                             //delete calendar event
-                            const deleteResult = await deleteCalendarEvent(
+                            const deleteResult = deleteCalendarEvent(
                                 username,
                                 id
                             );
