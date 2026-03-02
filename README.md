@@ -119,4 +119,4 @@ From `angular+socket/chat-frontend`:
 
 ## License
 
-No license file is currently included. Add a `LICENSE` file if you plan to distribute this publicly.
+No license file is currently included.
