@@ -103,8 +103,6 @@ cd angular+socket/chat-frontend
 npm start
 ```
 
-Frontend default URL: `http://localhost:4200`
-
 ## Notes
 
 - In the app Settings screen, you can configure the backend URL at runtime.
