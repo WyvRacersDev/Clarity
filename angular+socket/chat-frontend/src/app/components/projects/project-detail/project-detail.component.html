@@ -68,12 +68,20 @@
               <div
                 class="element-card"
                 [ngStyle]="getElementStyle(element)"
+                [class.long-press-active]="longPressTargetIndex === i"
+                [class.dragging-active]="draggedElementIndex === i && isDraggingEnabled"
                 (mousedown)="onElementMouseDown($event, i)"
                 (mouseleave)="onElementMouseLeave()"
                 (touchstart)="onElementTouchStart($event, element, selectedGridIndex, i)"
-                
                 draggable="false"
                 >
+                <div class="element-drag-handle">
+                  <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                    <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+                    <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+                    <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+                  </svg>
+                </div>
                 <!-- Image -->
                 @if (getElementType(element) === 'Image') {
                   <div class="image-element">
@@ -583,12 +591,21 @@
             <div
               class="task-item-fullscreen"
               [class.overdue]="isTaskOverdue(task)"
+              [class.drag-over]="dragOverTaskIndex === i && draggedFullScreenTaskIndex !== i"
               draggable="true"
               (dragstart)="onTaskDragStart($event, task)"
               (dragover)="onTaskDragOver($event)"
+              (dragenter)="onTaskDragEnter(i)"
+              (dragleave)="onTaskDragLeave($event)"
               (drop)="onTaskDrop($event, task)"
               >
-              <div class="task-drag-handle">⋮⋮</div>
+              <div class="task-drag-handle">
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                  <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+                  <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+                  <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+                </svg>
+              </div>
               <input
                 type="checkbox"
                 [checked]="task.is_done"
@@ -631,9 +648,17 @@
                   draggable="true"
                   (dragstart)="onTaskDragStart($event, task)"
                   (dragover)="onTaskDragOver($event)"
+                  (dragenter)="onTaskDragEnter(i)"
+                  (dragleave)="onTaskDragLeave($event)"
                   (drop)="onTaskDrop($event, task)"
                   >
-                  <div class="task-drag-handle">⋮⋮</div>
+                  <div class="task-drag-handle">
+                    <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                      <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+                      <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+                      <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+                    </svg>
+                  </div>
                   <input
                     type="checkbox"
                     [checked]="task.is_done"

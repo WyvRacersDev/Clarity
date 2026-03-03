@@ -1,0 +1,310 @@
+// ============================================
+// SHARED COMPONENT STYLES
+// ============================================
+@use 'variables' as *;
+
+// ============================================
+// CARDS
+// ============================================
+
+.card {
+  background: $bg-card;
+  border: 2px solid $border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  transition: all $transition-normal;
+}
+
+.card-hover {
+  &:hover {
+    transform: translateY(-4px);
+    border-color: $border-hover;
+    box-shadow: $shadow-lg;
+  }
+}
+
+// ============================================
+// INPUTS
+// ============================================
+
+.input {
+  background: $bg-input;
+  border: 2px solid $border-input;
+  border-radius: $radius-md;
+  padding: 12px $spacing-md;
+  color: $text-primary;
+  font-size: $font-base;
+  transition: all $transition-normal;
+  width: 100%;
+  
+  &::placeholder {
+    color: $text-muted;
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: $primary-cyan;
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.select {
+  @extend .input;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23A0A0A0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+.textarea {
+  @extend .input;
+  min-height: 100px;
+  resize: vertical;
+}
+
+// ============================================
+// BADGES
+// ============================================
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-xs $spacing-sm;
+  font-size: $font-xs;
+  font-weight: $font-semibold;
+  border-radius: $radius-sm;
+}
+
+.badge-success {
+  background: $success-bg;
+  color: $success;
+}
+
+.badge-warning {
+  background: $warning-bg;
+  color: $warning;
+}
+
+.badge-error {
+  background: $error-bg;
+  color: $error;
+}
+
+.badge-info {
+  background: rgba(0, 212, 255, 0.1);
+  color: $primary-cyan;
+}
+
+// Priority badges
+.badge-priority-high {
+  background: rgba(244, 67, 54, 0.1);
+  color: $priority-high;
+}
+
+.badge-priority-medium {
+  background: rgba(255, 193, 7, 0.1);
+  color: $priority-medium;
+}
+
+.badge-priority-low {
+  background: rgba(76, 175, 80, 0.1);
+  color: $priority-low;
+}
+
+// ============================================
+// MODALS
+// ============================================
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: $z-modal-backdrop;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: $bg-secondary;
+  border: 2px solid $border-primary;
+  border-radius: $radius-lg;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: $z-modal;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-lg;
+  border-bottom: 1px solid $border-subtle;
+  
+  h2 {
+    margin: 0;
+    color: $text-primary;
+    font-size: $font-xl;
+  }
+}
+
+.modal-body {
+  padding: $spacing-lg;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+  padding: $spacing-lg;
+  border-top: 1px solid $border-subtle;
+}
+
+// ============================================
+// TOGGLE SWITCH
+// ============================================
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+  
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: $border-input;
+  transition: $transition-normal;
+  border-radius: $radius-full;
+  
+  &::before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: $text-primary;
+    transition: $transition-normal;
+    border-radius: 50%;
+  }
+}
+
+input:checked + .toggle-slider {
+  background: $primary-gradient;
+}
+
+input:checked + .toggle-slider::before {
+  transform: translateX(24px);
+}
+
+// ============================================
+// LOADING STATES
+// ============================================
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid $border-primary;
+  border-top-color: $primary-cyan;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ============================================
+// EMPTY STATES
+// ============================================
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl $spacing-lg;
+  text-align: center;
+  color: $text-secondary;
+  
+  h2 {
+    color: $text-primary;
+    margin-bottom: $spacing-sm;
+  }
+  
+  p {
+    margin: 0;
+  }
+  
+  a {
+    color: $primary-cyan;
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// ============================================
+// SECTION HEADERS
+// ============================================
+
+.section-header {
+  margin-bottom: $spacing-lg;
+  
+  h1 {
+    font-size: $font-3xl;
+    color: $text-primary;
+    margin: 0 0 $spacing-sm 0;
+    font-weight: $font-bold;
+  }
+  
+  .subtitle {
+    color: $text-secondary;
+    font-size: $font-lg;
+    margin: 0;
+  }
+}
+
+.section-title {
+  font-size: $font-xl;
+  color: $text-primary;
+  margin: 0 0 $spacing-md 0;
+  font-weight: $font-semibold;
+  padding-bottom: $spacing-md;
+  border-bottom: 2px solid $border-subtle;
+}

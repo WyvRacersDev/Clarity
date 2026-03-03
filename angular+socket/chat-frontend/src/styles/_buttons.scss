@@ -1,0 +1,109 @@
+// ============================================
+// SHARED BUTTON STYLES
+// ============================================
+@use 'variables' as *;
+
+// Base button reset
+%btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  font-family: $font-family;
+  font-weight: $font-semibold;
+  border: none;
+  cursor: pointer;
+  transition: all $transition-normal;
+  text-decoration: none;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Size variants
+.btn-sm {
+  @extend %btn-base;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-sm;
+  border-radius: $radius-sm;
+}
+
+.btn-md {
+  @extend %btn-base;
+  padding: 12px $spacing-lg;
+  font-size: $font-base;
+  border-radius: $radius-md;
+}
+
+.btn-lg {
+  @extend %btn-base;
+  padding: $spacing-md $spacing-xl;
+  font-size: $font-lg;
+  border-radius: $radius-md;
+}
+
+// Color variants
+.btn-primary {
+  background: $primary-gradient;
+  color: $text-primary;
+  
+  &:hover:not(:disabled) {
+    box-shadow: $shadow-lg;
+    transform: translateY(-2px);
+  }
+}
+
+.btn-secondary {
+  background: transparent;
+  color: $primary-cyan;
+  border: 2px solid $border-primary;
+  
+  &:hover:not(:disabled) {
+    border-color: $primary-cyan;
+    background: $bg-hover;
+  }
+}
+
+.btn-danger {
+  background: $error;
+  color: $text-primary;
+  
+  &:hover:not(:disabled) {
+    background: darken($error, 10%);
+  }
+}
+
+.btn-ghost {
+  background: transparent;
+  color: $text-secondary;
+  
+  &:hover:not(:disabled) {
+    color: $text-primary;
+    background: $bg-hover;
+  }
+}
+
+.btn-success {
+  background: $success;
+  color: $text-primary;
+  
+  &:hover:not(:disabled) {
+    background: darken($success, 10%);
+  }
+}
+
+// Icon button
+.btn-icon {
+  @extend %btn-base;
+  padding: $spacing-sm;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $text-secondary;
+  
+  &:hover:not(:disabled) {
+    color: $text-primary;
+    background: $bg-hover;
+  }
+}
