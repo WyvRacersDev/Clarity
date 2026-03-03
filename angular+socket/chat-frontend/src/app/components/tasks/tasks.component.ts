@@ -30,6 +30,17 @@ export class TasksComponent implements OnInit {
 
   constructor(private dataService: DataService) {}
 
+  private isTodoListElement(element: any): boolean {
+    const explicitType = element?.type;
+    if (explicitType === 'ToDoLst') {
+      return true;
+    }
+    if (element?.constructor?.name === 'ToDoLst') {
+      return true;
+    }
+    return Array.isArray(element?.scheduled_tasks);
+  }
+
   ngOnInit(): void {
     this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
@@ -46,7 +57,7 @@ export class TasksComponent implements OnInit {
     this.currentUser.projects.forEach(project => {
       project.grid.forEach(grid => {
         grid.Screen_elements.forEach(element => {
-          if (element.constructor.name === 'ToDoLst') {
+          if (this.isTodoListElement(element)) {
             const todoList = element as any;
             if (todoList.scheduled_tasks) {
               this.allTasks = this.allTasks.concat(todoList.scheduled_tasks);
@@ -112,7 +123,7 @@ export class TasksComponent implements OnInit {
       if (firstProject.grid.length > 0) {
         const firstGrid = firstProject.grid[0];
         const todoList = firstGrid.Screen_elements.find(
-          el => el.constructor.name === 'ToDoLst'
+          el => this.isTodoListElement(el)
         ) as any;
 
         if (todoList) {
