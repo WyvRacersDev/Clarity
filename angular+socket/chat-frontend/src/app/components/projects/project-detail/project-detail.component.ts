@@ -1,5 +1,5 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, Inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -93,6 +93,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   elementDragOffsetY: number = 0;
   isDraggingEnabled: boolean = false;
   longPressTimer: any = null;
+  longPressTargetIndex: number = -1;
   justFinishedDragging: boolean = false;
   isResizing: boolean = false;
   resizeHandle: string = '';
@@ -133,7 +134,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private sanitizer: DomSanitizer,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) { }
 
   ngOnInit(): void {
@@ -241,15 +243,17 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Global mouse move and up listeners for drag
-    document.addEventListener('mousemove', (e) => this.onDocumentMouseMove(e));
-    document.addEventListener('mouseup', (e) => this.onDocumentMouseUp(e));
-    document.addEventListener('mousedown', (e) => this.onDocumentMouseDown(e));
-    
-    //TOUCH CONTROLS KIS NEI ADD KERNE THAY?????
-    document.addEventListener('touchmove', (e) => this.onDocumentTouchMove(e), { passive: false });
-    document.addEventListener('touchend', (e) => this.onDocumentTouchEnd(e));
-    document.addEventListener('touchstart', (e) => this.onDocumentTouchStart(e));
+    // Global mouse move and up listeners for drag (only in browser)
+    if (isPlatformBrowser(this.platformId)) {
+      document.addEventListener('mousemove', (e) => this.onDocumentMouseMove(e));
+      document.addEventListener('mouseup', (e) => this.onDocumentMouseUp(e));
+      document.addEventListener('mousedown', (e) => this.onDocumentMouseDown(e));
+      
+      //TOUCH CONTROLS KIS NEI ADD KERNE THAY?????
+      document.addEventListener('touchmove', (e) => this.onDocumentTouchMove(e), { passive: false });
+      document.addEventListener('touchend', (e) => this.onDocumentTouchEnd(e));
+      document.addEventListener('touchstart', (e) => this.onDocumentTouchStart(e));
+    }
   }
 
   loadProject(): void {
@@ -428,10 +432,16 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   openAddElementModal(): void {
+    console.log('[ProjectDetail] openAddElementModal called');
+    console.log('[ProjectDetail] project:', this.project);
+    console.log('[ProjectDetail] grid.length:', this.project?.grid?.length);
     if (!this.project || this.project.grid.length === 0) {
+      console.log('[ProjectDetail] Returning early - no project or no grids');
       return;
     }
+    console.log('[ProjectDetail] Setting showElementTypeSelector to true');
     this.showElementTypeSelector = true;
+    this.cdr.detectChanges(); // Force change detection
   }
 
   selectElementType(type: 'ToDoLst' | 'Image' | 'Video' | 'Text_document'): void {
@@ -450,12 +460,24 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   async createTodoElement(): Promise<void> {
-    if (!this.project || this.selectedGridIndex < 0) return;
+    if (!this.project || this.selectedGridIndex < 0) {
+      console.error('[ProjectDetail] createTodoElement: no project or invalid grid index');
+      return;
+    }
 
-    const element = new ToDoLst('Tasks', 200, 200);
-    await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
-    this.loadProject(); // Reload to see the changes
-    this.cdr.detectChanges();
+    try {
+      const element = new ToDoLst('Tasks', 20, 20);
+      element.x_scale = 280;
+      element.y_scale = 200;
+      const success = await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+      if (!success) {
+        console.error('[ProjectDetail] createTodoElement: addElementToGrid returned false');
+      }
+      this.loadProject();
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('[ProjectDetail] createTodoElement error:', error);
+    }
   }
 
   triggerImageUpload(): void {
@@ -729,18 +751,42 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   getElementType(element: Screen_Element): string {
-    return element.constructor.name;
+    const typedElement = element as any;
+    const explicitType = typedElement?.type;
+    if (typeof explicitType === 'string' && explicitType.length > 0) {
+      return explicitType;
+    }
+
+    const constructorName = typedElement?.constructor?.name;
+    if (constructorName && constructorName !== 'Object') {
+      return constructorName;
+    }
+
+    if (Array.isArray(typedElement?.scheduled_tasks)) {
+      return 'ToDoLst';
+    }
+    if (typedElement?.Text_field !== undefined || typedElement?.text_field !== undefined || typeof typedElement?.get_field === 'function') {
+      return 'Text_document';
+    }
+    if (typedElement?.imagepath !== undefined || typedElement?.imagePath !== undefined || typedElement?.ImageBase64 !== undefined) {
+      return 'Image';
+    }
+    if (typedElement?.VideoPath !== undefined || typedElement?.videoPath !== undefined || typedElement?.videoBase64 !== undefined) {
+      return 'Video';
+    }
+
+    return 'Screen_Element';
   }
 
   getTodoTasks(element: Screen_Element): any[] {
-    if (element.constructor.name === 'ToDoLst') {
+    if (this.getElementType(element) === 'ToDoLst') {
       return (element as any).scheduled_tasks || [];
     }
     return [];
   }
 
   getImagePath(element: Screen_Element): SafeUrl {
-    if (element.constructor.name === 'Image') {
+    if (this.getElementType(element) === 'Image') {
       const path = (element as any).imagepath || '';
       return this.sanitizer.bypassSecurityTrustUrl(path);
     }
@@ -748,7 +794,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   getVideoPath(element: Screen_Element): SafeUrl {
-    if (element.constructor.name === 'Video') {
+    if (this.getElementType(element) === 'Video') {
       const path = (element as any).VideoPath || '';
       return this.sanitizer.bypassSecurityTrustUrl(path);
     }
@@ -760,7 +806,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (!this.project || this.selectedGridIndex < 0) return;
 
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
-    if (element && element.constructor.name === 'ToDoLst') {
+    if (element && this.getElementType(element) === 'ToDoLst') {
       // Set the task column index to the selected grid index and use the element as the todo list
       this.taskColumnIndex = this.selectedGridIndex;
       this.taskElementIndex = elementIndex;
@@ -786,7 +832,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // If we have a specific element index (from grid view), use that
     if (this.taskElementIndex >= 0 && this.project.grid[this.taskColumnIndex]) {
       const element = this.project.grid[this.taskColumnIndex].Screen_elements[this.taskElementIndex];
-      if (element && element.constructor.name === 'ToDoLst') {
+      if (element && this.getElementType(element) === 'ToDoLst') {
         todoList = element as ToDoLst;
       }
     }
@@ -794,7 +840,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // Find the first todo list in the column if no specific element index
     if (!todoList && this.project.grid[this.taskColumnIndex]) {
       const element = this.project.grid[this.taskColumnIndex].Screen_elements.find(
-        (el: Screen_Element) => el.constructor.name === 'ToDoLst'
+        (el: Screen_Element) => this.getElementType(el) === 'ToDoLst'
       );
       if (element) {
         todoList = element as ToDoLst;
@@ -841,7 +887,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (!this.project || this.selectedGridIndex < 0) return;
 
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
-    if (element && element.constructor.name === 'ToDoLst') {
+    if (element && this.getElementType(element) === 'ToDoLst') {
       this.fullScreenTodoElement = element as ToDoLst;
       this.fullScreenTodoElementIndex = elementIndex;
       this.fullScreenTodoGridIndex = this.selectedGridIndex;
@@ -944,7 +990,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // Reload the full-screen todo element
     if (this.project && this.project.grid[this.fullScreenTodoGridIndex]) {
       const element = this.project.grid[this.fullScreenTodoGridIndex].Screen_elements[this.fullScreenTodoElementIndex];
-      if (element && element.constructor.name === 'ToDoLst') {
+      if (element && this.getElementType(element) === 'ToDoLst') {
         this.fullScreenTodoElement = element as ToDoLst;
       }
     }
@@ -1022,6 +1068,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   // Task reordering for full-screen todo
   draggedFullScreenTaskIndex: number = -1;
+  dragOverTaskIndex: number = -1;
 
   onTaskDragStart(event: DragEvent, task: scheduled_task): void {
     if (!this.fullScreenTodoElement) return;
@@ -1029,6 +1076,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', '');
+      // Use the dragged element as the drag image for a cleaner look
+      const target = event.currentTarget as HTMLElement;
+      if (target) {
+        event.dataTransfer.setDragImage(target, 20, 20);
+      }
     }
   }
 
@@ -1039,15 +1091,30 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
   }
 
+  onTaskDragEnter(index: number): void {
+    if (this.draggedFullScreenTaskIndex !== -1) {
+      this.dragOverTaskIndex = index;
+    }
+  }
+
+  onTaskDragLeave(event: DragEvent): void {
+    // Only reset if leaving the element entirely (not entering a child)
+    const relatedTarget = event.relatedTarget as HTMLElement;
+    const currentTarget = event.currentTarget as HTMLElement;
+    if (currentTarget && !currentTarget.contains(relatedTarget)) {
+      this.dragOverTaskIndex = -1;
+    }
+  }
+
   async onTaskDrop(event: DragEvent, targetTask: scheduled_task): Promise<void> {
     event.preventDefault();
+    this.dragOverTaskIndex = -1;
     if (this.draggedFullScreenTaskIndex === -1 || !this.fullScreenTodoElement) {
       this.draggedFullScreenTaskIndex = -1;
       return;
     }
 
     const tasks = this.fullScreenTodoElement.scheduled_tasks;
-    const draggedTask = tasks[this.draggedFullScreenTaskIndex];
     const targetIndex = tasks.findIndex(t => t === targetTask);
 
     if (targetIndex === -1 || this.draggedFullScreenTaskIndex === targetIndex) {
@@ -1072,13 +1139,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const elementData = this.project?.grid[this.selectedGridIndex].Screen_elements[index];
-
     if (!card) return;
 
-    // Start long-press timer for dragging (500ms)
-    this.longPressTimer = setTimeout(() => {
+    // Show visual feedback immediately that long-press is starting
+    this.longPressTargetIndex = index;
 
+    // Start long-press timer for dragging (300ms)
+    this.longPressTimer = setTimeout(() => {
+      this.longPressTargetIndex = -1;
       this.isDraggingEnabled = true;
       const rect = card.getBoundingClientRect();
       this.elementDragOffsetX = event.clientX - rect.left;
@@ -1086,10 +1154,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.draggedElementIndex = index;
       this.draggedElement = card;
 
-      card.style.opacity = '0.7';
       card.style.cursor = 'grabbing';
-      card.classList.add('dragging-active');
-    }, 500);
+    }, 300);
   }
 
   onElementTouchStart(event: TouchEvent, element: Screen_Element, gridIndex: number, elementIndex: number): void {
@@ -1104,16 +1170,18 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   const touch = event.touches[0];
 
+  this.longPressTargetIndex = elementIndex;
+
   this.longPressTimer = setTimeout(() => {
+    this.longPressTargetIndex = -1;
     this.isDraggingEnabled = true;
     const rect = card.getBoundingClientRect();
     this.elementDragOffsetX = touch.clientX - rect.left;
     this.elementDragOffsetY = touch.clientY - rect.top;
     this.draggedElementIndex = elementIndex;
     this.draggedElement = card;
-    card.style.opacity = '0.7';
-    card.classList.add('dragging-active');
-  }, 500);
+    card.style.cursor = 'grabbing';
+  }, 300);
 }
 
   onDocumentMouseMove(event: MouseEvent): void {
@@ -1185,6 +1253,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       clearTimeout(this.longPressTimer);
       this.longPressTimer = null;
     }
+    this.longPressTargetIndex = -1;
 
     if (!this.isDraggingEnabled) {
       return;
@@ -1203,16 +1272,16 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
     const containerRect = container.getBoundingClientRect();
     const elementRect = this.draggedElement.getBoundingClientRect();
-    
+
     // Calculate position with offset
     let x = event.clientX - containerRect.left - this.elementDragOffsetX;
     let y = event.clientY - containerRect.top - this.elementDragOffsetY;
-    
+
     // Get container dimensions (accounting for padding)
     const containerPadding = 20; // From CSS padding
     const maxX = container.clientWidth - elementRect.width - containerPadding;
     const maxY = container.clientHeight - elementRect.height - containerPadding;
-    
+
     // Constrain within bounds
     x = Math.max(0, Math.min(x, maxX));
     y = Math.max(0, Math.min(y, maxY));
@@ -1234,9 +1303,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.draggedElement.style.opacity = '1';
     this.draggedElement.style.cursor = 'grab';
-    this.draggedElement.classList.remove('dragging-active');
 
     this.draggedElement = null;
     this.draggedElementIndex = -1;
@@ -1254,6 +1321,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     clearTimeout(this.longPressTimer);
     this.longPressTimer = null;
   }
+  this.longPressTargetIndex = -1;
 
   if (this.isPanning) {
     this.isPanning = false;
@@ -1305,9 +1373,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
   }
 
-  this.draggedElement.style.opacity = '1';
   this.draggedElement.style.cursor = 'grab';
-  this.draggedElement.classList.remove('dragging-active');
   this.draggedElement = null;
   this.draggedElementIndex = -1;
   this.isDraggingEnabled = false;
@@ -1323,6 +1389,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (!this.isDraggingEnabled && this.longPressTimer) {
       clearTimeout(this.longPressTimer);
       this.longPressTimer = null;
+      this.longPressTargetIndex = -1;
     }
   }
 
@@ -1330,16 +1397,26 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // Handle both class instances and plain objects
     const xpos = (element as any).get_xpos ? (element as any).get_xpos() : ((element as any).x_pos || 0);
     const ypos = (element as any).get_ypos ? (element as any).get_ypos() : ((element as any).y_pos || 0);
-    const xscale = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
-    const yscale = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
+    let xscale = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
+    let yscale = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
 
-    return {
+    // Elements with default scale (1) should use auto sizing via CSS min-width/min-height
+    // Don't set explicit tiny dimensions that could cause layout issues
+    const style: any = {
       'left.px': xpos,
       'top.px': ypos,
-      'width.px': xscale,
-      'height.px': yscale,
       'position': 'absolute'
     };
+
+    // Only set explicit width/height if they are reasonable (> default constructor value of 1)
+    if (xscale > 10) {
+      style['width.px'] = xscale;
+    }
+    if (yscale > 10) {
+      style['height.px'] = yscale;
+    }
+
+    return style;
   }
 
   // Canvas methods
