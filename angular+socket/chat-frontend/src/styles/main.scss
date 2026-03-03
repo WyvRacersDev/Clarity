@@ -1,0 +1,153 @@
+// ============================================
+// CLARITY MAIN STYLES
+// ============================================
+// Import this file in your components or globally
+
+@use 'variables' as *;
+@use 'buttons';
+@use 'components';
+
+// ============================================
+// GLOBAL RESETS
+// ============================================
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: $font-family;
+  background: $bg-primary;
+  color: $text-primary;
+  line-height: $leading-normal;
+}
+
+// ============================================
+// SCROLLBAR STYLES
+// ============================================
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: $bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $border-primary;
+  border-radius: $radius-sm;
+  
+  &:hover {
+    background: $primary-cyan;
+  }
+}
+
+// ============================================
+// SELECTION
+// ============================================
+
+::selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: $text-primary;
+}
+
+// ============================================
+// LINKS
+// ============================================
+
+a {
+  color: $text-link;
+  text-decoration: none;
+  transition: color $transition-fast;
+  
+  &:hover {
+    color: $primary-cyan-hover;
+    text-decoration: underline;
+  }
+}
+
+// ============================================
+// TYPOGRAPHY UTILITIES
+// ============================================
+
+.text-primary { color: $text-primary; }
+.text-secondary { color: $text-secondary; }
+.text-muted { color: $text-muted; }
+.text-success { color: $success; }
+.text-warning { color: $warning; }
+.text-error { color: $error; }
+.text-link { color: $text-link; }
+
+.font-normal { font-weight: $font-normal; }
+.font-medium { font-weight: $font-medium; }
+.font-semibold { font-weight: $font-semibold; }
+.font-bold { font-weight: $font-bold; }
+
+.text-xs { font-size: $font-xs; }
+.text-sm { font-size: $font-sm; }
+.text-base { font-size: $font-base; }
+.text-lg { font-size: $font-lg; }
+.text-xl { font-size: $font-xl; }
+.text-2xl { font-size: $font-2xl; }
+.text-3xl { font-size: $font-3xl; }
+
+// ============================================
+// SPACING UTILITIES
+// ============================================
+
+.p-xs { padding: $spacing-xs; }
+.p-sm { padding: $spacing-sm; }
+.p-md { padding: $spacing-md; }
+.p-lg { padding: $spacing-lg; }
+.p-xl { padding: $spacing-xl; }
+
+.m-xs { margin: $spacing-xs; }
+.m-sm { margin: $spacing-sm; }
+.m-md { margin: $spacing-md; }
+.m-lg { margin: $spacing-lg; }
+.m-xl { margin: $spacing-xl; }
+
+.gap-xs { gap: $spacing-xs; }
+.gap-sm { gap: $spacing-sm; }
+.gap-md { gap: $spacing-md; }
+.gap-lg { gap: $spacing-lg; }
+
+// ============================================
+// LAYOUT UTILITIES
+// ============================================
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.flex-1 { flex: 1; }
+.flex-wrap { flex-wrap: wrap; }
+
+.grid { display: grid; }
+
+// ============================================
+// VISIBILITY
+// ============================================
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

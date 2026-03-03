@@ -1,90 +1,70 @@
 <div class="tasks-container">
   <div class="tasks-header">
     <h1>Tasks & Calendar</h1>
+    <div class="date-nav">
+      <button class="nav-btn" (click)="previousDay()">‹</button>
+      <span class="date-label">{{ getFormattedDate('MMMM D, YYYY') }}</span>
+      <button class="nav-btn" (click)="nextDay()">›</button>
+      <button class="today-btn" (click)="goToToday()">Today</button>
+    </div>
   </div>
 
-  <div class="tasks-layout">
-    <!-- Calendar View -->
-    <div class="calendar-section">
-      <div class="calendar-header">
-        <button class="nav-btn" (click)="previousDay()">‹</button>
-        <h2>{{ getFormattedDate('MMMM D, YYYY') }}</h2>
-        <button class="nav-btn" (click)="nextDay()">›</button>
-        <button class="today-btn" (click)="goToToday()">Today</button>
-      </div>
-
-      <div class="tasks-for-date">
-        <h3>Tasks for {{ getFormattedDate('MMMM D') }}</h3>
-        <div class="task-list">
-          @for (task of getTasksForDate(selectedDate); track task) {
-            <div
-              class="task-item"
-              [style.border-left-color]="getPriorityColor(task.get_priority())">
-              <div class="task-content">
-                <div class="task-name" [class.completed]="task.get_status()">
-                  {{ task.taskname }}
-                </div>
-                <div class="task-meta">
-                  <span class="task-time">{{ formatTime(task.get_time()) }}</span>
-                  <span
-                    class="task-priority"
-                    [style.color]="getPriorityColor(task.get_priority())">
-                    {{ getPriorityLabel(task.get_priority()) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          }
-          @if (getTasksForDate(selectedDate).length === 0) {
-            <div class="empty-tasks">
-              No tasks scheduled for this date
-            </div>
-          }
-        </div>
+  @if (getOverdueTasks().length > 0) {
+    <div class="overdue-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>{{ getOverdueTasks().length }} overdue task{{ getOverdueTasks().length !== 1 ? 's' : '' }}</span>
+      <div class="overdue-tasks-inline">
+        @for (task of getOverdueTasks(); track task) {
+          <span class="overdue-task-name">{{ task.taskname }}</span>
+        }
       </div>
     </div>
+  }
 
-    <!-- Sidebar -->
-    <div class="tasks-sidebar">
-      <div class="sidebar-section">
-        <h3>Upcoming Tasks</h3>
-        <div class="task-list">
-          @for (task of getUpcomingTasks(); track task) {
-            <div
-              class="task-item-small">
-              <div class="task-content-small">
-                <div class="task-name-small">{{ task.taskname }}</div>
-                <div class="task-time-small">{{ formatDateTime(task.get_time()) }}</div>
-              </div>
+  <div class="date-section">
+    <h3>Tasks for {{ getFormattedDate('MMMM D') }}</h3>
+    <div class="task-list">
+      @for (task of getTasksForDate(selectedDate); track task) {
+        <div
+          class="task-item"
+          [style.border-left-color]="getPriorityColor(task.get_priority())">
+          <div class="task-content">
+            <div class="task-name" [class.completed]="task.get_status()">
+              {{ task.taskname }}
             </div>
-          }
-          @if (getUpcomingTasks().length === 0) {
-            <div class="empty-tasks">
-              No upcoming tasks
+            <div class="task-meta">
+              <span class="task-time">{{ formatTime(task.get_time()) }}</span>
+              <span
+                class="task-priority"
+                [style.color]="getPriorityColor(task.get_priority())">
+                {{ getPriorityLabel(task.get_priority()) }}
+              </span>
             </div>
-          }
+          </div>
         </div>
-      </div>
+      }
+      @if (getTasksForDate(selectedDate).length === 0) {
+        <div class="empty-tasks">
+          No tasks scheduled for this date
+        </div>
+      }
+    </div>
+  </div>
 
-      <div class="sidebar-section">
-        <h3>Overdue Tasks</h3>
-        <div class="task-list">
-          @for (task of getOverdueTasks(); track task) {
-            <div
-              class="task-item-small overdue">
-              <div class="task-content-small">
-                <div class="task-name-small">{{ task.taskname }}</div>
-                <div class="task-time-small">{{ formatDateTime(task.get_time()) }}</div>
-              </div>
-            </div>
-          }
-          @if (getOverdueTasks().length === 0) {
-            <div class="empty-tasks">
-              No overdue tasks
-            </div>
-          }
+  <div class="upcoming-section">
+    <h3>Upcoming</h3>
+    <div class="task-list">
+      @for (task of getUpcomingTasks(); track task) {
+        <div class="upcoming-item">
+          <span class="upcoming-date">{{ formatDateTime(task.get_time()) }}</span>
+          <span class="upcoming-name">{{ task.taskname }}</span>
         </div>
-      </div>
+      }
+      @if (getUpcomingTasks().length === 0) {
+        <div class="empty-tasks">
+          No upcoming tasks
+        </div>
+      }
     </div>
   </div>
 </div>
