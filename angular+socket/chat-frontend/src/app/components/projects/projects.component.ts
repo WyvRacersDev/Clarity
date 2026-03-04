@@ -6,7 +6,7 @@ import { DataService } from '../../services/data.service';
 import { SocketService } from '../../services/socket.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
-import { isLocalhostServer } from '../../config/app.config';
+import { isLocalhostServer } from '../../config/server.config';
 
 @Component({
   selector: 'app-projects',

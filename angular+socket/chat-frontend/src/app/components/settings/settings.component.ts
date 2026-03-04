@@ -5,7 +5,7 @@ import { DataService } from '../../services/data.service';
 import { GoogleIntegrationService } from '../../services/google-integration.service';
 import { User, settings } from '../../../../../shared_models/models/user.model';
 import { ActivatedRoute, Router } from '@angular/router';
-import { getCurrentServerConfig, saveServerConfig } from '../../config/app.config';
+import { getCurrentServerConfig, saveServerConfig } from '../../config/server.config';
 import { isPlatformBrowser } from '@angular/common';
 
 @Component({

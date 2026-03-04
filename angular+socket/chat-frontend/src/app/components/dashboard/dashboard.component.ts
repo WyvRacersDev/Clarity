@@ -5,7 +5,7 @@ import { DataService } from '../../services/data.service';
 import { AnalyticsService } from '../../services/analytics.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
-import { scheduled_task } from '../../../../../shared_models/models/screen_elements.model';
+import { scheduled_task } from '../../../../../shared_models/models/screen-elements.model';
 import { calender } from '../../../../../shared_models/models/user.model';
 
 @Component({

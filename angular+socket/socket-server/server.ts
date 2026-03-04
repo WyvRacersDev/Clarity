@@ -1,30 +1,24 @@
-// const express = require('express');
-// const http = require('http');
-// const { Server } = require('socket.io');
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
-import { ProjectHandler } from "./utils/project_handler.ts";
-import { UserHandler } from "./utils/user_handler.ts";
+import { ProjectHandler } from "./utils/project.handler.ts";
+import { UserHandler } from "./utils/user.handler.ts";
 import { SERVER_HOST, SERVER_PORT, FRONTEND_URL, ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN } from "./config.ts";
 import { Chat_Agent } from "./utils/agent.service.ts";
-import { createCalendarEvent, deleteCalendarEvent } from "./utils/calendar_service.ts";
+import { createCalendarEvent, deleteCalendarEvent } from "./utils/calendar.service.ts";
 
 
 
-// const fs = require("fs");
-// const path = require("path");
-// const { google } = require("googleapis");
 import fs from "fs";
 import path from "path";
 import { checks_v1alpha, google } from "googleapis";
 
 import { Socket } from "socket.io";
-import { objects_builder } from '../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
+import { objects_builder } from '../shared_models/dist/screen-elements.model.js';
 import { Project, Grid } from '../shared_models/dist/project.model.js';
 import cors from "cors";
 import type { CorsOptions } from "cors";
-import { startNotificationService } from "./utils/notification_service.ts";
+import { startNotificationService } from "./utils/notification.service.ts";
 
 
 const app = express();

@@ -3,9 +3,9 @@ import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import { User, settings } from '../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../shared_models/models/project.model';
-import { Screen_Element, objects_builder } from '../../../../shared_models/models/screen_elements.model';
+import { Screen_Element, objects_builder } from '../../../../shared_models/models/screen-elements.model';
 import { SocketService } from './socket.service';
-import { getServerConfig } from '../config/app.config';
+import { getServerConfig } from '../config/server.config';
 
 @Injectable({
   providedIn: 'root'

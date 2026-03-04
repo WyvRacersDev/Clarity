@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
-import { scheduled_task, ToDoLst, Screen_Element } from '../../../../../shared_models/models/screen_elements.model';
+import { scheduled_task, ToDoLst, Screen_Element } from '../../../../../shared_models/models/screen-elements.model';
 import { Grid } from '../../../../../shared_models/models/project.model';
 import dayjs from 'dayjs';
 import { firstValueFrom } from 'rxjs';

@@ -116,7 +116,3 @@ From `angular+socket/chat-frontend`:
 - `npm start` - run Angular dev server
 - `npm run build` - build frontend
 - `npm test` - run unit tests
-
-## License
-
-No license file is currently included.

@@ -3,8 +3,8 @@ import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import {Project, Grid} from "../../shared_models/dist/project.model.js"
-import {scheduled_task}from "../../shared_models/dist/screen_elements.model.js"
-import { ProjectHandler } from "./project_handler.ts";
+import {scheduled_task}from "../../shared_models/dist/screen-elements.model.js"
+import { ProjectHandler } from "./project.handler.ts";
 
 const router = express.Router();
 const project_handler= new ProjectHandler();
