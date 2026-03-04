@@ -2,6 +2,8 @@
 
 Clarity is a collaborative productivity app built with Angular and Socket.IO. It lets users manage projects, tasks, analytics, and AI-assisted workflows, with optional Google integrations (Gmail, Calendar, Contacts).
 
+**Authors:** Mohammad Hamza Iqbal, Bilal Kashif, Mawahid Abbas
+
 ## Features
 
 - Real-time collaboration using Socket.IO
