@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
-import { scheduled_task, ToDoLst } from '../../../../../shared_models/models/screen_elements.model';
+import { scheduled_task, ToDoLst } from '../../../../../shared_models/models/screen-elements.model';
 import { calender } from '../../../../../shared_models/models/user.model';
 import dayjs from 'dayjs';
 

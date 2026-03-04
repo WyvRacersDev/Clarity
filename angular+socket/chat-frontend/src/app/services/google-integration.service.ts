@@ -4,7 +4,7 @@ import { User, settings } from '../../../../shared_models/models/user.model';
 import { DataService } from './data.service';
 import { firstValueFrom } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { getServerConfig } from '../config/app.config';
+import { getServerConfig } from '../config/server.config';
 
 
 @Injectable({

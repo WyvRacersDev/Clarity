@@ -1,7 +1,7 @@
-// import { Project } from "../models/project.model";
-// import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
-// import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-// dayjs.extend(isSameOrBefore);
+import { Project } from "../models/project.model";
+import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+dayjs.extend(isSameOrBefore);
 export class User {
     constructor(name, settings) {
         //password:string; //ye to encrypt kerna parhay ga lol

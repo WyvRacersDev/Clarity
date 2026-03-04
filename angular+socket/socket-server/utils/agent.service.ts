@@ -1,12 +1,12 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
-import { ProjectHandler } from "./project_handler.ts";
-import { UserHandler } from "./user_handler.ts";
+import { ProjectHandler } from "./project.handler.ts";
+import { UserHandler } from "./user.handler.ts";
 import "dotenv/config";
 import { Project } from "../../shared_models/dist/project.model.js";
-import { AI_agent } from "../../shared_models/dist/ai_agent.model.js"
-import { invite } from "./invitation_service.ts";
+import { AI_agent } from "../../shared_models/dist/ai-agent.model.js"
+import { invite } from "./invitation.service.ts";
 import { User } from "../../shared_models/dist/user.model.js";
 import { text } from "stream/consumers";
 const projectHandler = new ProjectHandler();
