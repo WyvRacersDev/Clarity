@@ -1,9 +1,9 @@
-import { Project, Grid } from "../../shared_models/dist/project.model.js";
+import { Project, Grid } from "@models/project.model.js";
 import fs from "fs";
 import path from "path";
-import { objects_builder } from '../../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
-import { createCalendarEvent, deleteCalendarEvent } from "./calendar_service.ts";
-import { UserHandler } from "./user_handler.ts";
+import { objects_builder } from '@models/screen_elements.model.js'; // incredible location ngl 
+import { createCalendarEvent, deleteCalendarEvent } from "./calendar.service.js";
+import { UserHandler } from "./user.service.js";
 import { fileURLToPath } from "url";
 //import { ScheduledTask } from "node-cron";
 
@@ -19,7 +19,7 @@ export class ProjectHandler {
     constructor() {
         const __filename = fileURLToPath(import.meta.url);
         this.__dirname = path.dirname(__filename);
-        this.PROJECTS_BASE_PATH = path.join(this.__dirname, "../projects");
+        this.PROJECTS_BASE_PATH = path.join(this.__dirname, "../../projects");
         this.LOCAL_PROJECTS_PATH = path.join(this.PROJECTS_BASE_PATH, "/local");
         this.HOSTED_PROJECTS_PATH = path.join(this.PROJECTS_BASE_PATH, "/hosted");
 
@@ -196,7 +196,7 @@ export class ProjectHandler {
                                                 if (!task.calendar_event_id && task.time && task.taskname) {
                                                     console.log(`[Server] 📅 Creating calendar event for task: "${task.taskname}"`);
 
-                                                    const calendarResult = createCalendarEvent(
+                                                    const calendarResult = await createCalendarEvent(
                                                         username,
                                                         task.taskname,
                                                         task.time
@@ -227,7 +227,7 @@ export class ProjectHandler {
                     for (let id of old_task_ids) {
                         if (!new_Task_ids.includes(id) && id !== null) {
                             //delete calendar event
-                            const deleteResult = deleteCalendarEvent(
+                            const deleteResult = await deleteCalendarEvent(
                                 username,
                                 id
                             );

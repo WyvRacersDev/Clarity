@@ -231,7 +231,8 @@ export class scheduled_task {
       completion_time: this.completion_time,
       completed_by: this.completed_by,
       creation_time: this.creation_time,
-      calendar_event_id: this.calendar_event_id
+      calendar_event_id: this.calendar_event_id,
+      notified: this.notified
     };
   }
 

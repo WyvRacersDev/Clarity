@@ -1,13 +1,5 @@
 import { google } from "googleapis";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const CREDENTIALS_PATH = path.join(__dirname, "../credentials.json");
-const TOKEN_PATH = path.join(__dirname, "../tokens.json");
+import { getAuthForUser } from "@services/OAuth.service.js";
 
 /**
  * Create a Google Calendar event for a scheduled task
@@ -24,44 +16,50 @@ export async function createCalendarEvent(
   try {
     console.log(`[CalendarService] Creating calendar event for ${userEmail}: "${taskName}" at ${taskTime}`);
 
-    // Load credentials
-    if (!fs.existsSync(CREDENTIALS_PATH)) {
+  //   // Load credentials
+  //   if (!fs.existsSync(CREDENTIALS_PATH)) {
+  //     return {
+  //       success: false,
+  //       message: "Google credentials not found"
+  //     };
+  //   }
+
+  //   const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));
+  //   const { client_secret, client_id, redirect_uris } = credentials.web;
+
+  //   // Load tokens
+  //   if (!fs.existsSync(TOKEN_PATH)) {
+  //     return {
+  //       success: false,
+  //       message: "OAuth tokens not found. User needs to authenticate."
+  //     };
+  //   }
+
+  //   const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
+  //   const tokens = allTokens.entries[userEmail];
+  //  if (!tokens) {
+  //     return {
+  //       success: false,
+  //       message: `No OAuth tokens found for user: ${userEmail}`
+  //     };
+  //   }
+
+  //   // Create OAuth client
+  //   const oAuth2Client = new google.auth.OAuth2(
+  //     client_id,
+  //     client_secret,
+  //     redirect_uris[0]
+  //   );
+  //   oAuth2Client.setCredentials(tokens);
+    const authResult = await getAuthForUser(userEmail);
+    if (!(authResult instanceof google.auth.OAuth2)) {
       return {
         success: false,
-        message: "Google credentials not found"
+        message: "Failed to get OAuth client: " + authResult.message
       };
     }
-
-    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));
-    const { client_secret, client_id, redirect_uris } = credentials.web;
-
-    // Load tokens
-    if (!fs.existsSync(TOKEN_PATH)) {
-      return {
-        success: false,
-        message: "OAuth tokens not found. User needs to authenticate."
-      };
-    }
-
-    const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-    const tokens = allTokens.entries[userEmail];
-   if (!tokens) {
-      return {
-        success: false,
-        message: `No OAuth tokens found for user: ${userEmail}`
-      };
-    }
-
-    // Create OAuth client
-    const oAuth2Client = new google.auth.OAuth2(
-      client_id,
-      client_secret,
-      redirect_uris[0]
-    );
-    oAuth2Client.setCredentials(tokens);
-
     // Create Calendar API client
-    const calendar = google.calendar({ version: "v3", auth: oAuth2Client });
+    const calendar = google.calendar({ version: "v3", auth: authResult });
 
     // Parse task time
     const taskDate = new Date(taskTime);
@@ -103,10 +101,15 @@ export async function createCalendarEvent(
 
     const eventId = response.data.id;
     console.log(`[CalendarService] ✓ Calendar event created successfully. Event ID: ${eventId}`);
-
+    if(!eventId) {
+      return {
+        success: false,
+        message: "Failed to retrieve event ID after creation"
+      };
+    }
     return {
       success: true,
-      eventId: eventId || undefined,
+      eventId: eventId,
       message: `Calendar event created successfully`
     };
 
@@ -130,33 +133,15 @@ export async function deleteCalendarEvent(
   try {
     console.log(`[CalendarService] Deleting calendar event ${eventId} for ${userEmail}`);
 
-    if (!fs.existsSync(CREDENTIALS_PATH) || !fs.existsSync(TOKEN_PATH)) {
+    const authResult = await getAuthForUser(userEmail);
+    if (!(authResult instanceof google.auth.OAuth2)) {
       return {
         success: false,
-        message: "Credentials or tokens not found"
+        message: "Failed to get OAuth client: " + authResult.message
       };
     }
 
-    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));
-    const { client_secret, client_id, redirect_uris } = credentials.web;
-
-    const allTokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-    const tokens = allTokens.entries[userEmail];
- if (!tokens) {
-      return {
-        success: false,
-        message: `No OAuth tokens found for user: ${userEmail}`
-      };
-    }
-
-    const oAuth2Client = new google.auth.OAuth2(
-      client_id,
-      client_secret,
-      redirect_uris[0]
-    );
-    oAuth2Client.setCredentials(tokens);
-
-    const calendar = google.calendar({ version: "v3", auth: oAuth2Client });
+    const calendar = google.calendar({ version: "v3", auth: authResult });
     console.log("Deleting event with ID:", eventId);
 
     await calendar.events.delete({

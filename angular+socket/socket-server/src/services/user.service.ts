@@ -1,4 +1,4 @@
-import { User, settings, contact, user_builder } from "../../shared_models/dist/user.model.js";
+import { User, settings, contact, user_builder } from "@models/user.model.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

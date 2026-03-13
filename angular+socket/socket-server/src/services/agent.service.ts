@@ -1,13 +1,13 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
-import { ProjectHandler } from "./project_handler.ts";
-import { UserHandler } from "./user_handler.ts";
+import { ProjectHandler } from "./project.service.js";
+import { UserHandler } from "./user.service.js";
 import "dotenv/config";
-import { Project } from "../../shared_models/dist/project.model.js";
-import { AI_agent } from "../../shared_models/dist/ai_agent.model.js"
-import { invite } from "./invitation_service.ts";
-import { User } from "../../shared_models/dist/user.model.js";
+import { Project } from "@models/project.model.js";
+import { AI_agent } from "@models/ai_agent.model.js"
+import { invite } from "./invitation.service.js";
+import { User } from "@models/user.model.js";
 import { text } from "stream/consumers";
 const projectHandler = new ProjectHandler();
 const userHandler = new UserHandler();
@@ -116,7 +116,10 @@ export class Chat_Agent extends AI_agent {
         const summarise_match = user_input.match(/summarize project[:\s]+(.+)/i);
 
         if (summarise_match) {
-            const projectName = summarise_match[1].trim();
+            const projectName = summarise_match[1]?.trim();
+            if (!projectName) {
+                return "Please specify a project name to summarize.";
+            }
             let curr_project = projectHandler.loadProject(projectName, "local");
             if (!curr_project.success) {
                 curr_project = projectHandler.loadProject(projectName, "hosted");
@@ -131,7 +134,10 @@ export class Chat_Agent extends AI_agent {
         }
         const suggest_schedule_match = user_input.match(/suggest schedule for project[:\s]+(.+)/i);
         if (suggest_schedule_match) {
-            const projectName = suggest_schedule_match[1].trim();
+            const projectName = suggest_schedule_match[1]?.trim();
+            if (!projectName) {
+                return "Please specify a project name to suggest schedule for.";
+            }
             let curr_project = projectHandler.loadProject(projectName, "local");
             if (!curr_project.success) {
                 curr_project = projectHandler.loadProject(projectName, "hosted");
@@ -146,10 +152,13 @@ export class Chat_Agent extends AI_agent {
         // ---- NEW: detect "send invite to {person}" ----
         const send_invite_match = user_input.match(/send (an )?invite to\s+(.+)/i);
         if (send_invite_match) {
-            const personName = send_invite_match[2].trim();
+            const personName = send_invite_match[2]?.trim();
 
             // clean up trailing punctuation
-            const cleanedName = personName.replace(/[.!?]+$/, "");
+            const cleanedName = personName?.replace(/[.!?]+$/, "");
+            if (!cleanedName) {
+                return "Please specify a contact name to send an invite to.";
+            }
             return await this.send_invite(cleanedName, "all Project", username);
             //`Sent invite to ${cleanedName}. Check your email for details.`;
         }

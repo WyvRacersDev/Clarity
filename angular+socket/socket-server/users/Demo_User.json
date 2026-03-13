@@ -8,6 +8,19 @@
     "allow_invite": true,
     "allow_google_calender": false
   },
-  "projectReferences": [],
-  "lastModified": "2025-12-10T15:18:51.183Z"
+  "projectReferences": [
+    {
+      "name": "hello",
+      "projectType": "local"
+    },
+    {
+      "name": "hi",
+      "projectType": "local"
+    },
+    {
+      "name": "neha",
+      "projectType": "local"
+    }
+  ],
+  "lastModified": "2025-12-11T08:54:25.051Z"
 }

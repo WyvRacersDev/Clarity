@@ -1,0 +1,46 @@
+{
+  "type": "User",
+  "name": "l230757@lhr.nu.edu.pk",
+  "contacts": [],
+  "settings": {
+    "type": "settings",
+    "recieve_notifications": true,
+    "allow_invite": true,
+    "allow_google_calender": false
+  },
+  "projectReferences": [
+    {
+      "name": "Fitness Challenge",
+      "projectType": "local"
+    },
+    {
+      "name": "Home Renovation",
+      "projectType": "local"
+    },
+    {
+      "name": "Midoriya shonen",
+      "projectType": "local"
+    },
+    {
+      "name": "Mobile App Development",
+      "projectType": "local"
+    },
+    {
+      "name": "Website Redesign",
+      "projectType": "local"
+    },
+    {
+      "name": "YOOO",
+      "projectType": "local"
+    },
+    {
+      "name": "new",
+      "projectType": "local"
+    },
+    {
+      "name": "Website Redesign",
+      "projectType": "local"
+    }
+  ],
+  "lastModified": "2026-03-07T18:53:58.077Z"
+}
