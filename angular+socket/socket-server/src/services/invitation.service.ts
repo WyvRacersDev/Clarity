@@ -7,8 +7,8 @@ import cron from "node-cron";
 import fs from "fs";
 import { google } from "googleapis";
 import axios from "axios";
-import {SHARED_SERVER,SERVER_PORT} from "../config.ts";
-
+import {SHARED_SERVER,SERVER_PORT} from "../config/index.js";
+import { getAuthForUser } from "@services/OAuth.service.js";
 import nodemailer from "nodemailer";
 
 import { env, loadEnvFile } from "process";
@@ -18,12 +18,12 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CREDENTIALS_PATH = path.resolve(__dirname, "../credentials.json");
-const TOKENS_PATH = path.resolve(__dirname, "../tokens.json");
+const CREDENTIALS_PATH = path.resolve(__dirname, "../../credentials.json");
+const TOKENS_PATH = path.resolve(__dirname, "../../tokens.json");
 // console.log("DIRNAME:", __dirname);
 // console.log("RESOLVED PATH:", path.resolve(__dirname, "../.env"));
 
-loadEnvFile(path.resolve(__dirname, "../.env")); //dynamic to bana lete bilal bro
+loadEnvFile(path.resolve(__dirname, "../../.env")); //dynamic to bana lete bilal bro
 
 //loadEnvFile("/home/thebestdev/Desktop/FAST/5sem/SDA/Project/Clarity-clean/angular+socket/socket-server/.env")
 
@@ -35,28 +35,28 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-function getOAuthClient() {
-  const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8"));
+// function getOAuthClient() {
+//   const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8"));
 
-  return new google.auth.OAuth2(
-    creds.web.client_id,
-    creds.web.client_secret,
-    creds.web.redirect_uris[0]
-  );
-}
+//   return new google.auth.OAuth2(
+//     creds.web.client_id,
+//     creds.web.client_secret,
+//     creds.web.redirect_uris[0]
+//   );
+// }
 
-function getAuthForUser(email: string) {
-  const tokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf8"));
+// function getAuthForUser(email: string) {
+//   const tokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf8"));
 
-  if (!tokens.entries[email]) {
-    throw new Error("No OAuth token for " + email);
-  }
+//   if (!tokens.entries[email]) {
+//     throw new Error("No OAuth token for " + email);
+//   }
 
-  const client = getOAuthClient();
-  client.setCredentials(tokens.entries[email]);
+//   const client = getOAuthClient();
+//   client.setCredentials(tokens.entries[email]);
 
-  return client;
-}
+//   return client;
+// }
 
 
 async function sendEmailWithGmailAuth(auth: any, to: string, subject: string, message: string) {
@@ -103,5 +103,5 @@ async function sendEmailWithGmailAuth(auth: any, to: string, subject: string, me
 
 export async function invite(from: string, to: string, subject: string) {
   let message=`<p>You have been invited to join the project. Enter ${SHARED_SERVER}:${SERVER_PORT} to accept the invitation.</p>`;
-  await sendEmailWithGmailAuth(getAuthForUser(from), to, subject, message);
+  await sendEmailWithGmailAuth(await getAuthForUser(from), to, subject, message);
 }

@@ -3,7 +3,7 @@ import cron from "node-cron";
 // import fs from "fs";
 // import path from "path";
 //import { objects_builder } from '../../shared_models/dist/screen_elements.model.js'; // incredible location ngl 
-import { ProjectHandler } from "./project_handler.ts";
+import { ProjectHandler } from "@services/project.service.js";
 import fs from "fs";
 import { google } from "googleapis";
 
@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
 // console.log("DIRNAME:", __dirname);
 // console.log("RESOLVED PATH:", path.resolve(__dirname, "../.env"));
 
-loadEnvFile(path.resolve(__dirname, "../.env")); //dynamic to bana lete bilal bro
+loadEnvFile(path.resolve(__dirname, "../../.env")); //dynamic to bana lete bilal bro
 
 //loadEnvFile("/home/thebestdev/Desktop/FAST/5sem/SDA/Project/Clarity-clean/angular+socket/socket-server/.env")
 
@@ -45,28 +45,28 @@ async function sendEmail(userEmail: string,projectName: string, taskName: string
 });
 }
 
-function getOAuthClient() {
-  const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8")).installed;
+// function getOAuthClient() {
+//   const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8")).installed;
 
-  return new google.auth.OAuth2(
-    creds.client_id,
-    creds.client_secret,
-    creds.redirect_uris[0]
-  );
-}
+//   return new google.auth.OAuth2(
+//     creds.client_id,
+//     creds.client_secret,
+//     creds.redirect_uris[0]
+//   );
+// }
 
-export function getAuthForUser(email: string) {
-  const tokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf8"));
+// export function getAuthForUser(email: string) {
+//   const tokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf8"));
 
-  if (!tokens[email]) {
-    throw new Error("No OAuth token for " + email);
-  }
+//   if (!tokens[email]) {
+//     throw new Error("No OAuth token for " + email);
+//   }
 
-  const client = getOAuthClient();
-  client.setCredentials(tokens[email]);
+//   const client = getOAuthClient();
+//   client.setCredentials(tokens[email]);
 
-  return client;
-}
+//   return client;
+// }
 
 
 async function sendEmailWithGmailAuth(auth: any, to:string, subject:string, message:string) {
@@ -94,7 +94,7 @@ async function sendEmailWithGmailAuth(auth: any, to:string, subject:string, mess
   });
 }
 
-export function checkUpcomingTasks(): void {
+export async function checkUpcomingTasks(): Promise<void> {
     const projectHandler = new ProjectHandler();
     const local_projects = projectHandler.listProjects("local").projects;
     const hosted_projects = projectHandler.listProjects("hosted").projects;
@@ -115,7 +115,7 @@ export function checkUpcomingTasks(): void {
                             if (diff > 0 && diff <= oneDay && task.is_done===false && task.notified===false) {
                                 console.log("Task due soon:", task.taskname);
                                 task.set_notified(true);
-                                projectHandler.saveProject(data,data.project_type);
+                                await projectHandler.saveProject(data, data.project_type);
                                 if(data.get_owner_name() && data.get_owner_name()!=="Demo User"){
                                 sendEmail(data.get_owner_name(), data.name, task.taskname);
                                 }
@@ -131,7 +131,7 @@ export function checkUpcomingTasks(): void {
 
 }
 export function startNotificationService(): void {  
-    cron.schedule("*/15 * * * *", checkUpcomingTasks);
+    cron.schedule("*/15 * * * *", () => { checkUpcomingTasks().catch(e => console.error('[NotificationService] Error in checkUpcomingTasks:', e)); });
    // checkUpcomingTasks();
 }
 // runs every 15 minutes

@@ -2,18 +2,18 @@
 import express from "express";
 import fs from "fs/promises";
 import path from "path";
-import {Project, Grid} from "../../shared_models/dist/project.model.js"
-import {scheduled_task}from "../../shared_models/dist/screen_elements.model.js"
-import { ProjectHandler } from "./project_handler.ts";
+import { Project, Grid } from "@models/project.model.js"
+import { scheduled_task } from "@models/screen_elements.model.js"
+import { ProjectHandler } from "@services/project.service.js";
 
 const router = express.Router();
-const project_handler= new ProjectHandler();
+const project_handler = new ProjectHandler();
 
 const PROJECTS_DIR = path.join(process.cwd(), "data", "projects"); // adjust to your folder
 const UNTAGGED = "__untagged__";
 
 type ModTask = {
-  task:scheduled_task,
+  task: scheduled_task,
   tag: string[]
 };
 
@@ -90,8 +90,8 @@ function extractTasksFromProject(project: Project): ModTask[] {
           // attach tags array to the task object if present on parent ToDoLst
           if (Array.isArray(Screen_element.tags)) {
             new_task.tag = Screen_element.tags;
-          }else
-            new_task.tag=[UNTAGGED];
+          } else
+            new_task.tag = [UNTAGGED];
           tasks.push(new_task);
         }
       }
@@ -107,7 +107,7 @@ function parseISODateOrNull(s?: string | null): Date | null {
   return d;
 }
 
-export async function aggregateAnalytics(days = 30,username:string) {
+export async function aggregateAnalytics(days = 30, username: string) {
   const now = Date.now();
   if (cache && (now - cache.timestamp) < CACHE_TTL_MS && cache.days === days) {
     return {
@@ -115,19 +115,19 @@ export async function aggregateAnalytics(days = 30,username:string) {
       completionRateByTag: cache.completionRateByTag
     };
   }
-    console.log(`[analytics] aggregating analytics for past ${days} days for user "${username}"...`);
-//  const projects = await loadProjectFiles();
-    let projects= project_handler.listProjects("local").projects;
-    projects.concat(project_handler.listProjects("hosted").projects);
-    projects=projects.filter((p) =>(
-      p.owner_name === username)
-    );
-    console.log(`[analytics] aggregating analytics for user "${username}", found ${projects.length} projects.`);
-    //console.log(`[analytics] loaded ${projects.length} projects for analytics.`);
+  console.log(`[analytics] aggregating analytics for past ${days} days for user "${username}"...`);
+  //  const projects = await loadProjectFiles();
+  let projects = project_handler.listProjects("local").projects;
+  projects.concat(project_handler.listProjects("hosted").projects);
+  projects = projects.filter((p) => (
+    p.owner_name === username)
+  );
+  console.log(`[analytics] aggregating analytics for user "${username}", found ${projects.length} projects.`);
+  //console.log(`[analytics] loaded ${projects.length} projects for analytics.`);
   const tasks: ModTask[] = [];
   for (const p of projects) {
-    const proj_object=project_handler.loadProject(p.name,p.projectType).project;
-    if(!proj_object){
+    const proj_object = project_handler.loadProject(p.name, p.projectType).project;
+    if (!proj_object) {
       console.warn(`[analytics] failed to load project ${p.name}, skipping.`);
       continue;
     }
@@ -149,7 +149,7 @@ export async function aggregateAnalytics(days = 30,username:string) {
   earliestDate.setDate(earliestDate.getDate() - (days - 1));
   // go through tasks and collect those completed within timeframe
   for (const t of tasks) {
-  //  console.log(`[analytics] processing task:`, t);
+    //  console.log(`[analytics] processing task:`, t);
     const isDone = !!t.task.is_done;
     const completion = parseISODateOrNull(t.task.completion_time ?? null);
     if (!isDone || !completion) continue; // only completed tasks count for the time-series
@@ -171,13 +171,16 @@ export async function aggregateAnalytics(days = 30,username:string) {
     const onTime = scheduled ? (completion.getTime() <= scheduled.getTime()) : false;
 
     for (const tag of tags) {
-     // console.log(`[analytics] task "${t.task.taskname}" has tag="${tag}"`);
+      // console.log(`[analytics] task "${t.task.taskname}" has tag="${tag}"`);
       if (!countsByTag.has(tag)) {
         countsByTag.set(tag, new Array(days).fill(0));
         countsSummary.set(tag, { total: 0, onTime: 0, late: 0 });
       }
-      const idx = dayIndex.get(completionDateYMD)!;
-      countsByTag.get(tag)![idx] += 1;
+      const idx = dayIndex.get(completionDateYMD);
+      const counts = countsByTag.get(tag);
+      if (idx !== undefined && counts) {
+        counts[idx] = (counts[idx] ?? 0) + 1;
+      }
       //console.log(`[analytics] task "${t.task.taskname}" completed on ${completionDateYMD} with tag="${tag}" (onTime=${onTime}), CountsbyTag now:`, countsByTag.get(tag));
 
       const summary = countsSummary.get(tag)!;
@@ -191,7 +194,7 @@ export async function aggregateAnalytics(days = 30,username:string) {
   const series: SeriesEntry[] = [];
   for (const [tag, arr] of countsByTag) {
     //console.log(`[analytics] tag=${tag} has daily counts:`, arr);
-    series.push({ tag:tag, data: arr });
+    series.push({ tag: tag, data: arr });
   }
   // sort tags by total desc for nicer presentation
   series.sort((a, b) => {
@@ -241,7 +244,7 @@ export async function aggregateAnalytics(days = 30,username:string) {
     completedPerDay,
     completionRateByTag
   };
-  
+
   return { completedPerDay, completionRateByTag };
 }
 
