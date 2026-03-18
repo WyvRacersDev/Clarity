@@ -1,13 +1,7 @@
 
 <div class="analytics-container">
   <div class="analytics-header">
-    <h1>Analytics & Insights</h1>
-    <p class="subtitle">Track your productivity and task completion trends</p>
-  </div>
-
-  <div class="chart-card">
-    <h2>Tasks completed per day (by tag)</h2>
-
+    <h1>Analytics</h1>
     <div class="tag-selector">
       <mat-chip-set>
         <mat-chip-option
@@ -18,45 +12,43 @@
         </mat-chip-option>
       </mat-chip-set>
     </div>
-
-    <div style="height: 400px; position: relative;">
-      <!-- Loading state -->
-      <div *ngIf="!lineChartReady" style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 20px;">
-        <mat-spinner diameter="50" style="--mdc-circular-progress-active-indicator-color: #00D4FF;"></mat-spinner>
-        <p style="color: #999999; margin: 0;">Loading chart data...</p>
-      </div>
-      
-      <!-- Chart renders as soon as data arrives -->
-      <canvas *ngIf="lineChartReady" 
-        baseChart 
-        #lineChart
-        id="lineChart"
-        [data]="lineChartData"
-        [type]="'line'"
-        [options]="lineChartOptions">
-      </canvas>
-    </div>
   </div>
 
-  <div class="chart-card">
-    <h2>Completion rate per tag (%)</h2>
-
-    <div style="height: 450px; position: relative; padding-bottom: 20px;">
-      <!-- Loading state -->
-      <div *ngIf="!completionChartReady" style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 20px;">
-        <mat-spinner diameter="50" style="--mdc-circular-progress-active-indicator-color: #00D4FF;"></mat-spinner>
-        <p style="color: #999999; margin: 0;">Loading chart data...</p>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>Tasks per day</h2>
+      <div class="chart-area">
+        <div *ngIf="!lineChartReady" class="chart-loading">
+          <mat-spinner diameter="40" style="--mdc-circular-progress-active-indicator-color: #00D4FF;"></mat-spinner>
+          <p>Loading chart data...</p>
+        </div>
+        <canvas *ngIf="lineChartReady"
+          baseChart
+          #lineChart
+          id="lineChart"
+          [data]="lineChartData"
+          [type]="'line'"
+          [options]="lineChartOptions">
+        </canvas>
       </div>
-      
-      <!-- Chart renders as soon as data arrives -->
-      <canvas *ngIf="completionChartReady"
-        baseChart 
-        #barChart
-        id="barChart"
-        [data]="completionChartData"
-        [type]="'bar'"
-        [options]="barChartOptions">
-      </canvas>
+    </div>
+
+    <div class="chart-card">
+      <h2>Completion rate</h2>
+      <div class="chart-area">
+        <div *ngIf="!completionChartReady" class="chart-loading">
+          <mat-spinner diameter="40" style="--mdc-circular-progress-active-indicator-color: #00D4FF;"></mat-spinner>
+          <p>Loading chart data...</p>
+        </div>
+        <canvas *ngIf="completionChartReady"
+          baseChart
+          #barChart
+          id="barChart"
+          [data]="completionChartData"
+          [type]="'bar'"
+          [options]="barChartOptions">
+        </canvas>
+      </div>
     </div>
   </div>
 </div>

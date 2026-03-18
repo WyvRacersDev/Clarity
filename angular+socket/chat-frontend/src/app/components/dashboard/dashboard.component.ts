@@ -5,7 +5,7 @@ import { DataService } from '../../services/data.service';
 import { AnalyticsService } from '../../services/analytics.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
-import { scheduled_task } from '../../../../../shared_models/models/screen_elements.model';
+import { scheduled_task } from '../../../../../shared_models/models/screen-elements.model';
 import { calender } from '../../../../../shared_models/models/user.model';
 
 @Component({
@@ -29,6 +29,16 @@ export class DashboardComponent implements OnInit {
     private analyticsService: AnalyticsService
   ) {}
 
+  private isTodoListElement(element: any): boolean {
+    if (element?.type === 'ToDoLst') {
+      return true;
+    }
+    if (element?.constructor?.name === 'ToDoLst') {
+      return true;
+    }
+    return Array.isArray(element?.scheduled_tasks);
+  }
+
   ngOnInit(): void {
     this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
@@ -49,7 +59,7 @@ export class DashboardComponent implements OnInit {
     this.currentUser.projects.forEach(project => {
       project.grid.forEach(grid => {
         grid.Screen_elements.forEach(element => {
-          if (element.constructor.name === 'ToDoLst') {
+          if (this.isTodoListElement(element)) {
             const todoList = element as any;
             if (todoList.scheduled_tasks) {
               allTasks = allTasks.concat(todoList.scheduled_tasks);

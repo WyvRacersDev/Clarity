@@ -2,46 +2,22 @@
   <div class="dashboard-header">
     <h1>Welcome back, {{ currentUser?.name || 'User' }}!</h1>
     <p class="subtitle">Here's your productivity overview</p>
-  </div>
-
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon">
-        <img src="/assets/folder.png" alt="Projects" class="stat-icon-img">
+    <div class="stats-row">
+      <div class="stat-chip">
+        <span class="chip-value">{{ totalProjects }}</span>
+        <span class="chip-label">Projects</span>
       </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ totalProjects }}</div>
-        <div class="stat-label">Active Projects</div>
+      <div class="stat-chip">
+        <span class="chip-value">{{ totalTasks }}</span>
+        <span class="chip-label">Tasks</span>
       </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon">
-        <img src="/assets/check.jpg" alt="Tasks" class="stat-icon-img">
+      <div class="stat-chip">
+        <span class="chip-value">{{ getCompletionPercentage() }}%</span>
+        <span class="chip-label">Done</span>
       </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ totalTasks }}</div>
-        <div class="stat-label">Total Tasks</div>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon">
-        <img src="/assets/dart.png" alt="Completion" class="stat-icon-img">
-      </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ getCompletionPercentage() }}%</div>
-        <div class="stat-label">Completion Rate</div>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon">
-        <img src="/assets/bolt.png" alt="Productivity" class="stat-icon-img">
-      </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ productivityScore }}</div>
-        <div class="stat-label">Productivity Score</div>
+      <div class="stat-chip">
+        <span class="chip-value">{{ productivityScore }}</span>
+        <span class="chip-label">Score</span>
       </div>
     </div>
   </div>
@@ -55,7 +31,7 @@
       <div class="tasks-list">
         @if (upcomingTasks.length === 0) {
           <div class="empty-state">
-            <p>No upcoming tasks. Great job! 🎉</p>
+            <p>No upcoming tasks. Great job!</p>
           </div>
         }
         @for (task of upcomingTasks; track task) {
@@ -102,25 +78,22 @@
     </div>
   </div>
 
-  <div class="quick-actions">
-    <h2>Quick Actions</h2>
-    <div class="actions-grid">
-      <a routerLink="/dashboard/projects" class="action-card">
-        <img src="/assets/plus.jpg" alt="New Project" class="action-icon">
-        <div class="action-text">New Project</div>
-      </a>
-      <a routerLink="/dashboard/tasks" class="action-card">
-        <img src="/assets/calender.jpg" alt="Schedule Task" class="action-icon">
-        <div class="action-text">Schedule Task</div>
-      </a>
-      <a routerLink="/dashboard/ai-insights" class="action-card">
-        <img src="/assets/robot.png" alt="AI Assistant" class="action-icon">
-        <div class="action-text">AI Assistant</div>
-      </a>
-      <a routerLink="/dashboard/analytics" class="action-card">
-        <img src="/assets/histogram.png" alt="View Analytics" class="action-icon">
-        <div class="action-text">View Analytics</div>
-      </a>
-    </div>
+  <div class="actions-bar">
+    <a routerLink="/dashboard/projects" class="action-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Project
+    </a>
+    <a routerLink="/dashboard/tasks" class="action-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Schedule Task
+    </a>
+    <a routerLink="/dashboard/ai-insights" class="action-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14h.01"/><path d="M8 14h.01"/><path d="M12 18v4"/><path d="M8 22h8"/><rect x="4" y="10" width="16" height="8" rx="4"/></svg>
+      AI Assistant
+    </a>
+    <a routerLink="/dashboard/analytics" class="action-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Analytics
+    </a>
   </div>
 </div>

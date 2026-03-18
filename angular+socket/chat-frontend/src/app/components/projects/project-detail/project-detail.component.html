@@ -68,12 +68,20 @@
               <div
                 class="element-card"
                 [ngStyle]="getElementStyle(element)"
+                [class.long-press-active]="longPressTargetIndex === i"
+                [class.dragging-active]="draggedElementIndex === i && isDraggingEnabled"
                 (mousedown)="onElementMouseDown($event, i)"
                 (mouseleave)="onElementMouseLeave()"
                 (touchstart)="onElementTouchStart($event, element, selectedGridIndex, i)"
-                
                 draggable="false"
                 >
+                <div class="element-drag-handle">
+                  <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                    <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+                    <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+                    <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+                  </svg>
+                </div>
                 <!-- Image -->
                 @if (getElementType(element) === 'Image') {
                   <div class="image-element">
@@ -263,7 +271,7 @@
                           </span>
                           @if (task.priority) {
                             <span class="task-priority">
-                              {{ task.priority === 1 ? '🔴' : task.priority === 2 ? '🟡' : '🟢' }}
+                              <img [src]="task.priority === 1 ? '/assets/priority-high.svg' : task.priority === 2 ? '/assets/priority-medium.svg' : '/assets/priority-low.svg'" alt="" style="width: 14px; height: 14px;">
                             </span>
                           }
                         </div>
@@ -337,19 +345,19 @@
           </div>
           <div class="modal-body type-selector">
             <button class="type-btn" (click)="selectElementType('Image')">
-              <span class="type-icon">🖼️</span>
+              <span class="type-icon"><img src="/assets/image.svg" alt="Image" style="width: 24px; height: 24px;"></span>
               <span>Image</span>
             </button>
             <button class="type-btn" (click)="selectElementType('Video')">
-              <span class="type-icon">🎥</span>
+              <span class="type-icon"><img src="/assets/video.svg" alt="Video" style="width: 24px; height: 24px;"></span>
               <span>Video</span>
             </button>
             <button class="type-btn" (click)="selectElementType('Text_document')">
-              <span class="type-icon">📝</span>
+              <span class="type-icon"><img src="/assets/text.svg" alt="Text" style="width: 24px; height: 24px;"></span>
               <span>Text Document</span>
             </button>
             <button class="type-btn" (click)="selectElementType('ToDoLst')">
-              <span class="type-icon">📋</span>
+              <span class="type-icon"><img src="/assets/todo.svg" alt="Todo" style="width: 24px; height: 24px;"></span>
               <span>Todo List</span>
             </button>
           </div>
@@ -388,9 +396,9 @@
           <label>Priority</label>
           <select [(ngModel)]="newTaskPriority" [compareWith]="comparePriority">
             <option [ngValue]="null" disabled selected>Select priority...</option>
-            <option [ngValue]="1">🔴 High</option>
-            <option [ngValue]="2">🟡 Medium</option>
-            <option [ngValue]="3">🟢 Low</option>
+            <option [ngValue]="1">High</option>
+            <option [ngValue]="2">Medium</option>
+            <option [ngValue]="3">Low</option>
           </select>
         </div>
       </div>
@@ -541,9 +549,9 @@
           <label>Priority</label>
           <select [(ngModel)]="newTaskPriority" class="task-priority-select" [compareWith]="comparePriority">
             <option [ngValue]="null" disabled selected>Select priority...</option>
-            <option [ngValue]="1">🔴 High</option>
-            <option [ngValue]="2">🟡 Medium</option>
-            <option [ngValue]="3">🟢 Low</option>
+            <option [ngValue]="1">High</option>
+            <option [ngValue]="2">Medium</option>
+            <option [ngValue]="3">Low</option>
           </select>
           <button
             class="add-task-button"
@@ -583,12 +591,21 @@
             <div
               class="task-item-fullscreen"
               [class.overdue]="isTaskOverdue(task)"
+              [class.drag-over]="dragOverTaskIndex === i && draggedFullScreenTaskIndex !== i"
               draggable="true"
               (dragstart)="onTaskDragStart($event, task)"
               (dragover)="onTaskDragOver($event)"
+              (dragenter)="onTaskDragEnter(i)"
+              (dragleave)="onTaskDragLeave($event)"
               (drop)="onTaskDrop($event, task)"
               >
-              <div class="task-drag-handle">⋮⋮</div>
+              <div class="task-drag-handle">
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                  <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+                  <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+                  <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+                </svg>
+              </div>
               <input
                 type="checkbox"
                 [checked]="task.is_done"
@@ -601,7 +618,7 @@
               </div>
               <div class="task-actions">
                 <span class="task-priority-display">
-                  {{ task.get_priority() === 1 ? '🔴 High' : task.get_priority() === 2 ? '🟡 Medium' : '🟢 Low' }}
+                  <img [src]="task.get_priority() === 1 ? '/assets/priority-high.svg' : task.get_priority() === 2 ? '/assets/priority-medium.svg' : '/assets/priority-low.svg'" alt="" style="width: 14px; height: 14px;"> {{ task.get_priority() === 1 ? 'High' : task.get_priority() === 2 ? 'Medium' : 'Low' }}
                 </span>
                 <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
               </div>
@@ -631,9 +648,17 @@
                   draggable="true"
                   (dragstart)="onTaskDragStart($event, task)"
                   (dragover)="onTaskDragOver($event)"
+                  (dragenter)="onTaskDragEnter(i)"
+                  (dragleave)="onTaskDragLeave($event)"
                   (drop)="onTaskDrop($event, task)"
                   >
-                  <div class="task-drag-handle">⋮⋮</div>
+                  <div class="task-drag-handle">
+                    <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                      <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+                      <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+                      <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+                    </svg>
+                  </div>
                   <input
                     type="checkbox"
                     [checked]="task.is_done"
@@ -646,7 +671,7 @@
                   </div>
                   <div class="task-actions">
                     <span class="task-priority-display">
-                      {{ task.get_priority() === 1 ? '🔴 High' : task.get_priority() === 2 ? '🟡 Medium' : '🟢 Low' }}
+                      <img [src]="task.get_priority() === 1 ? '/assets/priority-high.svg' : task.get_priority() === 2 ? '/assets/priority-medium.svg' : '/assets/priority-low.svg'" alt="" style="width: 14px; height: 14px;"> {{ task.get_priority() === 1 ? 'High' : task.get_priority() === 2 ? 'Medium' : 'Low' }}
                     </span>
                     <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
                   </div>

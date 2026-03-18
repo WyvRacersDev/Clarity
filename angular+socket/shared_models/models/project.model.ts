@@ -1,4 +1,4 @@
-import { Screen_Element } from "../models/screen_elements.model";
+import { Screen_Element } from "../models/screen-elements.model";
 
 export class Grid{
     name:string;
