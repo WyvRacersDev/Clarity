@@ -20,8 +20,17 @@ Mohammad Hamza Iqbal, Bilal Kashif, Mawahid Abbas
 
 - Frontend: Angular 21, Angular Material, Chart.js
 - Backend: Node.js, Express, Socket.IO, TypeScript
+- Database: Supabase (optional, for hosted projects)
 - AI: LangChain + Google Gemini
 - Integrations: Google APIs, Nodemailer
+
+## UI Design
+
+Clarity features a modern **Neobrutalist/Glassmorphism** design inspired by Zedd Clarity, with:
+- Glassmorphic cards with blur effects and subtle borders
+- Cyan accent color palette
+- Dark theme optimized for focus and productivity
+- Responsive layout for all screen sizes
 
 ## Repository Structure
 
