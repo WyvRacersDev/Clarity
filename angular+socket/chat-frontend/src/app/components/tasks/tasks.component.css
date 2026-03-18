@@ -1,93 +1,95 @@
+/* Tasks Component - Flat List Design */
+
 .tasks-container {
-  padding: 2rem 2.5rem;
-  max-width: 1000px;
+  padding: var(--space-6) var(--space-8);
+  max-width: 900px;
   margin: 0 auto;
-  background: #000000;
+  background: var(--bg-primary);
   min-height: 100vh;
 }
 
-/* ── Header with date nav ────────────── */
+/* Header with date nav */
 .tasks-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .tasks-header h1 {
-  font-size: 1.5rem;
-  color: #FFFFFF;
+  font-size: 1.25rem;
+  color: var(--text-primary);
   margin: 0;
   font-weight: 600;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
 .date-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .date-label {
-  font-size: 0.95rem;
-  color: #FFFFFF;
-  font-weight: 600;
-  min-width: 160px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  min-width: 140px;
   text-align: center;
 }
 
 .nav-btn {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  border: none;
   background: transparent;
-  font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 1rem;
+  color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .nav-btn:hover {
-  border-color: rgba(0, 212, 255, 0.3);
-  color: #00D4FF;
-  background: rgba(0, 212, 255, 0.05);
+  background: var(--bg-hover);
+  color: var(--accent-primary);
 }
 
 .today-btn {
-  padding: 5px 12px;
+  padding: var(--space-2) var(--space-3);
   background: transparent;
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  color: #00D4FF;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .today-btn:hover {
-  background: rgba(0, 212, 255, 0.1);
+  background: var(--accent-primary);
+  color: #FFFFFF;
 }
 
-/* ── Overdue Banner ──────────────────── */
+/* Overdue Banner */
 .overdue-banner {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: rgba(244, 67, 54, 0.08);
-  border: 1px solid rgba(244, 67, 54, 0.15);
-  border-radius: 10px;
-  margin-bottom: 1rem;
-  color: #F44336;
-  font-size: 0.85rem;
-  font-weight: 600;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(231, 76, 60, 0.06);
+  border-left: 2px solid var(--accent-error);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-4);
+  color: var(--accent-error);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .overdue-banner svg {
@@ -96,59 +98,83 @@
 
 .overdue-tasks-inline {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   margin-left: auto;
 }
 
 .overdue-task-name {
-  padding: 2px 10px;
-  background: rgba(244, 67, 54, 0.12);
-  border-radius: 9999px;
-  font-size: 0.75rem;
+  padding: 2px var(--space-2);
+  background: rgba(231, 76, 60, 0.1);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
   font-weight: 500;
-  color: rgba(244, 67, 54, 0.85);
+  color: rgba(231, 76, 60, 0.85);
 }
 
-/* ── Date Section ────────────────────── */
+/* Date Section - Flat */
 .date-section {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .date-section h3 {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.45);
-  margin: 0 0 1rem 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-3) 0;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-/* ── Task Items ──────────────────────── */
+.date-section h3::before {
+  content: '';
+  width: 2px;
+  height: 12px;
+  background: var(--accent-primary);
+  border-radius: 1px;
+}
+
+/* Task Items - Flat List */
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .task-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-left: 3px solid;
-  border-radius: 8px;
-  transition: all 0.15s;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  border-left: 2px solid transparent;
 }
 
 .task-item:hover {
-  background: rgba(0, 212, 255, 0.03);
+  background: var(--bg-hover);
+}
+
+.task-item.priority-high {
+  border-left-color: var(--accent-error);
+}
+
+.task-item.priority-medium {
+  border-left-color: var(--accent-warning);
+}
+
+.task-item.priority-low {
+  border-left-color: var(--accent-success);
+}
+
+.task-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent-success);
+  flex-shrink: 0;
 }
 
 .task-content {
@@ -157,87 +183,153 @@
 
 .task-name {
   font-weight: 500;
-  color: #FFFFFF;
-  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
   margin-bottom: 2px;
 }
 
 .task-name.completed {
   text-decoration: line-through;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--text-muted);
 }
 
 .task-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 4px;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
 }
 
 .task-time {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.7rem;
+  color: var(--text-muted);
 }
 
 .task-priority {
-  font-size: 0.7rem;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.6rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.task-priority.high {
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--accent-error);
+}
+
+.task-priority.medium {
+  background: rgba(243, 156, 18, 0.1);
+  color: var(--accent-warning);
+}
+
+.task-priority.low {
+  background: rgba(46, 204, 113, 0.1);
+  color: var(--accent-success);
 }
 
 .empty-tasks {
   text-align: center;
-  padding: 1.5rem 1rem;
-  color: rgba(255, 255, 255, 0.25);
-  font-size: 0.825rem;
+  padding: var(--space-6) var(--space-4);
+  color: var(--text-muted);
+  font-size: 0.8rem;
 }
 
-/* ── Upcoming Section ────────────────── */
+.empty-tasks-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-2);
+  opacity: 0.4;
+}
+
+/* Upcoming Section */
 .upcoming-section {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 1.25rem;
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .upcoming-section h3 {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.45);
-  margin: 0 0 1rem 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-3) 0;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.upcoming-section h3::before {
+  content: '';
+  width: 2px;
+  height: 12px;
+  background: var(--accent-secondary);
+  border-radius: 1px;
 }
 
 .upcoming-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  transition: background 0.15s;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
 }
 
 .upcoming-item:hover {
-  background: rgba(0, 212, 255, 0.04);
+  background: var(--bg-hover);
 }
 
 .upcoming-date {
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.35);
-  min-width: 100px;
+  color: var(--text-muted);
+  min-width: 90px;
   flex-shrink: 0;
 }
 
 .upcoming-name {
   font-weight: 500;
-  color: #FFFFFF;
+  color: var(--text-primary);
   font-size: 0.85rem;
 }
 
-/* ── Responsive ───────────────────────── */
+/* Add Task FAB Button */
+.add-task-fab {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  border: none;
+  color: #FFFFFF;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+
+.add-task-fab:hover {
+  background: var(--accent-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.add-task-fab:active {
+  transform: translateY(0);
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .tasks-container {
-    padding: 1.25rem;
+    padding: var(--space-5);
   }
 
   .tasks-header {
@@ -247,5 +339,12 @@
 
   .overdue-tasks-inline {
     display: none;
+  }
+
+  .add-task-fab {
+    bottom: var(--space-5);
+    right: var(--space-5);
+    width: 44px;
+    height: 44px;
   }
 }

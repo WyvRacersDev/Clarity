@@ -1,115 +1,78 @@
+/* Welcome Component - Neobrutalist Design (Zedd Clarity Inspired) */
+
 .welcome-container {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000000;
+  background: var(--bg-primary);
   position: relative;
   overflow: hidden;
 }
 
-/* ── Stars ────────────────────────────── */
-.stars-background {
+/* Clarity album-inspired gradient atmosphere */
+.welcome-container::before {
+  content: '';
   position: absolute;
-  width: 100%;
-  height: 100%;
-  background-image:
-    radial-gradient(1.5px 1.5px at 20px 30px, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1px 1px at 60px 70px, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1.5px 1.5px at 130px 80px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 90px 10px, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1.5px 1.5px at 180px 120px, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 140px 150px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 30px 170px, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1.5px 1.5px at 190px 50px, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 100px 100px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 40px 120px, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1.5px 1.5px at 150px 60px, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 70px 140px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 110px 30px, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1.5px 1.5px at 10px 90px, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 170px 10px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1.5px 1.5px at 80px 160px, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1px 1px at 50px 10px, rgba(255,255,255,0.5), transparent);
-  background-repeat: repeat;
-  background-size: 200px 200px;
-  animation: twinkle 7s ease-in-out infinite;
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.9; }
-}
-
-/* ── Background Glow Orbs ────────────── */
-.glow-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(100px);
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(0, 194, 224, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 100%, rgba(50, 199, 100, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 50%, rgba(79, 60, 133, 0.05) 0%, transparent 40%);
   pointer-events: none;
 }
 
-.glow-orb-1 {
-  width: 500px;
-  height: 500px;
-  background: rgba(0, 153, 255, 0.08);
-  top: -150px;
-  right: -100px;
-  animation: orbFloat 12s ease-in-out infinite;
+/* Ambient glow - Clarity crystal effect */
+.ambient-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0, 194, 224, 0.06) 0%, rgba(50, 199, 100, 0.03) 40%, transparent 70%);
+  pointer-events: none;
+  animation: breathe 10s ease-in-out infinite;
 }
 
-.glow-orb-2 {
-  width: 400px;
-  height: 400px;
-  background: rgba(58, 255, 111, 0.06);
-  bottom: -120px;
-  left: -80px;
-  animation: orbFloat 12s ease-in-out infinite reverse;
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
 }
 
-@keyframes orbFloat {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(30px, -20px); }
-}
-
-/* ── Mute Button ─────────────────────── */
+/* Mute button - Neobrutalist */
 .mute-btn {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: var(--space-6);
+  right: var(--space-6);
   z-index: 1000;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.5);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border-default);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  animation: fadeIn 0.6s ease-out 2.5s backwards;
+  transition: all var(--transition-fast);
 }
 
 .mute-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #FFFFFF;
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  transform: translate(-2px, -2px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
 }
 
 .mute-btn.muted {
-  border-color: rgba(244, 67, 54, 0.3);
-  color: rgba(244, 67, 54, 0.6);
+  color: var(--accent-error);
+  border-color: var(--accent-error);
 }
 
-.mute-btn.muted:hover {
-  background: rgba(244, 67, 54, 0.08);
-  color: #F44336;
-}
-
-/* ── Content ─────────────────────────── */
+/* Content Container */
 .welcome-content {
   position: relative;
   z-index: 10;
@@ -118,162 +81,348 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 2rem;
+  padding: var(--space-8);
+  width: 100%;
+  max-width: 420px;
 }
 
-/* ── Title ───────────────────────────── */
+/* Logo */
+.logo-wrapper {
+  margin-bottom: var(--space-6);
+  animation: slideDown 0.5s ease-out;
+}
+
+/* Title - Neobrutalist */
 .app-title {
-  margin: 0 0 1.5rem 0;
-  line-height: 1.1;
-  animation: slideUp 0.8s ease-out 0.4s backwards;
+  margin: 0 0 var(--space-1) 0;
+  line-height: 1;
+  animation: slideUp 0.5s ease-out 0.1s backwards;
 }
 
 .title-welcome {
   display: block;
-  font-size: clamp(1.2rem, 3vw, 1.6rem);
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-primary);
   letter-spacing: 4px;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-2);
 }
 
 .title-clarity {
   display: block;
-  font-size: clamp(4rem, 12vw, 7rem);
+  font-size: clamp(2.5rem, 8vw, 3.5rem);
   font-weight: 800;
-  background: linear-gradient(135deg, #0099FF 0%, #00CCAA 50%, #3AFF6F 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
   letter-spacing: -2px;
+  text-transform: uppercase;
 }
 
-/* ── Tagline ─────────────────────────── */
+/* Tagline */
 .tagline {
-  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 3rem 0;
-  font-weight: 300;
-  letter-spacing: 0.5px;
-  animation: slideUp 0.8s ease-out 0.7s backwards;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-10) 0;
+  font-weight: 500;
+  animation: slideUp 0.5s ease-out 0.15s backwards;
 }
 
-/* ── Enter Button ────────────────────── */
-.enter-btn {
-  padding: 18px 48px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #000000;
-  background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%);
+/* Auth Container - Borderless */
+.auth-container {
+  width: 100%;
+  animation: slideUp 0.5s ease-out 0.2s backwards;
+}
+
+/* Auth Toggle - Neobrutalist tabs */
+.auth-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: var(--space-5);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.auth-toggle button {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
   border: none;
-  border-radius: 14px;
   cursor: pointer;
-  transition: all 0.25s;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
   letter-spacing: 0.5px;
-  animation: slideUp 0.8s ease-out 1s backwards;
 }
 
-.enter-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(0, 153, 255, 0.3), 0 4px 16px rgba(58, 255, 111, 0.15);
+.auth-toggle button:first-child {
+  border-right: 2px solid var(--border-default);
 }
 
-.enter-btn:active {
-  transform: translateY(-1px);
+.auth-toggle button:hover {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
-.enter-btn svg {
-  transition: transform 0.25s;
+.auth-toggle button.active {
+  color: #0E0F11;
+  background: var(--accent-primary);
 }
 
-.enter-btn:hover svg {
-  transform: translateX(4px);
+/* Auth Form */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
-/* ── Credits ─────────────────────────── */
-.credits {
-  margin-top: 4rem;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.form-group input {
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.form-group input::placeholder {
+  color: var(--text-muted);
+}
+
+.form-group input:focus {
+  border-color: var(--accent-primary);
+  background: rgba(0, 194, 224, 0.04);
+  box-shadow: 0 0 0 3px rgba(0, 194, 224, 0.15);
+}
+
+/* Error Message - Neobrutalist */
+.error-message {
+  padding: var(--space-3);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-error);
+  background: rgba(231, 76, 60, 0.1);
+  border: 2px solid var(--accent-error);
+  border-radius: var(--radius-sm);
+}
+
+/* Submit Button - Neobrutalist */
+.submit-btn {
+  padding: var(--space-3) var(--space-5);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0E0F11;
+  background: var(--accent-primary);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.8);
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.8);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translate(0, 0);
+  box-shadow: none;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Divider */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-5) 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: var(--border-subtle);
+}
+
+/* Google Button - Neobrutalist */
+.google-btn {
+  width: 100%;
+  padding: var(--space-3);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+}
+
+.google-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.8);
+}
+
+.google-btn:active:not(:disabled) {
+  transform: translate(0, 0);
+  box-shadow: none;
+}
+
+.google-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Demo Button */
+.demo-btn {
+  width: 100%;
+  padding: var(--space-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: var(--space-2);
+}
+
+.demo-btn:hover:not(:disabled) {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.demo-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading State */
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  animation: fadeIn 0.8s ease-out 1.5s backwards;
+  gap: var(--space-4);
+  padding: var(--space-8);
+}
+
+.loading-state p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Credits */
+.credits {
+  margin-top: var(--space-10);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  animation: fadeIn 0.5s ease-out 0.4s backwards;
 }
 
 .credits-label {
-  color: rgba(255, 255, 255, 0.25);
-  font-size: 0.85rem;
-  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 2px;
+  text-align: center;
 }
 
 .team-members {
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  justify-content: center;
+  gap: var(--space-6);
 }
 
 .member {
-  font-size: 1rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-  padding: 8px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  transition: all 0.2s;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  transition: color var(--transition-fast);
 }
 
 .member:hover {
-  color: #FFFFFF;
-  border-color: rgba(0, 153, 255, 0.4);
-  background: rgba(0, 153, 255, 0.06);
+  color: var(--accent-primary);
 }
 
-/* ── Animations ──────────────────────── */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Legacy - Hidden */
+.stars-background,
+.glow-orb {
+  display: none;
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ── Responsive ──────────────────────── */
+/* Responsive */
 @media (max-width: 600px) {
-  .title-welcome {
-    letter-spacing: 2px;
+  .welcome-content {
+    padding: var(--space-5);
   }
 
   .title-clarity {
     letter-spacing: -1px;
   }
 
-  .enter-btn {
-    padding: 16px 36px;
-    font-size: 1rem;
-  }
-
   .team-members {
-    flex-direction: column;
-    gap: 8px;
+    gap: var(--space-3);
   }
 
-  .credits {
-    margin-top: 3rem;
+  .member {
+    font-size: 0.7rem;
+  }
+
+  .mute-btn {
+    top: var(--space-4);
+    right: var(--space-4);
   }
 }

@@ -8,6 +8,8 @@ import { TasksComponent } from './components/tasks/tasks.component';
 import { AnalyticsComponent } from './components/analytics/analytics.component';
 import { AiInsightsComponent } from './components/ai-insights/ai-insights.component';
 import { SettingsComponent } from './components/settings/settings.component';
+import { SupabaseTestComponent } from './components/supabase-test/supabase-test.component';
+import { AuthCallbackComponent } from './components/auth-callback/auth-callback.component';
 import { authGuard } from './guards/auth.guard';
 
 
@@ -19,6 +21,14 @@ export const routes: Routes = [
   {
     path: 'login',
     component: WelcomeComponent
+  },
+  {
+    path: 'auth/callback',
+    component: AuthCallbackComponent
+  },
+  {
+    path: 'supabase-test',
+    component: SupabaseTestComponent
   },
   {
     path: 'dashboard',
