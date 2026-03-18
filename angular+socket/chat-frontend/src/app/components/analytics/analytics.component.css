@@ -1,30 +1,32 @@
+/* Analytics Component - Glassmorphism Style */
+
 .analytics-container {
-  padding: 2rem 2.5rem;
-  max-width: 1400px;
+  padding: var(--space-6) var(--space-8);
+  max-width: 1200px;
   margin: 0 auto;
-  background: #000000;
+  background: var(--bg-primary);
   min-height: 100vh;
 }
 
-/* ── Header with inline tags ─────────── */
+/* Header with inline tags */
 .analytics-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
 .analytics-header h1 {
-  font-size: 1.5rem;
-  color: #FFFFFF;
+  font-size: 1.25rem;
+  color: var(--text-primary);
   margin: 0;
   font-weight: 600;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
-/* ── Tag Selector (inline in header) ─── */
+/* Tag Selector - Flat */
 .tag-selector {
   flex: 1;
   display: flex;
@@ -34,31 +36,33 @@
 .tag-selector mat-chip-set {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .tag-selector ::ng-deep .mat-mdc-chip {
-  background: rgba(0, 212, 255, 0.08) !important;
-  color: #FFFFFF !important;
-  border: 1px solid rgba(0, 212, 255, 0.2) !important;
-  transition: all 0.2s !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-default) !important;
+  transition: all var(--transition-fast) !important;
   cursor: pointer !important;
-  font-size: 0.8rem !important;
-  padding: 4px 12px !important;
+  font-size: 0.75rem !important;
+  padding: var(--space-1) var(--space-2) !important;
   height: auto !important;
   pointer-events: auto !important;
   user-select: none !important;
+  border-radius: var(--radius-sm) !important;
 }
 
 .tag-selector ::ng-deep .mat-mdc-chip:hover {
-  background: rgba(0, 212, 255, 0.15) !important;
-  border-color: rgba(0, 212, 255, 0.4) !important;
+  background: var(--bg-hover) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--text-primary) !important;
 }
 
 .tag-selector ::ng-deep .mat-mdc-chip.mat-mdc-chip-selected,
 .tag-selector ::ng-deep .mat-mdc-chip-option.mat-mdc-chip-selected {
-  background: linear-gradient(135deg, #0099FF 0%, #3AFF6F 100%) !important;
-  border-color: transparent !important;
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
   color: #FFFFFF !important;
 }
 
@@ -69,7 +73,7 @@
 
 .tag-selector ::ng-deep .mat-mdc-chip .mdc-evolution-chip__cell,
 .tag-selector ::ng-deep .mat-mdc-chip .mdc-evolution-chip__text-label {
-  color: #FFFFFF !important;
+  color: inherit !important;
   pointer-events: none !important;
 }
 
@@ -77,29 +81,47 @@
   pointer-events: auto !important;
 }
 
-/* ── Charts Grid (side by side) ──────── */
+/* Charts Grid - Glassmorphism */
 .charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: var(--space-5);
 }
 
 .chart-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 1.25rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: all var(--transition-fast);
+}
+
+.chart-card:hover {
+  background: var(--glass-bg-hover);
 }
 
 .chart-card h2 {
-  color: #FFFFFF;
-  font-size: 0.95rem;
-  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  margin: 0 0 var(--space-4) 0;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chart-card h2::before {
+  content: '';
+  width: 2px;
+  height: 14px;
+  background: var(--accent-primary);
+  border-radius: 1px;
 }
 
 .chart-area {
-  height: 350px;
+  height: 300px;
   position: relative;
 }
 
@@ -109,13 +131,22 @@
   justify-content: center;
   height: 100%;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
+}
+
+.chart-loading .spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(46, 204, 113, 0.15);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 .chart-loading p {
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-muted);
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
 canvas {
@@ -123,16 +154,82 @@ canvas {
   height: auto !important;
 }
 
-/* ── Responsive ───────────────────────── */
-@media (max-width: 1024px) {
+/* Empty State */
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  text-align: center;
+  gap: var(--space-3);
+}
+
+.chart-empty-icon {
+  font-size: 2rem;
+  opacity: 0.3;
+}
+
+.chart-empty p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* Legend - Flat */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legend-color.primary {
+  background: var(--accent-primary);
+}
+
+.legend-color.secondary {
+  background: var(--accent-secondary);
+}
+
+.legend-color.success {
+  background: var(--accent-success);
+}
+
+.legend-color.warning {
+  background: var(--accent-warning);
+}
+
+.legend-color.error {
+  background: var(--accent-error);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
   .charts-grid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .analytics-container {
-    padding: 1.25rem;
+    padding: var(--space-5);
   }
 
   .analytics-header {
@@ -142,5 +239,9 @@ canvas {
 
   .tag-selector {
     justify-content: flex-start;
+  }
+
+  .chart-area {
+    height: 240px;
   }
 }

@@ -16,10 +16,10 @@
       <div class="message" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
         <div class="message-avatar">
           @if (message.role === 'user') {
-            <span>👤</span>
+            <img src="/assets/user.svg" alt="User" style="width: 20px; height: 20px;">
           }
           @if (message.role === 'assistant') {
-            <span>🤖</span>
+            <img src="/assets/robot.svg" alt="AI" style="width: 20px; height: 20px;">
           }
         </div>
         <div class="message-content">
@@ -30,7 +30,7 @@
     }
     @if (isProcessing) {
       <div class="message assistant-message">
-        <div class="message-avatar">🤖</div>
+        <div class="message-avatar"><img src="/assets/robot.svg" alt="AI" style="width: 20px; height: 20px;"></div>
         <div class="message-content">
           <div class="typing-indicator">
             <span></span>

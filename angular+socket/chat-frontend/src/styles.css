@@ -1,4 +1,100 @@
-/* Global Styles - Clarity Dark Theme */
+/* Global Styles - Clarity Neobrutalist Theme (Zedd Clarity Album Inspired) */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CSS Custom Properties - Design System
+   Zedd Clarity Album Color Palette:
+   - Vibrant Blue:    #1A57A6 (deep blue)
+   - Electric Cyan:   #00C2E0 (bright glowing blue)
+   - Bright Green:    #32C764 (vivid green)
+   - Deep Violet:     #4F3C85 (subtle purple)
+   - Shadow Black:    #0E0F11 (solid black for outlines)
+   - Crystal Grey:    #D1D5D8 (light neutral)
+   - Pure White:      #FFFFFF (highlights/background)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Background Colors - Clarity Brand */
+  --bg-primary: #0E0F11;
+  --bg-secondary: #1A1C20;
+  --bg-tertiary: #252830;
+  --bg-hover: rgba(0, 194, 224, 0.08);
+  --bg-input: rgba(255, 255, 255, 0.04);
+
+  /* Text Colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #D1D5D8;
+  --text-muted: #8A8F95;
+  --text-disabled: rgba(255, 255, 255, 0.4);
+
+  /* Accent Colors - Zedd Clarity Palette */
+  --accent-primary: #00C2E0;
+  --accent-primary-hover: #00A8C4;
+  --accent-secondary: #1A57A6;
+  --accent-green: #32C764;
+  --accent-violet: #4F3C85;
+  --accent-success: #32C764;
+  --accent-warning: #F5A623;
+  --accent-error: #E74C3C;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #1A57A6 0%, #00C2E0 50%, #32C764 100%);
+  --gradient-cyan: linear-gradient(135deg, #00C2E0 0%, #00A8C4 100%);
+  --gradient-success: linear-gradient(135deg, #32C764 0%, #28A745 100%);
+  --gradient-violet: linear-gradient(135deg, #4F3C85 0%, #6B4E9E 100%);
+  --gradient-error: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+
+  /* Border Colors - Neobrutalist Style */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-default: #0E0F11;
+  --border-focus: #00C2E0;
+  --border-thick: 2px;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg-hover: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 20px;
+
+  /* Spacing Scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border Radius - Neobrutalist (sharper corners) */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-full: 9999px;
+
+  /* Shadows - Neobrutalist (hard shadows) */
+  --shadow-sm: 2px 2px 0 rgba(0, 0, 0, 0.8);
+  --shadow-md: 4px 4px 0 rgba(0, 0, 0, 0.8);
+  --shadow-lg: 6px 6px 0 rgba(0, 0, 0, 0.8);
+  --shadow-glow: 0 0 20px rgba(0, 194, 224, 0.3);
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-base: 180ms ease;
+  --transition-slow: 280ms ease;
+  --transition-smooth: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Base Reset & Typography
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 * {
   margin: 0;
   padding: 0;
@@ -9,19 +105,23 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #000000;
-  color: #FFFFFF;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
 }
 
-/* Scrollbar */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Scrollbar Styling
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -29,16 +129,257 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
 }
 
-/* Selection */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Selection & Focus
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 ::selection {
-  background: rgba(0, 212, 255, 0.25);
+  background: rgba(0, 194, 224, 0.3);
+  color: var(--text-primary);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Utility Classes - Minimal/Flat Style
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Glass Panel - for dashboards & AI pages */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+}
+
+.glass-panel:hover {
+  background: var(--glass-bg-hover);
+}
+
+/* Flat Section - for lists and content areas */
+.flat-section {
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.flat-section:last-child {
+  border-bottom: none;
+}
+
+/* Button styles - Neo-brutalist accent */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border-default);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: #0E0F11;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translate(0, 0);
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 2px solid var(--border-default);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Input base style - Neobrutalist */
+.input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: rgba(0, 194, 224, 0.04);
+  box-shadow: 0 0 0 3px rgba(0, 194, 224, 0.15);
+}
+
+/* Badge styles - Neobrutalist */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px var(--space-2);
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 2px solid var(--border-default);
+}
+
+.badge-primary {
+  background: var(--accent-primary);
+  color: #0E0F11;
+}
+
+.badge-success {
+  background: var(--accent-green);
+  color: #0E0F11;
+}
+
+.badge-warning {
+  background: var(--accent-warning);
+  color: #0E0F11;
+}
+
+.badge-error {
+  background: var(--accent-error);
   color: #FFFFFF;
+}
+
+/* List Item - Flat style */
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.list-item:hover {
+  background: var(--bg-hover);
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--space-4) 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Spinner */
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(0, 194, 224, 0.15);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.spinner-lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
 }
