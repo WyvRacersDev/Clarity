@@ -2,8 +2,8 @@ import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { io, Socket } from 'socket.io-client';
 import { Observable } from 'rxjs';
-import { Screen_Element } from '../../../../shared_models/models/screen_elements.model';
-import { getServerConfig } from '../config/app.config';
+import { Screen_Element } from '../../../../shared_models/models/screen-elements.model';
+import { getServerConfig } from '../config/server.config';
 
 @Injectable({
   providedIn: 'root'

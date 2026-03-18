@@ -1,5 +1,5 @@
 import { Project } from "../models/project.model";
-import {ToDoLst,scheduled_task} from "./screen_elements.model"
+import {ToDoLst,scheduled_task} from "./screen-elements.model"
 
 import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";

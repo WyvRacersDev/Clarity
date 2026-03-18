@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
-import { scheduled_task, ToDoLst, Screen_Element } from '../../../../../shared_models/models/screen_elements.model';
+import { scheduled_task, ToDoLst, Screen_Element } from '../../../../../shared_models/models/screen-elements.model';
 import { Grid } from '../../../../../shared_models/models/project.model';
 import dayjs from 'dayjs';
 import { firstValueFrom } from 'rxjs';
@@ -44,6 +44,16 @@ export class AiInsightsComponent implements OnInit {
     , private cd: ChangeDetectorRef
   ) { }
 
+  private isTodoListElement(element: any): boolean {
+    if (element?.type === 'ToDoLst') {
+      return true;
+    }
+    if (element?.constructor?.name === 'ToDoLst') {
+      return true;
+    }
+    return Array.isArray(element?.scheduled_tasks);
+  }
+
   ngOnInit(): void {
     this.dataService.currentUser$.subscribe(user => {
       this.currentUser = user;
@@ -69,7 +79,7 @@ export class AiInsightsComponent implements OnInit {
         project.grid.forEach((grid: Grid) => {
           if (grid.Screen_elements && Array.isArray(grid.Screen_elements)) {
             grid.Screen_elements.forEach((element: Screen_Element) => {
-              if (element && element.constructor.name === 'ToDoLst') {
+              if (element && this.isTodoListElement(element)) {
                 const todoList = element as ToDoLst;
                 if (todoList.scheduled_tasks && Array.isArray(todoList.scheduled_tasks)) {
                   todoList.scheduled_tasks.forEach((task: scheduled_task) => {
