@@ -5,7 +5,7 @@ import { ProjectHandler } from "./project.service.js";
 import { UserHandler } from "./user.service.js";
 import "dotenv/config";
 import { Project } from "@models/project.model.js";
-import { AI_agent } from "@models/ai_agent.model.js"
+import { AI_agent } from "@models/ai-agent.model.js"
 import { invite } from "./invitation.service.js";
 import { User } from "@models/user.model.js";
 import { text } from "stream/consumers";

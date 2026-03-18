@@ -3,7 +3,7 @@ import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import { Project, Grid } from "@models/project.model.js"
-import { scheduled_task } from "@models/screen_elements.model.js"
+import { scheduled_task } from "@models/screen-elements.model.js"
 import { ProjectHandler } from "@services/project.service.js";
 
 const router = express.Router();

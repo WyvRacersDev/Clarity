@@ -22,7 +22,7 @@ import path from "path";
 import { google } from "googleapis";
 
 import { Socket } from "socket.io";
-import { objects_builder } from '@models/screen_elements.model.js'; // incredible location ngl 
+import { objects_builder } from '@models/screen-elements.model.js';
 import { Project, Grid } from '@models/project.model.js';
 import cors from "cors";
 import type { CorsOptions } from "cors";

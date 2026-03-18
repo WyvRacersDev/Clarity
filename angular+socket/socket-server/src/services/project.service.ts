@@ -1,15 +1,9 @@
 import { Project, Grid } from "@models/project.model.js";
 import fs from "fs";
 import path from "path";
-<<<<<<<< HEAD:angular+socket/socket-server/src/services/project.service.ts
-import { objects_builder } from '@models/screen_elements.model.js'; // incredible location ngl 
+import { objects_builder } from '@models/screen-elements.model.js';
 import { createCalendarEvent, deleteCalendarEvent } from "./calendar.service.js";
 import { UserHandler } from "./user.service.js";
-========
-import { objects_builder } from '../../shared_models/dist/screen-elements.model.js';
-import { createCalendarEvent, deleteCalendarEvent } from "./calendar.service.ts";
-import { UserHandler } from "./user.handler.ts";
->>>>>>>> main:angular+socket/socket-server/src/services/project.handler.ts
 import { fileURLToPath } from "url";
 //import { ScheduledTask } from "node-cron";
 
