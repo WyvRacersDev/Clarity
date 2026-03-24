@@ -6,8 +6,8 @@
     "type": "settings",
     "recieve_notifications": true,
     "allow_invite": true,
-    "allow_google_calender": false
+    "allow_google_calender": true
   },
   "projectReferences": [],
-  "lastModified": "2026-03-07T18:53:07.955Z"
+  "lastModified": "2026-03-24T21:40:24.542Z"
 }
