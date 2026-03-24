@@ -1,0 +1,23 @@
+{
+  "owner_name": "Demo User",
+  "name": "clarity",
+  "projectType": "hosted",
+  "grid": [
+    {
+      "name": "hamza",
+      "Screen_elements": [
+        {
+          "type": "Image",
+          "name": "hamza",
+          "x_pos": 335.9375,
+          "y_pos": 157.953125,
+          "x_scale": 300,
+          "y_scale": 200,
+          "imagepath": "http://localhost:3000/projects/hosted/clarity_assets/Clarity_1773814307832_xwo02.png"
+        }
+      ]
+    }
+  ],
+  "project_type": "hosted",
+  "lastModified": "2026-03-18T06:12:11.605Z"
+}
