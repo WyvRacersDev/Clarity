@@ -1,0 +1,372 @@
+<!-- Loading Overlay -->
+@if (isSaving || isLoading) {
+  <div class="loading-overlay">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      @if (isSaving) {
+        <p>Saving...</p>
+      }
+      @if (isLoading) {
+        <p>Loading...</p>
+      }
+    </div>
+  </div>
+}
+
+@if (project) {
+  <div class="canva-container">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="top-left">
+        <button class="menu-btn" (click)="goBack()" title="Back to Projects">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <div class="project-name">
+          <h1>{{ project.name }}</h1>
+          <span class="save-status" *ngIf="isSaving">Saving...</span>
+        </div>
+      </div>
+      <div class="top-center">
+        <div class="zoom-controls">
+          <button class="zoom-btn" (click)="canvasZoomOut()" title="Zoom Out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/>
+            </svg>
+          </button>
+          <span class="zoom-value">{{ (canvasZoom * 100).toFixed(0) }}%</span>
+          <button class="zoom-btn" (click)="canvasZoomIn()" title="Zoom In">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/>
+            </svg>
+          </button>
+          <div class="zoom-divider"></div>
+          <button class="zoom-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
+          <button class="zoom-btn" (click)="canvasResetView()" title="Reset View">100%</button>
+        </div>
+      </div>
+      <div class="top-right">
+        <button class="action-btn secondary" (click)="toggleGrid()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          Grid
+        </button>
+        <button class="action-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+          Delete
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Left Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <h3>Add Elements</h3>
+          <div class="element-buttons">
+            <button class="element-btn" (click)="selectElementType('ToDoLst')">
+              <div class="element-icon todo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                </svg>
+              </div>
+              <span>Todo List</span>
+            </button>
+            <button class="element-btn" (click)="selectElementType('Text_document')">
+              <div class="element-icon text">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                </svg>
+              </div>
+              <span>Text</span>
+            </button>
+            <button class="element-btn" (click)="selectElementType('Image')">
+              <div class="element-icon image">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <path d="M21 15l-5-5L5 21"/>
+                </svg>
+              </div>
+              <span>Image</span>
+            </button>
+            <button class="element-btn" (click)="selectElementType('Video')">
+              <div class="element-icon video">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+                  <path d="M10 8l6 4-6 4V8z"/>
+                </svg>
+              </div>
+              <span>Video</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Canvas Info</h3>
+          <div class="canvas-info">
+            <div class="info-row">
+              <span class="info-label">Elements</span>
+              <span class="info-value">{{ getElements().length }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Selected</span>
+              <span class="info-value">{{ selectedElementIndex >= 0 ? 'Element ' + (selectedElementIndex + 1) : 'None' }}</span>
+            </div>
+          </div>
+        </div>
+
+        @if (selectedElementIndex >= 0 && getElements()[selectedElementIndex]) {
+          <div class="sidebar-section">
+            <h3>Selected Element</h3>
+            <div class="selected-element-info">
+              <div class="element-preview-card">
+                <span class="element-type">{{ getElementType(getElements()[selectedElementIndex]) }}</span>
+                <span class="element-title">{{ getElements()[selectedElementIndex].name }}</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Canvas Area -->
+      <div class="canvas-wrapper">
+        <div class="canvas-scroll-area"
+             #canvasContainer
+             (wheel)="onCanvasWheel($event)"
+             (mousedown)="onCanvasMouseDown($event)"
+             (click)="onCanvasClick($event)"
+             [class.no-grid]="!showGrid">
+
+          <div class="canvas-page"
+               [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
+
+            <!-- Elements on Canvas -->
+            @for (element of getElements(); track element; let i = $index) {
+              <div
+                class="canvas-element"
+                [class.selected]="selectedElementIndex === i"
+                [style.left.px]="getElementX(element, i)"
+                [style.top.px]="getElementY(element, i)"
+                [style.width.px]="getElementWidth(element)"
+                (mousedown)="onElementMouseDown($event, i)"
+                (dblclick)="onElementDoubleClick(element, i)">
+
+                <!-- Selection Border -->
+                <div class="selection-border"></div>
+
+                <!-- Element Content -->
+                <div class="element-content">
+                  <div class="element-label">{{ element.name }}</div>
+
+                  @if (getElementType(element) === 'ToDoLst') {
+                    <div class="todo-content">
+                      @for (task of getTodoTasks(element).slice(0, 5); track task) {
+                        <div class="task-item">
+                          <div class="task-checkbox" [class.checked]="task.is_done" (click)="onTaskToggle(task); $event.stopPropagation()">
+                            @if (task.is_done) {
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <path d="M20 6L9 17l-5-5"/>
+                              </svg>
+                            }
+                          </div>
+                          <span class="task-text" [class.done]="task.is_done">{{ task.taskname }}</span>
+                        </div>
+                      }
+                      @if (getTodoTasks(element).length === 0) {
+                        <div class="empty-tasks">No tasks yet</div>
+                      }
+                    </div>
+                  }
+
+                  @if (getElementType(element) === 'Text_document') {
+                    <div class="text-content">
+                      {{ getTextPreview(element) }}
+                    </div>
+                  }
+
+                  @if (getElementType(element) === 'Image') {
+                    <div class="image-content">
+                      <img [src]="getImagePath(element)" alt="" />
+                    </div>
+                  }
+
+                  @if (getElementType(element) === 'Video') {
+                    <div class="video-content">
+                      <video [src]="getVideoPath(element)"></video>
+                      <div class="play-overlay">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- Resize Handles -->
+                <div class="resize-handle nw" (mousedown)="startResize($event, element, 0, i, 'nw')"></div>
+                <div class="resize-handle ne" (mousedown)="startResize($event, element, 0, i, 'ne')"></div>
+                <div class="resize-handle sw" (mousedown)="startResize($event, element, 0, i, 'sw')"></div>
+                <div class="resize-handle se" (mousedown)="startResize($event, element, 0, i, 'se')"></div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                  <button class="quick-btn" (click)="deleteElement(i); $event.stopPropagation()" title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Empty State -->
+            @if (getElements().length === 0) {
+              <div class="empty-canvas-state">
+                <div class="empty-icon">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                  </svg>
+                </div>
+                <h2>Start designing</h2>
+                <p>Add elements from the sidebar to begin</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Bottom Toolbar -->
+        <div class="bottom-toolbar">
+          <div class="toolbar-hint">
+            <span>Drag to pan</span>
+            <span class="divider">•</span>
+            <span>Scroll to zoom</span>
+            <span class="divider">•</span>
+            <span>Click to select</span>
+            <span class="divider">•</span>
+            <span>Double-click to open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (!project) {
+  <div class="loading-page">
+    <div class="loading-content">
+      <div class="spinner-large"></div>
+      <p>Loading project...</p>
+    </div>
+  </div>
+}
+
+<!-- Full Screen Todo View -->
+@if (showFullScreenTodo && fullScreenTodoElement) {
+  <div class="fullscreen-overlay">
+    <div class="fullscreen-container">
+      <div class="fullscreen-header">
+        <div class="fullscreen-title">
+          <span class="type-badge">TODO</span>
+          <h1>{{ fullScreenTodoElement.name }}</h1>
+        </div>
+        <button class="close-fullscreen" (click)="closeFullScreenTodo()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="fullscreen-add-task">
+        <input [(ngModel)]="newTaskName" placeholder="Add a new task..." (keyup.enter)="addTaskToFullScreenTodo()" />
+        <select [(ngModel)]="newTaskPriority">
+          <option [ngValue]="1">🔴 High</option>
+          <option [ngValue]="2">🟡 Medium</option>
+          <option [ngValue]="3">🟢 Low</option>
+        </select>
+        <button (click)="addTaskToFullScreenTodo()" [disabled]="!newTaskName.trim()">Add Task</button>
+      </div>
+      <div class="fullscreen-tasks">
+        @for (task of getUpcomingTasks(); track task) {
+          <div class="fullscreen-task" [class.done]="task.is_done">
+            <div class="task-check" (click)="toggleTaskStatusInFullScreen(task)">
+              @if (task.is_done) {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+              }
+            </div>
+            <span class="task-name">{{ task.taskname }}</span>
+            <button class="remove-task" (click)="deleteTaskFromFullScreenTodo(task)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Element Type Selector Modal -->
+@if (showElementTypeSelector) {
+  <div class="modal-overlay" (click)="showElementTypeSelector = false">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Add Element</h2>
+        <button class="modal-close" (click)="showElementTypeSelector = false">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="element-grid">
+          <button class="element-choice" (click)="selectElementType('ToDoLst')">
+            <div class="choice-icon todo">✓</div>
+            <span>Todo List</span>
+            <p>Track tasks and to-dos</p>
+          </button>
+          <button class="element-choice" (click)="selectElementType('Text_document')">
+            <div class="choice-icon text">T</div>
+            <span>Text Document</span>
+            <p>Write notes and documents</p>
+          </button>
+          <button class="element-choice" (click)="selectElementType('Image')">
+            <div class="choice-icon image">🖼</div>
+            <span>Image</span>
+            <p>Upload and display images</p>
+          </button>
+          <button class="element-choice" (click)="selectElementType('Video')">
+            <div class="choice-icon video">▶</div>
+            <span>Video</span>
+            <p>Upload and play videos</p>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Error Modal -->
+@if (showErrorModal) {
+  <div class="modal-overlay" (click)="closeErrorModal()">
+    <div class="modal-card error" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Error</h2>
+        <button class="modal-close" (click)="closeErrorModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p>{{ errorMessage }}</p>
+      </div>
+      <div class="modal-footer">
+        <button class="primary-btn" (click)="closeErrorModal()">OK</button>
+      </div>
+    </div>
+  </div>
+}
