@@ -271,6 +271,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
   }
 
+  goBack(): void {
+    this.router.navigate(['/dashboard/projects']);
+  }
+
   async reloadProjectFromServer(): Promise<void> {
     if (!this.project || !this.currentUser) {
       console.warn('[ProjectDetail] Cannot reload: project or user is null');
