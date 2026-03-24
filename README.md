@@ -26,7 +26,7 @@ Mohammad Hamza Iqbal, Bilal Kashif, Mawahid Abbas
 
 ## UI Design
 
-Clarity features a modern **Neobrutalist/Glassmorphism** design inspired by Zedd Clarity, with:
+Clarity features a modern **Neobrutalist/Glassmorphism** design inspired by Zedd's album, Clarity, with:
 - Glassmorphic cards with blur effects and subtle borders
 - Cyan accent color palette
 - Dark theme optimized for focus and productivity
