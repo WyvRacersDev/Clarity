@@ -116,6 +116,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   isPanning: boolean = false;
   panStartX: number = 0;
   panStartY: number = 0;
+  showGrid: boolean = true;
 
   // Loading states
   isSaving = false;
@@ -1569,6 +1570,75 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.canvasZoom = 1;
     this.canvasPanX = 0;
     this.canvasPanY = 0;
+  }
+
+  // Canvas toolbar methods
+  canvasZoomIn(): void {
+    this.canvasZoom = Math.min(3, this.canvasZoom + 0.1);
+  }
+
+  canvasZoomOut(): void {
+    this.canvasZoom = Math.max(0.25, this.canvasZoom - 0.1);
+  }
+
+  canvasResetView(): void {
+    this.resetCanvasView();
+  }
+
+  canvasFitToScreen(): void {
+    if (!this.project || this.project.grid.length === 0 || !this.project.grid[this.selectedGridIndex]) {
+      this.resetCanvasView();
+      return;
+    }
+
+    const elements = this.project.grid[this.selectedGridIndex].Screen_elements;
+    if (elements.length === 0) {
+      this.resetCanvasView();
+      return;
+    }
+
+    // Calculate bounding box
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of elements) {
+      const x = (el as any).x_pos || 0;
+      const y = (el as any).y_pos || 0;
+      const w = this.getElementWidth(el);
+      const h = 150; // Default height
+      minX = Math.min(minX, x * 250);
+      minY = Math.min(minY, y * 200);
+      maxX = Math.max(maxX, x * 250 + w);
+      maxY = Math.max(maxY, y * 200 + h);
+    }
+
+    const containerWidth = 800; // Approximate container width
+    const containerHeight = 600; // Approximate container height
+
+    const contentWidth = maxX - minX + 100;
+    const contentHeight = maxY - minY + 100;
+
+    this.canvasZoom = Math.min(containerWidth / contentWidth, containerHeight / contentHeight, 1);
+    this.canvasPanX = (containerWidth - contentWidth * this.canvasZoom) / 2 - minX * this.canvasZoom + 50;
+    this.canvasPanY = (containerHeight - contentHeight * this.canvasZoom) / 2 - minY * this.canvasZoom + 50;
+  }
+
+  toggleGrid(): void {
+    this.showGrid = !this.showGrid;
+  }
+
+  getElementWidth(element: Screen_Element): number {
+    const xscale = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 1);
+    if (xscale > 10) {
+      return xscale;
+    }
+    // Default widths based on element type
+    const type = this.getElementType(element);
+    switch (type) {
+      case 'ToDoLst': return 280;
+      case 'Text_document': return 300;
+      case 'Image': return 320;
+      case 'Video': return 320;
+      default: return 250;
+    }
   }
 
   onDocumentMouseDown(event: MouseEvent): void {

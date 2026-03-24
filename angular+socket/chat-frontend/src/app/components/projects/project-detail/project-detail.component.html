@@ -68,10 +68,38 @@
               }}
             </div>
           </div>
-          <div class="elements-grid">
+
+          <!-- Canvas Toolbar -->
+          <div class="canvas-toolbar">
+            <div class="toolbar-section">
+              <span style="color: #888; font-size: 12px;">View:</span>
+              <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out">−</button>
+              <span class="zoom-level">{{ (canvasZoom * 100).toFixed(0) }}%</span>
+              <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In">+</button>
+              <button class="toolbar-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
+              <button class="toolbar-btn" (click)="canvasResetView()" title="Reset View">Reset</button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-section">
+              <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()" title="Toggle Grid">
+                Grid
+              </button>
+            </div>
+          </div>
+
+          <div class="elements-grid"
+               #canvasContainer
+               (wheel)="onCanvasWheel($event)"
+               (mousedown)="onCanvasMouseDown($event)"
+               [class.no-grid]="!showGrid">
+            <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
             @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
               <div
-                class="element-card"
+                class="element-card canvas-element-card"
+                [class.selected]="selectedElementIndex === i"
+                [style.left.px]="element.x_pos * 250"
+                [style.top.px]="element.y_pos * 200"
+                [style.width.px]="getElementWidth(element)"
                 [ngStyle]="getElementStyle(element)"
                 [class.long-press-active]="longPressTargetIndex === i"
                 [class.dragging-active]="draggedElementIndex === i && isDraggingEnabled"
@@ -304,6 +332,30 @@
                 <p>No elements yet. Click "Add Element" to get started.</p>
               </div>
             }
+            </div>
+            <!-- Mini Map -->
+            <div class="minimap">
+              <div class="minimap-content">
+                <div class="minimap-elements">
+                  @for (element of project.grid[selectedGridIndex].Screen_elements; track element) {
+                    <div class="minimap-element"
+                         [style.left.px]="element.x_pos * 250 * 0.03"
+                         [style.top.px]="element.y_pos * 200 * 0.03"
+                         [style.width.px]="getElementWidth(element) * 0.03"
+                         [style.height.px]="100 * 0.03"></div>
+                  }
+                </div>
+                <div class="minimap-viewport"
+                     [style.left.px]="-canvasPanX * 0.03 / canvasZoom"
+                     [style.top.px]="-canvasPanY * 0.03 / canvasZoom"
+                     [style.width.px]="800 * 0.03 / canvasZoom"
+                     [style.height.px]="600 * 0.03 / canvasZoom"></div>
+              </div>
+            </div>
+            <!-- Zoom Indicator -->
+            <div class="zoom-indicator">
+              {{ (canvasZoom * 100).toFixed(0) }}%
+            </div>
           </div>
         </div>
       }
