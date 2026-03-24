@@ -82,7 +82,7 @@
           <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
             @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
               <div
-                class="canvas-element"
+                class="canvas-element-card"
                 [class.selected]="selectedElementIndex === i"
                 [style.left.px]="getElementX(element, i)"
                 [style.top.px]="getElementY(element, i)"
