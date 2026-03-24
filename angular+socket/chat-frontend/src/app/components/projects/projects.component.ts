@@ -305,6 +305,13 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     return (project as any).isLocal !== false;
   }
 
+  getTotalElements(project: Project): number {
+    if (!project.grid || project.grid.length === 0) {
+      return 0;
+    }
+    return project.grid.reduce((total, grid) => total + grid.Screen_elements.length, 0);
+  }
+
   selectProject(index: number): void {
     this.router.navigate(['/dashboard/projects', index]);
   }

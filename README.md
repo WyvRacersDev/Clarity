@@ -1,6 +1,6 @@
 # Clarity
 
-Clarity is a collaborative productivity app built with Angular and Socket.IO. It lets users manage projects, tasks, analytics, and AI-assisted workflows, with optional Google integrations (Gmail, Calendar, Contacts).
+Clarity is a collaborative productivity app built with Angular and Socket.IO. It features a Canva-like canvas workspace where users can create projects and organize tasks, notes, images, and videos on an infinite canvas with drag-and-drop, pan, and zoom functionality.
 
 ## Authors
 
@@ -8,40 +8,57 @@ Mohammad Hamza Iqbal, Bilal Kashif, Mawahid Abbas
 
 ## Features
 
-- Real-time collaboration using Socket.IO
-- Project management with local and hosted project modes
-- Task scheduling and dashboard views
-- Analytics and AI insights pages
-- AI assistant powered by Gemini (via LangChain)
-- Google OAuth integration for Gmail/Calendar/Contacts
-- Email notifications for upcoming tasks
+- **Canvas Workspace**: Canva-like infinite canvas with pan, zoom, and drag-and-drop elements
+- **Real-time Collaboration**: Multi-user editing via Socket.IO
+- **Project Management**: Local and hosted project modes with real-time sync
+- **Multiple Element Types**: Todo lists, text documents, images, and videos
+- **Task Scheduling**: Priority-based task management with due dates
+- **AI Assistant**: Powered by Gemini via LangChain
+- **Google Integration**: OAuth for Gmail, Calendar, and Contacts
+- **Email Notifications**: Reminders for upcoming tasks
 
 ## Tech Stack
 
-- Frontend: Angular 21, Angular Material, Chart.js
-- Backend: Node.js, Express, Socket.IO, TypeScript
-- Database: Supabase (optional, for hosted projects)
-- AI: LangChain + Google Gemini
-- Integrations: Google APIs, Nodemailer
+- **Frontend**: Angular 21, TypeScript, SCSS
+- **Backend**: Node.js, Express, Socket.IO
+- **Database**: Supabase (for hosted projects)
+- **AI**: LangChain + Google Gemini
+- **Canvas Libraries**: Konva.js, Fabric.js, SVG.js (modular canvas implementations)
 
 ## UI Design
 
-Clarity features a modern **Neobrutalist/Glassmorphism** design inspired by Zedd's album, Clarity, with:
+Clarity features a modern **Neobrutalist/Glassmorphism** design inspired by Zedd's "Clarity" album:
 - Glassmorphic cards with blur effects and subtle borders
-- Cyan accent color palette
+- Cyan accent color palette (#00d4ff)
 - Dark theme optimized for focus and productivity
-- Responsive layout for all screen sizes
+- Infinite canvas with grid overlay
+- Mini-map navigation
+
+## Canvas Workspace
+
+The core feature of Clarity is its canvas-based project workspace:
+
+- **Pan**: Click and drag on empty canvas space
+- **Zoom**: Mouse wheel or toolbar buttons (25% - 300%)
+- **Elements**: Drag to reposition, double-click to expand
+- **Toolbar**: Zoom controls, grid toggle, delete selected
+- **Mini-map**: Navigate large canvases quickly
 
 ## Repository Structure
 
 ```text
 .
 ├── angular+socket/
-│   ├── chat-frontend/      # Angular client app
-│   ├── socket-server/      # Express + Socket.IO server
-│   ├── shared_models/      # Shared TypeScript models
-│   └── package.json        # Backend/runtime dependencies
-├── package.json            # Root-level misc dependencies
+│   ├── chat-frontend/          # Angular client app
+│   │   └── src/app/
+│   │       └── components/
+│   │           └── projects/
+│   │               └── project-detail/  # Canvas workspace
+│   ├── socket-server/          # Express + Socket.IO server
+│   │   └── projects/           # Project data storage
+│   ├── shared_models/          # Shared TypeScript models
+│   └── package.json
+├── package.json
 └── README.md
 ```
 
@@ -116,16 +133,29 @@ cd angular+socket/chat-frontend
 npm start
 ```
 
+Frontend default URL: `http://localhost:4200`
+
+## Usage
+
+1. Open the app in your browser
+2. Create a new project from the Projects page
+3. Click on the project to open the canvas workspace
+4. Add elements (Todo, Text, Image, Video) using the Add button
+5. Drag elements to position them on the canvas
+6. Double-click todo lists to open full-screen view
+7. Use the toolbar to zoom, pan, and manage elements
+
 ## Notes
 
-- In the app Settings screen, you can configure the backend URL at runtime.
-- Project files are stored under `angular+socket/socket-server/projects/`.
-- User files are stored under `angular+socket/socket-server/users/`.
+- In the app Settings screen, you can configure the backend URL at runtime
+- Local projects are stored in `angular+socket/socket-server/projects/local/`
+- Hosted projects sync with Supabase for multi-device access
+- User preferences are stored in `angular+socket/socket-server/users/`
 
 ## Scripts (Frontend)
 
 From `angular+socket/chat-frontend`:
 
 - `npm start` - run Angular dev server
-- `npm run build` - build frontend
+- `npm run build` - build frontend for production
 - `npm test` - run unit tests

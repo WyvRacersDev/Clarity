@@ -14,155 +14,133 @@
 }
 
 @if (project) {
-  <div class="project-detail-container">
+  <div class="project-canvas-container">
     <!-- Header -->
-    <div class="project-header">
+    <div class="canvas-header">
       <div class="header-left">
         <a routerLink="/dashboard/projects" class="back-btn">← Back</a>
         <h1>{{ project.name }}</h1>
-        <span class="element-count">{{ getCurrentGridElements().length }} elements</span>
+        <span class="element-count">{{ getElements().length }} elements</span>
       </div>
       <div class="header-actions">
         <button class="add-btn" (click)="openAddElementModal()">
           <span class="btn-icon">+</span>
           Add Element
         </button>
-        <button class="secondary-btn" (click)="openCreateGridModal()">
-          <span class="btn-icon">+</span>
-          New Grid
-        </button>
       </div>
-    </div>
-
-    <!-- Grid Tabs (simplified) -->
-    <div class="grids-tabs">
-      @for (grid of project.grid; track grid; let i = $index) {
-        <div
-          class="tab"
-          [class.active]="selectedGridIndex === i"
-          (click)="selectedGridIndex = i"
-        >
-          {{ grid.name }}
-          @if (project.grid.length > 1) {
-            <button class="tab-delete" (click)="deleteGrid(i); $event.stopPropagation()">×</button>
-          }
-        </div>
-      }
     </div>
 
     <!-- Canvas Workspace -->
-    @if (project.grid.length > 0 && project.grid[selectedGridIndex]) {
-      <div class="canvas-workspace-container">
-        <!-- Canvas Toolbar -->
-        <div class="canvas-toolbar">
-          <div class="toolbar-section">
-            <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out">−</button>
-            <span class="zoom-level">{{ (canvasZoom * 100).toFixed(0) }}%</span>
-            <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In">+</button>
-            <button class="toolbar-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
-            <button class="toolbar-btn" (click)="canvasResetView()" title="Reset View">Reset</button>
-          </div>
-          <div class="toolbar-divider"></div>
-          <div class="toolbar-section">
-            <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()">Grid</button>
-          </div>
-          <div class="toolbar-divider"></div>
-          <div class="toolbar-section">
-            <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">Delete</button>
-          </div>
+    <div class="canvas-workspace">
+      <!-- Toolbar -->
+      <div class="canvas-toolbar">
+        <div class="toolbar-section">
+          <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out">−</button>
+          <span class="zoom-level">{{ (canvasZoom * 100).toFixed(0) }}%</span>
+          <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In">+</button>
+          <button class="toolbar-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
+          <button class="toolbar-btn" (click)="canvasResetView()" title="Reset View">Reset</button>
         </div>
-
-        <!-- Canvas Area -->
-        <div class="canvas-container"
-             #canvasContainer
-             (wheel)="onCanvasWheel($event)"
-             (mousedown)="onCanvasMouseDown($event)"
-             (click)="onCanvasClick($event)"
-             [class.no-grid]="!showGrid">
-          <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
-            @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
-              <div
-                class="canvas-element-card"
-                [class.selected]="selectedElementIndex === i"
-                [style.left.px]="getElementX(element, i)"
-                [style.top.px]="getElementY(element, i)"
-                [style.width.px]="getElementWidth(element)"
-                (mousedown)="onElementMouseDown($event, i)"
-                (dblclick)="onElementDoubleClick(element, i)"
-              >
-                <!-- Element Header -->
-                <div class="element-header">
-                  <span class="element-type-badge">{{ getElementType(element) }}</span>
-                  <span class="element-name">{{ element.name }}</span>
-                  <button class="element-delete-btn" (click)="deleteElement(i); $event.stopPropagation()">×</button>
-                </div>
-
-                <!-- Element Content -->
-                <div class="element-body">
-                  @if (getElementType(element) === 'ToDoLst') {
-                    <div class="todo-preview">
-                      @for (task of getTodoTasks(element).slice(0, 4); track task) {
-                        <div class="task-row">
-                          <input type="checkbox" [checked]="task.is_done" (change)="onTaskToggle(task); $event.stopPropagation()" />
-                          <span [class.done]="task.is_done">{{ task.taskname }}</span>
-                        </div>
-                      }
-                      @if (getTodoTasks(element).length === 0) {
-                        <span class="empty-text">No tasks</span>
-                      }
-                    </div>
-                  }
-                  @if (getElementType(element) === 'Text_document') {
-                    <div class="text-preview">
-                      {{ getTextPreview(element) }}
-                    </div>
-                  }
-                  @if (getElementType(element) === 'Image') {
-                    <div class="image-preview">
-                      <img [src]="getImagePath(element)" alt="" />
-                    </div>
-                  }
-                  @if (getElementType(element) === 'Video') {
-                    <div class="video-preview">
-                      <video [src]="getVideoPath(element)"></video>
-                    </div>
-                  }
-                </div>
-
-                <!-- Resize Handles -->
-                <div class="resize-handle nw" (mousedown)="startResize($event, element, selectedGridIndex, i, 'nw')"></div>
-                <div class="resize-handle ne" (mousedown)="startResize($event, element, selectedGridIndex, i, 'ne')"></div>
-                <div class="resize-handle sw" (mousedown)="startResize($event, element, selectedGridIndex, i, 'sw')"></div>
-                <div class="resize-handle se" (mousedown)="startResize($event, element, selectedGridIndex, i, 'se')"></div>
-              </div>
-            }
-            @if (project.grid[selectedGridIndex].Screen_elements.length === 0) {
-              <div class="empty-canvas">
-                <div class="empty-icon">+</div>
-                <p>Add elements to your canvas</p>
-                <button class="add-btn" (click)="openAddElementModal()">Add Element</button>
-              </div>
-            }
-          </div>
-
-          <!-- Mini Map -->
-          <div class="minimap">
-            @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
-              <div class="minimap-dot"
-                   [style.left.px]="(getElementX(element, i) * 0.04)"
-                   [style.top.px]="(getElementY(element, i) * 0.04)"
-                   [style.width.px]="(getElementWidth(element) * 0.04)"
-                   [style.height.px]="4"></div>
-            }
-            <div class="minimap-viewport"
-                 [style.left.px]="(-canvasPanX * 0.04 / canvasZoom)"
-                 [style.top.px]="(-canvasPanY * 0.04 / canvasZoom)"
-                 [style.width.px]="(40 / canvasZoom)"
-                 [style.height.px]="(30 / canvasZoom)"></div>
-          </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-section">
+          <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()">Grid</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-section">
+          <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">Delete</button>
         </div>
       </div>
-    }
+
+      <!-- Canvas Area -->
+      <div class="canvas-container"
+           #canvasContainer
+           (wheel)="onCanvasWheel($event)"
+           (mousedown)="onCanvasMouseDown($event)"
+           (click)="onCanvasClick($event)"
+           [class.no-grid]="!showGrid">
+        <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
+          @for (element of getElements(); track element; let i = $index) {
+            <div
+              class="canvas-element"
+              [class.selected]="selectedElementIndex === i"
+              [style.left.px]="getElementX(element, i)"
+              [style.top.px]="getElementY(element, i)"
+              [style.width.px]="getElementWidth(element)"
+              (mousedown)="onElementMouseDown($event, i)"
+              (dblclick)="onElementDoubleClick(element, i)"
+            >
+              <!-- Element Header -->
+              <div class="element-header">
+                <span class="element-type-badge">{{ getElementType(element) }}</span>
+                <span class="element-name">{{ element.name }}</span>
+                <button class="element-delete-btn" (click)="deleteElement(i); $event.stopPropagation()">×</button>
+              </div>
+
+              <!-- Element Content -->
+              <div class="element-body">
+                @if (getElementType(element) === 'ToDoLst') {
+                  <div class="todo-preview">
+                    @for (task of getTodoTasks(element).slice(0, 4); track task) {
+                      <div class="task-row">
+                        <input type="checkbox" [checked]="task.is_done" (change)="onTaskToggle(task); $event.stopPropagation()" />
+                        <span [class.done]="task.is_done">{{ task.taskname }}</span>
+                      </div>
+                    }
+                    @if (getTodoTasks(element).length === 0) {
+                      <span class="empty-text">No tasks</span>
+                    }
+                  </div>
+                }
+                @if (getElementType(element) === 'Text_document') {
+                  <div class="text-preview">
+                    {{ getTextPreview(element) }}
+                  </div>
+                }
+                @if (getElementType(element) === 'Image') {
+                  <div class="image-preview">
+                    <img [src]="getImagePath(element)" alt="" />
+                  </div>
+                }
+                @if (getElementType(element) === 'Video') {
+                  <div class="video-preview">
+                    <video [src]="getVideoPath(element)"></video>
+                  </div>
+                }
+              </div>
+
+              <!-- Resize Handles -->
+              <div class="resize-handle nw" (mousedown)="startResize($event, element, 0, i, 'nw')"></div>
+              <div class="resize-handle ne" (mousedown)="startResize($event, element, 0, i, 'ne')"></div>
+              <div class="resize-handle sw" (mousedown)="startResize($event, element, 0, i, 'sw')"></div>
+              <div class="resize-handle se" (mousedown)="startResize($event, element, 0, i, 'se')"></div>
+            </div>
+          }
+          @if (getElements().length === 0) {
+            <div class="empty-canvas">
+              <div class="empty-icon">+</div>
+              <p>Add elements to your canvas</p>
+              <button class="add-btn" (click)="openAddElementModal()">Add Element</button>
+            </div>
+          }
+        </div>
+
+        <!-- Mini Map -->
+        <div class="minimap">
+          @for (element of getElements(); track element; let i = $index) {
+            <div class="minimap-dot"
+                 [style.left.px]="(getElementX(element, i) * 0.04)"
+                 [style.top.px]="(getElementY(element, i) * 0.04)"
+                 [style.width.px]="(getElementWidth(element) * 0.04)"
+                 [style.height.px]="4"></div>
+          }
+          <div class="minimap-viewport"
+               [style.left.px]="(-canvasPanX * 0.04 / canvasZoom)"
+               [style.top.px]="(-canvasPanY * 0.04 / canvasZoom)"
+               [style.width.px]="(40 / canvasZoom)"
+               [style.height.px]="(30 / canvasZoom)"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- Full Screen Todo View -->
     @if (showFullScreenTodo && fullScreenTodoElement) {
@@ -199,28 +177,6 @@
 @if (!project) {
   <div class="loading">
     <p>Loading project...</p>
-  </div>
-}
-
-<!-- Create Grid Modal -->
-@if (showCreateGridModal) {
-  <div class="modal-overlay" (click)="closeCreateGridModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Create New Grid</h2>
-        <button class="close-btn" (click)="closeCreateGridModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Grid Name</label>
-          <input [(ngModel)]="newGridName" placeholder="Enter grid name" (keydown.enter)="createGrid()" />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="cancel-btn" (click)="closeCreateGridModal()">Cancel</button>
-        <button class="submit-btn" (click)="createGrid()" [disabled]="!newGridName.trim()">Create</button>
-      </div>
-    </div>
   </div>
 }
 
