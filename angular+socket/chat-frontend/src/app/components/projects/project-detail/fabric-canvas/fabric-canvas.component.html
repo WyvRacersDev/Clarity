@@ -1,0 +1,44 @@
+<div class="fabric-workspace">
+  <!-- Toolbar -->
+  <div class="canvas-toolbar" *ngIf="showToolbar">
+    <div class="toolbar-section">
+      <span class="toolbar-label">View</span>
+      <button class="toolbar-btn icon-only" (click)="zoomOut()" title="Zoom Out">−</button>
+      <span class="zoom-level">{{ getZoomPercent() }}%</span>
+      <button class="toolbar-btn icon-only" (click)="zoomIn()" title="Zoom In">+</button>
+      <button class="toolbar-btn" (click)="fitToScreen()" title="Fit to Screen">Fit</button>
+      <button class="toolbar-btn" (click)="resetView()" title="Reset View">Reset</button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-section">
+      <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()">Grid</button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-section">
+      <span class="toolbar-label">Add</span>
+      <button class="toolbar-btn" (click)="addElement('ToDoLst')">Todo</button>
+      <button class="toolbar-btn" (click)="addElement('Text_document')">Text</button>
+      <button class="toolbar-btn" (click)="addElement('Image')">Image</button>
+      <button class="toolbar-btn" (click)="addElement('Video')">Video</button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-section">
+      <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">Delete</button>
+    </div>
+  </div>
+
+  <!-- Canvas Container -->
+  <div class="canvas-container" #canvasContainer>
+    <canvas #canvasEl></canvas>
+  </div>
+
+  <!-- Zoom Indicator -->
+  <div class="zoom-indicator">
+    {{ getZoomPercent() }}%
+  </div>
+
+  <!-- Help -->
+  <div class="help-hint">
+    Scroll to zoom • Click to select • Drag to move • Corner handles to resize
+  </div>
+</div>
