@@ -1649,6 +1649,18 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     return this.project.grid[this.selectedGridIndex].Screen_elements;
   }
 
+  // Get elements from the canvas (first grid)
+  getElements(): Screen_Element[] {
+    if (!this.project) {
+      return [];
+    }
+    // Ensure at least one grid exists
+    if (this.project.grid.length === 0) {
+      this.project.create_grid('Canvas');
+    }
+    return this.project.grid[0].Screen_elements;
+  }
+
   getElementX(element: Screen_Element, index: number): number {
     const x = (element as any).x_pos || 0;
     return x * 250 || index * 280;
