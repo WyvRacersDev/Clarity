@@ -1641,6 +1641,52 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Canvas helper methods for simplified template
+  getCurrentGridElements(): Screen_Element[] {
+    if (!this.project || !this.project.grid[this.selectedGridIndex]) {
+      return [];
+    }
+    return this.project.grid[this.selectedGridIndex].Screen_elements;
+  }
+
+  getElementX(element: Screen_Element, index: number): number {
+    const x = (element as any).x_pos || 0;
+    return x * 250 || index * 280;
+  }
+
+  getElementY(element: Screen_Element, index: number): number {
+    const y = (element as any).y_pos || 0;
+    return y * 200 || index * 180;
+  }
+
+  onCanvasClick(event: MouseEvent): void {
+    // Deselect element when clicking on empty canvas
+    if (!(event.target as HTMLElement).closest('.canvas-element')) {
+      this.selectedElementIndex = -1;
+    }
+  }
+
+  onElementDoubleClick(element: Screen_Element, index: number): void {
+    // Open todo list in full screen on double click
+    if (this.getElementType(element) === 'ToDoLst') {
+      this.openFullScreenTodo(index);
+    }
+  }
+
+  deleteSelected(): void {
+    if (this.selectedElementIndex >= 0 && this.project) {
+      this.deleteElement(this.selectedElementIndex);
+    }
+  }
+
+  getTextPreview(element: Screen_Element): string {
+    if (this.getElementType(element) === 'Text_document') {
+      const text = (element as Text_document).Text_field || '';
+      return text.substring(0, 100) + (text.length > 100 ? '...' : '');
+    }
+    return '';
+  }
+
   onDocumentMouseDown(event: MouseEvent): void {
     // Handle canvas panning
     if ((event.target as HTMLElement).closest('.canvas-container') &&

@@ -15,408 +15,180 @@
 
 @if (project) {
   <div class="project-detail-container">
+    <!-- Header -->
     <div class="project-header">
       <div class="header-left">
-        <a routerLink="/dashboard/projects" class="back-btn">← Back to Projects</a>
+        <a routerLink="/dashboard/projects" class="back-btn">← Back</a>
         <h1>{{ project.name }}</h1>
+        <span class="element-count">{{ getCurrentGridElements().length }} elements</span>
       </div>
       <div class="header-actions">
-        <button
-          class="add-btn"
-          (click)="openAddElementModal()"
-          [disabled]="!project || project.grid.length === 0"
-          >
-          <span class="btn-icon">➕</span>
+        <button class="add-btn" (click)="openAddElementModal()">
+          <span class="btn-icon">+</span>
           Add Element
         </button>
-      </div>
-    </div>
-    <!-- Grid View -->
-    <div>
-      <div class="grids-tabs">
-        @for (grid of project.grid; track grid; let i = $index) {
-          <div
-            class="tab"
-            [class.active]="selectedGridIndex === i"
-            (click)="selectedGridIndex = i"
-            >
-            {{ grid.name }}
-            @if (project.grid.length > 1) {
-              <button
-                class="tab-delete"
-                (click)="deleteGrid(i); $event.stopPropagation()"
-                >
-                ×
-              </button>
-            }
-          </div>
-        }
-        <button class="add-tab" (click)="openCreateGridModal()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
+        <button class="secondary-btn" (click)="openCreateGridModal()">
+          <span class="btn-icon">+</span>
           New Grid
         </button>
       </div>
-      @if (project.grid.length > 0 && project.grid[selectedGridIndex]) {
-        <div class="grid-content">
-          <div class="grid-header">
-            <h2>{{ project.grid[selectedGridIndex].name }}</h2>
-            <div class="grid-stats">
-              {{ project.grid[selectedGridIndex].Screen_elements.length }} element{{
-              project.grid[selectedGridIndex].Screen_elements.length !== 1 ? 's' : ''
-              }}
-            </div>
-          </div>
+    </div>
 
-          <!-- Canvas Toolbar -->
-          <div class="canvas-toolbar">
-            <div class="toolbar-section">
-              <span style="color: #888; font-size: 12px;">View:</span>
-              <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out">−</button>
-              <span class="zoom-level">{{ (canvasZoom * 100).toFixed(0) }}%</span>
-              <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In">+</button>
-              <button class="toolbar-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
-              <button class="toolbar-btn" (click)="canvasResetView()" title="Reset View">Reset</button>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-section">
-              <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()" title="Toggle Grid">
-                Grid
-              </button>
-            </div>
-          </div>
-
-          <div class="elements-grid"
-               #canvasContainer
-               (wheel)="onCanvasWheel($event)"
-               (mousedown)="onCanvasMouseDown($event)"
-               [class.no-grid]="!showGrid">
-            <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
-            @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
-              <div
-                class="element-card canvas-element-card"
-                [class.selected]="selectedElementIndex === i"
-                [style.left.px]="element.x_pos * 250"
-                [style.top.px]="element.y_pos * 200"
-                [style.width.px]="getElementWidth(element)"
-                [ngStyle]="getElementStyle(element)"
-                [class.long-press-active]="longPressTargetIndex === i"
-                [class.dragging-active]="draggedElementIndex === i && isDraggingEnabled"
-                (mousedown)="onElementMouseDown($event, i)"
-                (mouseleave)="onElementMouseLeave()"
-                (touchstart)="onElementTouchStart($event, element, selectedGridIndex, i)"
-                draggable="false"
-                >
-                <div class="element-drag-handle">
-                  <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
-                    <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
-                    <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
-                    <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
-                  </svg>
-                </div>
-                <!-- Image -->
-                @if (getElementType(element) === 'Image') {
-                  <div class="image-element">
-                    <div class="element-header">
-                      @if (
-                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                        ) {
-                        <h3
-                          (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
-                          >
-                          {{ element.name }}
-                        </h3>
-                      }
-                      @if (
-                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                        ) {
-                        <input
-                          [(ngModel)]="editingElementName"
-                          (blur)="saveElementName()"
-                          (keyup.enter)="saveElementName()"
-                          (keyup.escape)="cancelElementNameEdit()"
-                          class="element-name-input"
-                          autofocus
-                          />
-                      }
-                      <button class="delete-element-btn" (click)="deleteElement(i)">
-                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
-                      </button>
-                    </div>
-                    <div class="image-content">
-                      <img [src]="getImagePath(element)" [alt]="element.name" />
-                    </div>
-                  </div>
-                }
-                <!-- Video -->
-                @if (getElementType(element) === 'Video') {
-                  <div class="video-element">
-                    <div class="element-header">
-                      @if (
-                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                        ) {
-                        <h3
-                          (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
-                          >
-                          {{ element.name }}
-                        </h3>
-                      }
-                      @if (
-                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                        ) {
-                        <input
-                          [(ngModel)]="editingElementName"
-                          (blur)="saveElementName()"
-                          (keyup.enter)="saveElementName()"
-                          (keyup.escape)="cancelElementNameEdit()"
-                          class="element-name-input"
-                          autofocus
-                          />
-                      }
-                      <button class="delete-element-btn" (click)="deleteElement(i)">
-                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
-                      </button>
-                    </div>
-                    <div class="video-content">
-                      <video controls width="100%">
-                        <source [src]="getVideoPath(element)" type="video/mp4" />
-                      </video>
-                    </div>
-                  </div>
-                }
-                <!-- Text Document -->
-                @if (getElementType(element) === 'Text_document') {
-                  <div class="text-element">
-                    <div class="element-header">
-                      @if (
-                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                        ) {
-                        <h3
-                          (dblclick)="startEditingElementName(element, selectedGridIndex, i)"
-                          >
-                          {{ element.name }}
-                        </h3>
-                      }
-                      @if (
-                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                        ) {
-                        <input
-                          [(ngModel)]="editingElementName"
-                          (blur)="saveElementName()"
-                          (keyup.enter)="saveElementName()"
-                          (keyup.escape)="cancelElementNameEdit()"
-                          class="element-name-input"
-                          autofocus
-                          />
-                      }
-                      <button class="delete-element-btn" (click)="deleteElement(i)">
-                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
-                      </button>
-                    </div>
-                    <div class="text-content" (dblclick)="startEditingText(element, selectedGridIndex, i)">
-                      @if (!isEditingText || editingTextIndex !== i) {
-                        <p>{{ getTextContent(element) }}</p>
-                      }
-                      @if (isEditingText && editingTextIndex === i) {
-                        <textarea
-                          [(ngModel)]="editingTextContent"
-                          (blur)="saveTextEdit()"
-                          (keydown.escape)="cancelTextEdit()"
-                          (keydown.ctrl.enter)="saveTextEdit(); $event.preventDefault()"
-                          class="text-edit-input"
-                          autofocus
-                          >
-                        </textarea>
-                      }
-                    </div>
-                  </div>
-                }
-                <!-- ToDo List -->
-                @if (getElementType(element) === 'ToDoLst') {
-                  <div
-                    class="todo-element"
-                    (click)="openFullScreenTodo(i, $event)"
-                    [class.dragging]="isDraggingEnabled && draggedElementIndex === i"
-                    >
-                    <div class="element-header">
-                      @if (
-                        editingElementNameIndex !== i || editingElementNameGridIndex !== selectedGridIndex
-                        ) {
-                        <h3
-                (dblclick)="
-                  $event.stopPropagation(); startEditingElementName(element, selectedGridIndex, i)
-                "
-                (click)="$event.stopPropagation()"
-                          >
-                          {{ element.name }}
-                        </h3>
-                      }
-                      @if (
-                        editingElementNameIndex === i && editingElementNameGridIndex === selectedGridIndex
-                        ) {
-                        <input
-                          [(ngModel)]="editingElementName"
-                          (blur)="saveElementName()"
-                          (keyup.enter)="saveElementName()"
-                          (keyup.escape)="cancelElementNameEdit()"
-                          (click)="$event.stopPropagation()"
-                          class="element-name-input"
-                          autofocus
-                          />
-                      }
-                      <button
-                        class="delete-element-btn"
-                        (click)="deleteElement(i); $event.stopPropagation()"
-                        >
-                        <img src="/assets/bin.png" alt="Delete" style="width: 16px; height: 16px;">
-                      </button>
-                    </div>
-                    <!-- TAGS (SMALL TODO CARD) -->
-                    @if (getElementType(element) === 'ToDoLst') {
-                      <div class="tags-row">
-                        @for (tag of getTags(element); track tag) {
-                          <span class="tag-chip">{{ tag }}</span>
-                        }
-                        <input
-                          type="text"
-                          class="tag-input"
-                          placeholder="+ tag"
-                          [(ngModel)]="editingTagInput"
-                          (keyup.enter)="addTagToTodoList(element); $event.stopPropagation()"
-                          (click)="$event.stopPropagation()"
-                          />
-                      </div>
-                    }
-                    <div class="todo-list-content">
-                      @for (task of getTodoTasks(element); track task; let taskIndex = $index) {
-                        <div
-                          class="todo-item"
-                          >
-                          <input
-                            type="checkbox"
-                            [checked]="task.is_done"
-                            (change)="onTaskToggle(task)"
-                            (click)="$event.stopPropagation()"
-                            />
-                          <span [class.completed]="task.is_done" class="task-name">
-                            {{ task.taskname }}
-                          </span>
-                          @if (task.priority) {
-                            <span class="task-priority">
-                              <img [src]="task.priority === 1 ? '/assets/priority-high.svg' : task.priority === 2 ? '/assets/priority-medium.svg' : '/assets/priority-low.svg'" alt="" style="width: 14px; height: 14px;">
-                            </span>
-                          }
-                        </div>
-                      }
-                      @if (getTodoTasks(element).length === 0) {
-                        <div class="empty-todo">
-                          <p>No tasks yet</p>
-                          <button
-                            class="add-task-btn-small"
-                            (click)="addTaskToTodoList(i); $event.stopPropagation()"
-                            >
-                            + Add Task
-                          </button>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-            @if (project.grid[selectedGridIndex].Screen_elements.length === 0) {
-              <div
-                class="empty-grid"
-                >
-                <p>No elements yet. Click "Add Element" to get started.</p>
-              </div>
-            }
-            </div>
-            <!-- Mini Map -->
-            <div class="minimap">
-              <div class="minimap-content">
-                <div class="minimap-elements">
-                  @for (element of project.grid[selectedGridIndex].Screen_elements; track element) {
-                    <div class="minimap-element"
-                         [style.left.px]="element.x_pos * 250 * 0.03"
-                         [style.top.px]="element.y_pos * 200 * 0.03"
-                         [style.width.px]="getElementWidth(element) * 0.03"
-                         [style.height.px]="100 * 0.03"></div>
-                  }
-                </div>
-                <div class="minimap-viewport"
-                     [style.left.px]="-canvasPanX * 0.03 / canvasZoom"
-                     [style.top.px]="-canvasPanY * 0.03 / canvasZoom"
-                     [style.width.px]="800 * 0.03 / canvasZoom"
-                     [style.height.px]="600 * 0.03 / canvasZoom"></div>
-              </div>
-            </div>
-            <!-- Zoom Indicator -->
-            <div class="zoom-indicator">
-              {{ (canvasZoom * 100).toFixed(0) }}%
-            </div>
-          </div>
+    <!-- Grid Tabs (simplified) -->
+    <div class="grids-tabs">
+      @for (grid of project.grid; track grid; let i = $index) {
+        <div
+          class="tab"
+          [class.active]="selectedGridIndex === i"
+          (click)="selectedGridIndex = i"
+        >
+          {{ grid.name }}
+          @if (project.grid.length > 1) {
+            <button class="tab-delete" (click)="deleteGrid(i); $event.stopPropagation()">×</button>
+          }
         </div>
       }
     </div>
-    <!-- Create Grid Modal -->
-    @if (showCreateGridModal) {
-      <div class="modal-overlay" (click)="closeCreateGridModal()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>Create New Grid</h2>
-            <button class="close-btn" (click)="closeCreateGridModal()">×</button>
+
+    <!-- Canvas Workspace -->
+    @if (project.grid.length > 0 && project.grid[selectedGridIndex]) {
+      <div class="canvas-workspace-container">
+        <!-- Canvas Toolbar -->
+        <div class="canvas-toolbar">
+          <div class="toolbar-section">
+            <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out">−</button>
+            <span class="zoom-level">{{ (canvasZoom * 100).toFixed(0) }}%</span>
+            <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In">+</button>
+            <button class="toolbar-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
+            <button class="toolbar-btn" (click)="canvasResetView()" title="Reset View">Reset</button>
           </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Grid Name</label>
-              <input
-                type="text"
-                [(ngModel)]="newGridName"
-                placeholder="Enter grid name"
-                (keydown.enter)="$event.preventDefault(); createGrid()"
-                autofocus
-                />
-            </div>
+          <div class="toolbar-divider"></div>
+          <div class="toolbar-section">
+            <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()">Grid</button>
           </div>
-          <div class="modal-footer">
-            <button class="cancel-btn" (click)="closeCreateGridModal()">Cancel</button>
-            <button class="submit-btn" (click)="createGrid()" [disabled]="!newGridName.trim()">
-              Create Grid
-            </button>
+          <div class="toolbar-divider"></div>
+          <div class="toolbar-section">
+            <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">Delete</button>
+          </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-container"
+             #canvasContainer
+             (wheel)="onCanvasWheel($event)"
+             (mousedown)="onCanvasMouseDown($event)"
+             (click)="onCanvasClick($event)"
+             [class.no-grid]="!showGrid">
+          <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
+            @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
+              <div
+                class="canvas-element"
+                [class.selected]="selectedElementIndex === i"
+                [style.left.px]="getElementX(element, i)"
+                [style.top.px]="getElementY(element, i)"
+                [style.width.px]="getElementWidth(element)"
+                (mousedown)="onElementMouseDown($event, i)"
+                (dblclick)="onElementDoubleClick(element, i)"
+              >
+                <!-- Element Header -->
+                <div class="element-header">
+                  <span class="element-type-badge">{{ getElementType(element) }}</span>
+                  <span class="element-name">{{ element.name }}</span>
+                  <button class="element-delete-btn" (click)="deleteElement(i); $event.stopPropagation()">×</button>
+                </div>
+
+                <!-- Element Content -->
+                <div class="element-body">
+                  @if (getElementType(element) === 'ToDoLst') {
+                    <div class="todo-preview">
+                      @for (task of getTodoTasks(element).slice(0, 4); track task) {
+                        <div class="task-row">
+                          <input type="checkbox" [checked]="task.is_done" (change)="onTaskToggle(task); $event.stopPropagation()" />
+                          <span [class.done]="task.is_done">{{ task.taskname }}</span>
+                        </div>
+                      }
+                      @if (getTodoTasks(element).length === 0) {
+                        <span class="empty-text">No tasks</span>
+                      }
+                    </div>
+                  }
+                  @if (getElementType(element) === 'Text_document') {
+                    <div class="text-preview">
+                      {{ getTextPreview(element) }}
+                    </div>
+                  }
+                  @if (getElementType(element) === 'Image') {
+                    <div class="image-preview">
+                      <img [src]="getImagePath(element)" alt="" />
+                    </div>
+                  }
+                  @if (getElementType(element) === 'Video') {
+                    <div class="video-preview">
+                      <video [src]="getVideoPath(element)"></video>
+                    </div>
+                  }
+                </div>
+
+                <!-- Resize Handles -->
+                <div class="resize-handle nw" (mousedown)="startResize($event, element, selectedGridIndex, i, 'nw')"></div>
+                <div class="resize-handle ne" (mousedown)="startResize($event, element, selectedGridIndex, i, 'ne')"></div>
+                <div class="resize-handle sw" (mousedown)="startResize($event, element, selectedGridIndex, i, 'sw')"></div>
+                <div class="resize-handle se" (mousedown)="startResize($event, element, selectedGridIndex, i, 'se')"></div>
+              </div>
+            }
+            @if (project.grid[selectedGridIndex].Screen_elements.length === 0) {
+              <div class="empty-canvas">
+                <div class="empty-icon">+</div>
+                <p>Add elements to your canvas</p>
+                <button class="add-btn" (click)="openAddElementModal()">Add Element</button>
+              </div>
+            }
+          </div>
+
+          <!-- Mini Map -->
+          <div class="minimap">
+            @for (element of project.grid[selectedGridIndex].Screen_elements; track element; let i = $index) {
+              <div class="minimap-dot"
+                   [style.left.px]="(getElementX(element, i) * 0.04)"
+                   [style.top.px]="(getElementY(element, i) * 0.04)"
+                   [style.width.px]="(getElementWidth(element) * 0.04)"
+                   [style.height.px]="4"></div>
+            }
+            <div class="minimap-viewport"
+                 [style.left.px]="(-canvasPanX * 0.04 / canvasZoom)"
+                 [style.top.px]="(-canvasPanY * 0.04 / canvasZoom)"
+                 [style.width.px]="(40 / canvasZoom)"
+                 [style.height.px]="(30 / canvasZoom)"></div>
           </div>
         </div>
       </div>
     }
-    <!-- Element Type Selector Modal -->
-    @if (showElementTypeSelector) {
-      <div
-        class="modal-overlay"
-        (click)="showElementTypeSelector = false"
-        >
-        <div class="modal-content modal-small" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>Add Element Type</h2>
-            <button class="close-btn" (click)="showElementTypeSelector = false">×</button>
+
+    <!-- Full Screen Todo View -->
+    @if (showFullScreenTodo && fullScreenTodoElement) {
+      <div class="fullscreen-todo-overlay">
+        <div class="fullscreen-todo-container">
+          <div class="fullscreen-header">
+            <h1>{{ fullScreenTodoElement.name }}</h1>
+            <button class="close-btn" (click)="closeFullScreenTodo()">×</button>
           </div>
-          <div class="modal-body type-selector">
-            <button class="type-btn" (click)="selectElementType('Image')">
-              <span class="type-icon"><img src="/assets/image.svg" alt="Image" style="width: 24px; height: 24px;"></span>
-              <span>Image</span>
-            </button>
-            <button class="type-btn" (click)="selectElementType('Video')">
-              <span class="type-icon"><img src="/assets/video.svg" alt="Video" style="width: 24px; height: 24px;"></span>
-              <span>Video</span>
-            </button>
-            <button class="type-btn" (click)="selectElementType('Text_document')">
-              <span class="type-icon"><img src="/assets/text.svg" alt="Text" style="width: 24px; height: 24px;"></span>
-              <span>Text Document</span>
-            </button>
-            <button class="type-btn" (click)="selectElementType('ToDoLst')">
-              <span class="type-icon"><img src="/assets/todo.svg" alt="Todo" style="width: 24px; height: 24px;"></span>
-              <span>Todo List</span>
-            </button>
+          <div class="add-task-row">
+            <input [(ngModel)]="newTaskName" placeholder="Add a task..." class="task-input" (keyup.enter)="addTaskToFullScreenTodo()" />
+            <select [(ngModel)]="newTaskPriority">
+              <option [ngValue]="1">High</option>
+              <option [ngValue]="2">Medium</option>
+              <option [ngValue]="3">Low</option>
+            </select>
+            <button class="add-task-btn" (click)="addTaskToFullScreenTodo()" [disabled]="!newTaskName.trim()">Add</button>
+          </div>
+          <div class="tasks-list">
+            @for (task of getUpcomingTasks(); track task) {
+              <div class="task-item">
+                <input type="checkbox" [checked]="task.is_done" (change)="toggleTaskStatusInFullScreen(task)" />
+                <span [class.done]="task.is_done">{{ task.taskname }}</span>
+                <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -430,314 +202,54 @@
   </div>
 }
 
-<!-- Add Task Modal -->
-@if (showAddTaskModal) {
-  <div class="modal-overlay" (click)="closeAddTaskModal()">
+<!-- Create Grid Modal -->
+@if (showCreateGridModal) {
+  <div class="modal-overlay" (click)="closeCreateGridModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Add New Task</h2>
-        <button class="close-btn" (click)="closeAddTaskModal()">✕</button>
+        <h2>Create New Grid</h2>
+        <button class="close-btn" (click)="closeCreateGridModal()">×</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Task Name *</label>
-          <input
-            type="text"
-            [(ngModel)]="newTaskName"
-            placeholder="Enter task name"
-            (keyup.enter)="submitAddTask()"
-            autofocus
-            />
-        </div>
-        <div class="form-group">
-          <label>Priority</label>
-          <select [(ngModel)]="newTaskPriority" [compareWith]="comparePriority">
-            <option [ngValue]="null" disabled selected>Select priority...</option>
-            <option [ngValue]="1">High</option>
-            <option [ngValue]="2">Medium</option>
-            <option [ngValue]="3">Low</option>
-          </select>
+          <label>Grid Name</label>
+          <input [(ngModel)]="newGridName" placeholder="Enter grid name" (keydown.enter)="createGrid()" />
         </div>
       </div>
       <div class="modal-footer">
-        <button class="cancel-btn" (click)="closeAddTaskModal()">Cancel</button>
-        <button class="submit-btn" (click)="submitAddTask()" [disabled]="!newTaskName.trim() || !newTaskPriority">
-          Add Task
-        </button>
+        <button class="cancel-btn" (click)="closeCreateGridModal()">Cancel</button>
+        <button class="submit-btn" (click)="createGrid()" [disabled]="!newGridName.trim()">Create</button>
       </div>
     </div>
   </div>
 }
 
-<!-- Add Text Document Modal -->
-@if (showAddTextModal) {
-  <div class="modal-overlay" (click)="closeAddTextModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
+<!-- Element Type Selector Modal -->
+@if (showElementTypeSelector) {
+  <div class="modal-overlay" (click)="showElementTypeSelector = false">
+    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Add Text Document</h2>
-        <button class="close-btn" (click)="closeAddTextModal()">×</button>
+        <h2>Add Element</h2>
+        <button class="close-btn" (click)="showElementTypeSelector = false">×</button>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Document Name *</label>
-          <input
-            type="text"
-            [(ngModel)]="newTextDocumentName"
-            placeholder="Enter document name"
-            (keydown.enter)="$event.preventDefault(); submitAddTextDocument()"
-            autofocus
-            />
-        </div>
-        <div class="form-group">
-          <label>Text Content</label>
-          <textarea
-            [(ngModel)]="newTextDocumentContent"
-            placeholder="Enter text content"
-            rows="6"
-            class="text-content-input"
-            >
-          </textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="cancel-btn" (click)="closeAddTextModal()">Cancel</button>
-        <button
-          class="submit-btn"
-          (click)="submitAddTextDocument()"
-          [disabled]="!newTextDocumentName.trim()"
-          >
-          Add Text Document
+      <div class="modal-body type-selector">
+        <button class="type-btn" (click)="selectElementType('ToDoLst')">
+          <span class="type-icon">✓</span>
+          <span>Todo List</span>
+        </button>
+        <button class="type-btn" (click)="selectElementType('Text_document')">
+          <span class="type-icon">T</span>
+          <span>Text Document</span>
+        </button>
+        <button class="type-btn" (click)="selectElementType('Image')">
+          <span class="type-icon">🖼</span>
+          <span>Image</span>
+        </button>
+        <button class="type-btn" (click)="selectElementType('Video')">
+          <span class="type-icon">▶</span>
+          <span>Video</span>
         </button>
       </div>
-    </div>
-  </div>
-}
-
-<!-- Image Name Modal -->
-@if (showImageNameModal) {
-  <div class="modal-overlay" (click)="cancelImageUpload()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Name Your Image</h2>
-        <button class="close-btn" (click)="cancelImageUpload()">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Image Name *</label>
-          <input
-            type="text"
-            [(ngModel)]="newImageName"
-            placeholder="Enter image name"
-            (keydown.enter)="$event.preventDefault(); confirmImageUpload()"
-            autofocus
-            />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="cancel-btn" (click)="cancelImageUpload()">Cancel</button>
-        <button
-          class="submit-btn"
-          (click)="confirmImageUpload()"
-          [disabled]="!newImageName.trim()"
-          >
-          Add Image
-        </button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Video Name Modal -->
-@if (showVideoNameModal) {
-  <div class="modal-overlay" (click)="cancelVideoUpload()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Name Your Video</h2>
-        <button class="close-btn" (click)="cancelVideoUpload()">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Video Name *</label>
-          <input
-            type="text"
-            [(ngModel)]="newVideoName"
-            placeholder="Enter video name"
-            (keydown.enter)="$event.preventDefault(); confirmVideoUpload()"
-            autofocus
-            />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="cancel-btn" (click)="cancelVideoUpload()">Cancel</button>
-        <button
-          class="submit-btn"
-          (click)="confirmVideoUpload()"
-          [disabled]="!newVideoName.trim()"
-          >
-          Add Video
-        </button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Full-Screen Todo List View -->
-@if (showFullScreenTodo && fullScreenTodoElement) {
-  <div class="fullscreen-todo-overlay">
-    <div class="fullscreen-todo-container">
-      <!-- Header -->
-      <div class="fullscreen-todo-header">
-        <div class="header-left">
-          <h1>{{ fullScreenTodoElement.name }}</h1>
-        </div>
-        <button class="close-fullscreen-btn" (click)="closeFullScreenTodo()">×</button>
-      </div>
-      <!-- Add Task Input -->
-      <div class="add-task-section">
-        <div class="add-task-input-wrapper">
-          <input
-            type="text"
-            [(ngModel)]="newTaskName"
-            placeholder="List item"
-            (keyup.enter)="addTaskToFullScreenTodo()"
-            class="add-task-input"
-            />
-          <input type="datetime-local" [(ngModel)]="newTaskTime" class="task-date-input" />
-          <label>Priority</label>
-          <select [(ngModel)]="newTaskPriority" class="task-priority-select" [compareWith]="comparePriority">
-            <option [ngValue]="null" disabled selected>Select priority...</option>
-            <option [ngValue]="1">High</option>
-            <option [ngValue]="2">Medium</option>
-            <option [ngValue]="3">Low</option>
-          </select>
-          <button
-            class="add-task-button"
-            (click)="addTaskToFullScreenTodo()"
-            [disabled]="!newTaskName.trim() || !newTaskPriority"
-            >
-            +
-          </button>
-        </div>
-      </div>
-      <!-- TAGS SECTION FULL SCREEN -->
-      <div class="tags-section">
-        <h2 class="section-title">Tags</h2>
-        <div class="tags-row">
-          @for (tag of fullScreenTodoElement.tags; track tag) {
-            <span
-              class="tag-chip removable"
-              (click)="removeTagFromFullScreen(tag)"
-              >
-              {{ tag }} ✖
-            </span>
-          }
-          <input
-            type="text"
-            class="tag-input"
-            placeholder="+ add tag"
-            [(ngModel)]="editingTagInput"
-            (keyup.enter)="addTagToFullScreen()"
-            />
-        </div>
-      </div>
-      <!-- Upcoming Tasks -->
-      <div class="tasks-section">
-        <h2 class="section-title">Pending</h2>
-        <div class="tasks-list">
-          @for (task of getUpcomingTasks(); track task; let i = $index) {
-            <div
-              class="task-item-fullscreen"
-              [class.overdue]="isTaskOverdue(task)"
-              [class.drag-over]="dragOverTaskIndex === i && draggedFullScreenTaskIndex !== i"
-              draggable="true"
-              (dragstart)="onTaskDragStart($event, task)"
-              (dragover)="onTaskDragOver($event)"
-              (dragenter)="onTaskDragEnter(i)"
-              (dragleave)="onTaskDragLeave($event)"
-              (drop)="onTaskDrop($event, task)"
-              >
-              <div class="task-drag-handle">
-                <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
-                  <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
-                  <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
-                  <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
-                </svg>
-              </div>
-              <input
-                type="checkbox"
-                [checked]="task.is_done"
-                (change)="toggleTaskStatusInFullScreen(task)"
-                class="task-checkbox"
-                />
-              <div class="task-content-fullscreen">
-                <span class="task-name-fullscreen">{{ task.taskname }}</span>
-                <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
-              </div>
-              <div class="task-actions">
-                <span class="task-priority-display">
-                  <img [src]="task.get_priority() === 1 ? '/assets/priority-high.svg' : task.get_priority() === 2 ? '/assets/priority-medium.svg' : '/assets/priority-low.svg'" alt="" style="width: 14px; height: 14px;"> {{ task.get_priority() === 1 ? 'High' : task.get_priority() === 2 ? 'Medium' : 'Low' }}
-                </span>
-                <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
-              </div>
-            </div>
-          }
-          @if (getUpcomingTasks().length === 0) {
-            <div class="empty-tasks">
-              <p>No upcoming tasks</p>
-            </div>
-          }
-        </div>
-      </div>
-      <!-- Completed Tasks -->
-      @if (getCompletedTasks().length > 0) {
-        <div class="tasks-section">
-          <h2 class="section-title collapsible" (click)="toggleCompletedSection()">
-            {{ getCompletedTasks().length }} Completed item{{
-            getCompletedTasks().length !== 1 ? 's' : ''
-            }}
-            <span class="toggle-icon">{{ showCompletedTasks ? '▼' : '▶' }}</span>
-          </h2>
-          @if (showCompletedTasks) {
-            <div class="tasks-list">
-              @for (task of getCompletedTasks(); track task; let i = $index) {
-                <div
-                  class="task-item-fullscreen completed"
-                  draggable="true"
-                  (dragstart)="onTaskDragStart($event, task)"
-                  (dragover)="onTaskDragOver($event)"
-                  (dragenter)="onTaskDragEnter(i)"
-                  (dragleave)="onTaskDragLeave($event)"
-                  (drop)="onTaskDrop($event, task)"
-                  >
-                  <div class="task-drag-handle">
-                    <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
-                      <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
-                      <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
-                      <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
-                    </svg>
-                  </div>
-                  <input
-                    type="checkbox"
-                    [checked]="task.is_done"
-                    (change)="toggleTaskStatusInFullScreen(task)"
-                    class="task-checkbox"
-                    />
-                  <div class="task-content-fullscreen">
-                    <span class="task-name-fullscreen completed-text">{{ task.taskname }}</span>
-                    <span class="task-date-fullscreen">{{ formatTaskDate(task.get_time()) }}</span>
-                  </div>
-                  <div class="task-actions">
-                    <span class="task-priority-display">
-                      <img [src]="task.get_priority() === 1 ? '/assets/priority-high.svg' : task.get_priority() === 2 ? '/assets/priority-medium.svg' : '/assets/priority-low.svg'" alt="" style="width: 14px; height: 14px;"> {{ task.get_priority() === 1 ? 'High' : task.get_priority() === 2 ? 'Medium' : 'Low' }}
-                    </span>
-                    <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </div>
-      }
     </div>
   </div>
 }
@@ -747,40 +259,14 @@
   <div class="modal-overlay" (click)="closeErrorModal()">
     <div class="modal-content error-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <img src="/assets/warning.png" alt="Warning" style="width: 24px; height: 24px;">
         <h2>Error</h2>
         <button class="close-btn" (click)="closeErrorModal()">×</button>
       </div>
       <div class="modal-body">
-        <p class="error-message">{{ errorMessage }}</p>
+        <p>{{ errorMessage }}</p>
       </div>
       <div class="modal-footer">
         <button class="submit-btn" (click)="closeErrorModal()">OK</button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Confirmation Modal -->
-@if (showConfirmModal) {
-  <div class="modal-overlay" (click)="closeConfirmModal()">
-    <div class="modal-content confirm-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <img src="/assets/warning.png" alt="Warning" style="width: 24px; height: 24px;">
-        <h2>Are you sure?</h2>
-        <button class="close-btn" (click)="closeConfirmModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <p class="confirm-message">{{ confirmMessage }}</p>
-      </div>
-      <div class="modal-footer">
-        <button class="cancel-btn" (click)="closeConfirmModal()">Cancel</button>
-        @if (gridToDelete) {
-          <button class="submit-btn delete-confirm-btn" (click)="confirmDeleteGrid()">OK</button>
-        }
-        @if (elementToDelete) {
-          <button class="submit-btn delete-confirm-btn" (click)="confirmDeleteElement()">OK</button>
-        }
       </div>
     </div>
   </div>
