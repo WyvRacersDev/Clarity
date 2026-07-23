@@ -6,10 +6,12 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { DataService } from '../../../services/data.service';
 import { SocketService } from '../../../services/socket.service';
+import { CollabService, PresenceUser } from '../../../services/collab.service';
 import { getServerConfig } from '../../../config/server.config';
 import { User } from '../../../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../../../shared_models/models/project.model';
-import { Screen_Element, ToDoLst, Text_document, Image, Video, scheduled_task } from '../../../../../../shared_models/models/screen-elements.model';
+import { Screen_Element, ToDoLst, Text_document, Image, Video, scheduled_task, objects_builder } from '../../../../../../shared_models/models/screen-elements.model';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-project-detail',
@@ -129,9 +131,24 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private hostedProjectDeleteSubscription: any;
   private elementUpdateSubscription: any;
 
+  // ---- Phase 6b: granular realtime collaboration state ----
+  // Presence: usernames currently in the room.
+  presenceUsers: PresenceUser[] = [];
+  // Remote cursors keyed by username; cleaned up when a user leaves the room.
+  remoteCursors: Map<string, { x: number; y: number }> = new Map();
+  // Set of element ids we are currently applying a REMOTE op to, so applying
+  // a remote change never re-emits it back out (self-echo guard).
+  private applyingRemoteIds: Set<string> = new Set();
+  // Which project (name/type) we joined a collab room for.
+  private joinedRoomKey: string | null = null;
+  private collabSubscriptions: Subscription[] = [];
+  private lastCursorEmit = 0;
+  private lastMoveEmit = 0;
+
   constructor(
     private dataService: DataService,
     private socketService: SocketService,
+    private collabService: CollabService,
     private route: ActivatedRoute,
     private router: Router,
     private sanitizer: DomSanitizer,
@@ -268,11 +285,254 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       if (this.project.grid.length > 0 && this.selectedGridIndex >= this.project.grid.length) {
         this.selectedGridIndex = 0;
       }
+      // Phase 6b: join the granular collaboration room for this project (once).
+      this.ensureCollabRoom();
     }
+  }
+
+  /**
+   * Phase 6b: Join the granular realtime room for the current project and wire
+   * remote op streams. Re-joins only when the target project changes. Additive:
+   * failures here never affect the existing whole-project save/load flow.
+   */
+  private async ensureCollabRoom(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId) || !this.project) return;
+    const projectType = (this.project as any).projectType || this.project.project_type;
+    if (!projectType) return;
+
+    const roomKey = `${projectType}:${this.project.name}`;
+    if (this.joinedRoomKey === roomKey) return; // already in this room
+
+    // Leaving a previous room (project switch within the same component instance).
+    if (this.joinedRoomKey) {
+      this.collabService.leaveRoom();
+      this.teardownCollabStreams();
+    }
+
+    this.joinedRoomKey = roomKey;
+    this.wireCollabStreams();
+
+    try {
+      const users = await this.collabService.joinRoom(this.project.name, projectType);
+      this.presenceUsers = users;
+      this.cdr.detectChanges();
+    } catch (e) {
+      console.warn('[ProjectDetail] joinProjectRoom failed (collab disabled):', e);
+    }
+  }
+
+  private teardownCollabStreams(): void {
+    this.collabSubscriptions.forEach(s => s.unsubscribe());
+    this.collabSubscriptions = [];
+    this.remoteCursors.clear();
+  }
+
+  /** Subscribe to remote element ops / presence / cursors and apply them. */
+  private wireCollabStreams(): void {
+    this.collabSubscriptions.push(
+      this.collabService.onRemoteCreated().subscribe(data => this.applyRemoteCreated(data)),
+      this.collabService.onRemoteMoved().subscribe(data => this.applyRemoteMoved(data)),
+      this.collabService.onRemoteUpdated().subscribe(data => this.applyRemoteUpdated(data)),
+      this.collabService.onRemoteDeleted().subscribe(data => this.applyRemoteDeleted(data)),
+      this.collabService.onPresence().subscribe(users => {
+        this.presenceUsers = users;
+        // Drop cursors for users no longer present.
+        const present = new Set(users.map(u => u.username));
+        for (const name of Array.from(this.remoteCursors.keys())) {
+          if (!present.has(name)) this.remoteCursors.delete(name);
+        }
+        this.cdr.detectChanges();
+      }),
+      this.collabService.onRemoteCursor().subscribe(c => {
+        if (c && c.username) {
+          this.remoteCursors.set(c.username, { x: c.x, y: c.y });
+          this.cdr.detectChanges();
+        }
+      })
+    );
+  }
+
+  // ---- Helpers to locate elements by stable id across grids ----
+
+  /** Find an element (and its grid) by its stable id. */
+  private findElementById(elementId: string): { element: Screen_Element; gridIndex: number; elementIndex: number } | null {
+    if (!this.project || !elementId) return null;
+    for (let g = 0; g < this.project.grid.length; g++) {
+      const els = this.project.grid[g].Screen_elements;
+      for (let i = 0; i < els.length; i++) {
+        if ((els[i] as any).id === elementId) {
+          return { element: els[i], gridIndex: g, elementIndex: i };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Find the grid index that contains a given element instance. */
+  private findGridIndexOfElement(element: Screen_Element): number {
+    if (!this.project) return this.selectedGridIndex;
+    for (let g = 0; g < this.project.grid.length; g++) {
+      if (this.project.grid[g].Screen_elements.includes(element)) return g;
+    }
+    return this.selectedGridIndex;
+  }
+
+  private isApplyingRemote(id: string | undefined): boolean {
+    return !!id && this.applyingRemoteIds.has(id);
+  }
+
+  // ---- Apply incoming remote ops to the local model ----
+
+  private applyRemoteCreated(data: { gridId: string; element: any }): void {
+    if (!this.project || !data?.element) return;
+    const rebuilt = objects_builder.rebuild(data.element) as Screen_Element;
+    if (!rebuilt || !(rebuilt instanceof Screen_Element)) return;
+    // Ensure id carried through.
+    if (data.element.id && !(rebuilt as any).id) (rebuilt as any).id = data.element.id;
+
+    // Skip if we already have this element (id already present).
+    if ((rebuilt as any).id && this.findElementById((rebuilt as any).id)) return;
+
+    // Locate the target grid by id; fall back to grid[0].
+    let gridIndex = this.project.grid.findIndex(g => (g as any).id === data.gridId);
+    if (gridIndex < 0) gridIndex = 0;
+    if (!this.project.grid[gridIndex]) return;
+
+    this.project.grid[gridIndex].Screen_elements.push(rebuilt);
+    this.dataService.updateCurrentUser();
+    this.cdr.detectChanges();
+  }
+
+  private applyRemoteMoved(data: { elementId: string; x_pos: number; y_pos: number; x_scale: number; y_scale: number }): void {
+    const found = this.findElementById(data?.elementId);
+    if (!found) return;
+    const el = found.element as any;
+    this.applyingRemoteIds.add(data.elementId);
+    try {
+      el.x_pos = data.x_pos;
+      el.y_pos = data.y_pos;
+      if (data.x_scale !== undefined && data.x_scale !== null) el.x_scale = data.x_scale;
+      if (data.y_scale !== undefined && data.y_scale !== null) el.y_scale = data.y_scale;
+      this.dataService.updateCurrentUser();
+      this.cdr.detectChanges();
+    } finally {
+      this.applyingRemoteIds.delete(data.elementId);
+    }
+  }
+
+  private applyRemoteUpdated(data: { elementId: string; content: any }): void {
+    const found = this.findElementById(data?.elementId);
+    if (!found || !data?.content) return;
+    const el = found.element as any;
+    this.applyingRemoteIds.add(data.elementId);
+    try {
+      // content is a JSONB merge patch — apply known fields.
+      Object.keys(data.content).forEach(key => {
+        el[key] = data.content[key];
+      });
+      this.dataService.updateCurrentUser();
+      this.cdr.detectChanges();
+    } finally {
+      this.applyingRemoteIds.delete(data.elementId);
+    }
+  }
+
+  private applyRemoteDeleted(data: { elementId: string }): void {
+    const found = this.findElementById(data?.elementId);
+    if (!found || !this.project) return;
+    this.applyingRemoteIds.add(data.elementId);
+    try {
+      this.project.grid[found.gridIndex].Screen_elements.splice(found.elementIndex, 1);
+      this.dataService.updateCurrentUser();
+      this.cdr.detectChanges();
+    } finally {
+      this.applyingRemoteIds.delete(data.elementId);
+    }
+  }
+
+  // ---- Emit local ops (throttled where noted) ----
+
+  /** Emit a granular move/resize for an element. No-op if id missing. */
+  private emitElementMove(element: Screen_Element, throttle = true): void {
+    const id = (element as any).id as string | undefined;
+    if (!id || this.isApplyingRemote(id)) return; // missing id -> rely on whole-project save
+    if (throttle) {
+      const now = Date.now();
+      if (now - this.lastMoveEmit < 50) return;
+      this.lastMoveEmit = now;
+    }
+    const e = element as any;
+    this.collabService.emitMove(id, e.x_pos ?? 0, e.y_pos ?? 0, e.x_scale ?? 1, e.y_scale ?? 1);
+  }
+
+  /** Emit a granular content patch (e.g. Text_field) for an element. */
+  private emitElementContent(element: Screen_Element, content: any): void {
+    const id = (element as any).id as string | undefined;
+    if (!id || this.isApplyingRemote(id)) return;
+    this.collabService.emitContentUpdate(id, content);
+  }
+
+  /** Emit a granular delete for an element. */
+  private emitElementDelete(element: Screen_Element): void {
+    const id = (element as any).id as string | undefined;
+    if (!id) return;
+    this.collabService.emitDelete(id);
+  }
+
+  /**
+   * Emit a granular create for a freshly-added element. If the element already
+   * has an id (server round-tripped), use it; otherwise still emit so peers can
+   * add it (the backend assigns/returns an authoritative id via element:created).
+   */
+  private emitElementCreate(element: Screen_Element, gridIndex: number): void {
+    if (!this.project || !this.project.grid[gridIndex]) return;
+    const gridId = (this.project.grid[gridIndex] as any).id as string | undefined;
+    if (!gridId) return; // no grid id -> rely on whole-project save
+    this.collabService.emitCreate(gridId, (element as any).toJSON ? (element as any).toJSON() : element);
+  }
+
+  /**
+   * Emit the local cursor position (throttled ~50ms) in canvas-content
+   * coordinates. No-op when the pointer isn't over the canvas or no room joined.
+   */
+  private emitCursor(event: MouseEvent): void {
+    if (!isPlatformBrowser(this.platformId) || !this.collabService.isJoined) return;
+    const now = Date.now();
+    if (now - this.lastCursorEmit < 50) return;
+
+    const container = document.querySelector('.canvas-container') as HTMLElement;
+    if (!container) return;
+    // Only broadcast when the pointer is actually over the canvas surface.
+    if (!(event.target as HTMLElement)?.closest('.canvas-container')) return;
+
+    const rect = container.getBoundingClientRect();
+    // Convert to canvas-content space (undo pan/zoom) so peers align.
+    const x = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
+    const y = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+
+    this.lastCursorEmit = now;
+    this.collabService.emitCursor(x, y);
   }
 
   goBack(): void {
     this.router.navigate(['/dashboard/projects']);
+  }
+
+  // ---- Phase 6b: template helpers for presence + cursor rendering ----
+
+  /** Remote cursors as a renderable array (used by *ngFor / @for). */
+  getRemoteCursors(): { username: string; x: number; y: number }[] {
+    const out: { username: string; x: number; y: number }[] = [];
+    this.remoteCursors.forEach((pos, username) => out.push({ username, x: pos.x, y: pos.y }));
+    return out;
+  }
+
+  /** Up-to-two-letter initials for a presence avatar. */
+  getInitials(username: string): string {
+    if (!username) return '?';
+    const parts = username.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
   async reloadProjectFromServer(): Promise<void> {
@@ -390,6 +650,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       // Remove from grid (this will also delete file and save)
       await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, index);
 
+      // Phase 6b: broadcast the granular delete to peers (by stable id).
+      if (element) this.emitElementDelete(element);
+
       // Clear the safety timeout
       clearTimeout(safetyTimeout);
 
@@ -479,6 +742,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         console.error('[ProjectDetail] createTodoElement: addElementToGrid returned false');
       }
       this.loadProject();
+      // Phase 6b: broadcast the granular create to peers.
+      this.emitElementCreate(element, this.selectedGridIndex);
       this.cdr.detectChanges();
     } catch (error) {
       console.error('[ProjectDetail] createTodoElement error:', error);
@@ -586,6 +851,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
           this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
           this.loadProject(); // Reload to see the changes
+          this.emitElementCreate(element, this.selectedGridIndex);
           this.cdr.detectChanges();
         } else {
           console.error('Failed to upload image:', uploadResponse.message);
@@ -631,6 +897,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
           this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
           this.loadProject(); // Reload to see the changes
+          this.emitElementCreate(element, this.selectedGridIndex);
           this.cdr.detectChanges();
         } else {
           console.error('Failed to upload video:', uploadResponse.message);
@@ -680,6 +947,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.editingTextIndex];
     if (element && element.constructor.name === 'Text_document') {
       (element as any).set_field(this.editingTextContent);
+      // Phase 6b: broadcast the granular content patch to peers.
+      this.emitElementContent(element, { Text_field: this.editingTextContent });
       this.dataService.updateCurrentUser();
       // Save the project to persist changes
       const projectType = (this.project as any).projectType;
@@ -743,6 +1012,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
     this.socketService.emitElementUpdate(element, this.project.name, this.project.grid[this.selectedGridIndex].name);
     this.loadProject(); // Reload to see the changes
+    this.emitElementCreate(element, this.selectedGridIndex);
     this.cdr.detectChanges();
   }
 
@@ -1190,6 +1460,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 }
 
   onDocumentMouseMove(event: MouseEvent): void {
+    // Phase 6b: broadcast local cursor position (throttled ~50ms) whenever the
+    // pointer is over the canvas — independent of dragging state.
+    this.emitCursor(event);
+
     if (!this.isDraggingEnabled || this.draggedElement === null || !this.project) return;
 
     const container = document.querySelector('.elements-grid') as HTMLElement;
@@ -1301,6 +1575,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         (element as any).x_pos = x;
         (element as any).y_pos = y;
       }
+      // Phase 6b: final (un-throttled) move broadcast.
+      this.emitElementMove(element, false);
       // Save to backend
       const projectType = (this.project as any).projectType;
       if (projectType) {
@@ -1460,6 +1736,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         (this.resizingElement as any).y_scale = newHeight;
       }
       this.dataService.updateCurrentUser();
+      // Phase 6b: throttled granular resize broadcast.
+      this.emitElementMove(this.resizingElement);
       return;
     }
 
@@ -1483,6 +1761,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
             (element as any).y_pos = Math.max(0, y);
           }
           this.dataService.updateCurrentUser();
+          // Phase 6b: throttled granular move broadcast.
+          this.emitElementMove(element);
         }
       }
     }
@@ -1493,6 +1773,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       // Save position when drag ends
       const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
       if (element) {
+        // Phase 6b: final (un-throttled) move broadcast.
+        this.emitElementMove(element, false);
         const projectType = (this.project as any).projectType;
         if (!projectType) {
           console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
@@ -1503,6 +1785,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
 
     if (this.isResizing && this.resizingElement && this.project) {
+      // Phase 6b: final (un-throttled) resize broadcast.
+      this.emitElementMove(this.resizingElement, false);
       // Save size changes
       const projectType = (this.project as any).projectType;
       if (!projectType) {
@@ -1792,7 +2076,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (this.elementUpdateSubscription) {
       this.elementUpdateSubscription.unsubscribe();
     }
-    
+
+    // Phase 6b: leave the granular collaboration room and drop remote streams.
+    this.collabService.leaveRoom();
+    this.teardownCollabStreams();
+    this.joinedRoomKey = null;
+
     // Clear any pending timeouts
     if (this.savingTimeout) {
       clearTimeout(this.savingTimeout);

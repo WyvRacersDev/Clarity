@@ -1,8 +1,7 @@
 import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { SupabaseService } from './supabase.service';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { BehaviorSubject, Observable, Subscription } from 'rxjs';
+import { SocketService } from './socket.service';
 
 export interface RealtimeChangeEvent {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -12,12 +11,19 @@ export interface RealtimeChangeEvent {
   errors?: any;
 }
 
+/**
+ * Phase 4: RealtimeService is now backed by Socket.IO broadcasts
+ * (`hostedProjectUpdated` / `hostedProjectDeleted`) emitted by the Postgres
+ * backend. The public Observable-returning API is preserved so
+ * callers keep compiling; table-scoped subscriptions map onto the hosted-project
+ * broadcasts (the backend's realtime unit is the whole hosted project).
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class RealtimeService {
   private isBrowser: boolean;
-  private channels: Map<string, RealtimeChannel> = new Map();
+  private channels: Map<string, Subscription> = new Map();
 
   private projectChangesSubject = new BehaviorSubject<RealtimeChangeEvent | null>(null);
   public projectChanges$: Observable<RealtimeChangeEvent | null> = this.projectChangesSubject.asObservable();
@@ -29,115 +35,94 @@ export class RealtimeService {
   public elementChanges$: Observable<RealtimeChangeEvent | null> = this.elementChangesSubject.asObservable();
 
   constructor(
-    private supabaseService: SupabaseService,
+    private socketService: SocketService,
     @Inject(PLATFORM_ID) platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
   }
 
   /**
-   * Subscribe to changes on a table
-   * @param table The table name to watch
-   * @param filter Optional filter condition (e.g., 'id=eq.123')
+   * Subscribe to changes on a table. Backed by the hosted-project socket
+   * broadcasts: updates surface as UPDATE, deletions as DELETE.
    */
   subscribeToTable(table: string, filter?: string): Observable<RealtimeChangeEvent> {
-    return new Observable(observer => {
+    return new Observable<RealtimeChangeEvent>(observer => {
       if (!this.isBrowser) {
         observer.complete();
         return;
       }
 
       const channelName = `realtime:${table}:${filter || 'all'}`;
-      let channel = this.channels.get(channelName);
 
-      if (!channel) {
-        channel = this.supabaseService.client
-          .channel(channelName)
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: table,
-            ...(filter ? { filter } : {})
-          }, (payload: any) => {
-            const event: RealtimeChangeEvent = {
-              eventType: payload.eventType,
-              table: payload.table,
-              new: payload.new,
-              old: payload.old
-            };
+      const updateSub = this.socketService.onHostedProjectUpdated().subscribe((data: any) => {
+        const event: RealtimeChangeEvent = {
+          eventType: 'UPDATE',
+          table,
+          new: data?.project ?? data,
+          old: null
+        };
+        this.routeEvent(table, event);
+        observer.next(event);
+      });
 
-            // Update appropriate subject based on table
-            if (table === 'projects') {
-              this.projectChangesSubject.next(event);
-            } else if (table === 'grids') {
-              this.gridChangesSubject.next(event);
-            } else if (table === 'screen_elements') {
-              this.elementChangesSubject.next(event);
-            }
+      const deleteSub = this.socketService.onHostedProjectDeleted().subscribe((data: any) => {
+        const event: RealtimeChangeEvent = {
+          eventType: 'DELETE',
+          table,
+          new: null,
+          old: data?.project ?? data
+        };
+        this.routeEvent(table, event);
+        observer.next(event);
+      });
 
-            observer.next(event);
-          });
-
-        channel.subscribe();
-        this.channels.set(channelName, channel);
-      }
+      const combined = new Subscription();
+      combined.add(updateSub);
+      combined.add(deleteSub);
+      this.channels.set(channelName, combined);
 
       return () => {
-        // Cleanup subscription when observable is unsubscribed
+        combined.unsubscribe();
+        this.channels.delete(channelName);
       };
     });
   }
 
-  /**
-   * Subscribe to project changes
-   * @param projectId The project ID
-   */
+  private routeEvent(table: string, event: RealtimeChangeEvent): void {
+    if (table === 'projects') {
+      this.projectChangesSubject.next(event);
+    } else if (table === 'grids') {
+      this.gridChangesSubject.next(event);
+    } else if (table === 'screen_elements') {
+      this.elementChangesSubject.next(event);
+    }
+  }
+
   subscribeToProject(projectId: string): Observable<RealtimeChangeEvent> {
     return this.subscribeToTable('projects', `id=eq.${projectId}`);
   }
 
-  /**
-   * Subscribe to grid changes for a project
-   * @param projectId The project ID
-   */
   subscribeToGrids(projectId: string): Observable<RealtimeChangeEvent> {
     return this.subscribeToTable('grids', `project_id=eq.${projectId}`);
   }
 
-  /**
-   * Subscribe to screen element changes
-   * @param gridId The grid ID
-   */
   subscribeToScreenElements(gridId: string): Observable<RealtimeChangeEvent> {
     return this.subscribeToTable('screen_elements', `grid_id=eq.${gridId}`);
   }
 
-  /**
-   * Subscribe to task changes
-   * @param gridId The grid ID
-   */
   subscribeToTasks(gridId: string): Observable<RealtimeChangeEvent> {
     return this.subscribeToTable('tasks', `grid_id=eq.${gridId}`);
   }
 
-  /**
-   * Unsubscribe from all channels
-   */
   unsubscribeAll(): void {
-    this.channels.forEach((channel) => {
-      channel.unsubscribe();
-    });
+    this.channels.forEach((sub) => sub.unsubscribe());
     this.channels.clear();
   }
 
-  /**
-   * Unsubscribe from a specific channel
-   * @param channelName The channel name
-   */
   unsubscribeChannel(channelName: string): void {
-    const channel = this.channels.get(channelName);
-    if (channel) {
-      channel.unsubscribe();
+    const sub = this.channels.get(channelName);
+    if (sub) {
+      sub.unsubscribe();
       this.channels.delete(channelName);
     }
   }

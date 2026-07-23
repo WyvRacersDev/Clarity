@@ -3,8 +3,8 @@
   "dependencies": {
     "@langchain/core": "^1.1.4",
     "@langchain/google-genai": "^2.0.4",
-    "@supabase/supabase-js": "^2.98.0",
     "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
@@ -13,15 +13,21 @@
     "langchain": "^1.1.5",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.11",
+    "postgres": "^3.4.9",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "zod": "^4.4.3"
   },
   "scripts": {
     "dev": "tsx --tsconfig socket-server/tsconfig.json socket-server/src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "db:up": "docker compose -f ../docker-compose.yml up -d",
+    "db:down": "docker compose -f ../docker-compose.yml down",
+    "db:migrate": "tsx --tsconfig socket-server/tsconfig.json socket-server/db/migrate.ts"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.3.5",

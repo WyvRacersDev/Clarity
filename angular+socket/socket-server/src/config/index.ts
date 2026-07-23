@@ -34,3 +34,21 @@ export const ALLOWED_ORIGINS: (string | RegExp)[] = [
 // Socket.IO CORS configuration
 export const SOCKET_CORS_ORIGIN = process.env.SOCKET_CORS_ORIGIN || '*'; // '*' = allow all (for development)
 
+// ─── Database ──────────────────────────────────────────────────────────────
+// Postgres is the single source of truth (see docker-compose.yml).
+export const DATABASE_URL =
+  process.env.DATABASE_URL || 'postgres://clarity:clarity@localhost:5433/clarity';
+
+// ─── Auth ──────────────────────────────────────────────────────────────────
+// Secret used to sign/verify the backend's own JWTs.
+export const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-change-me';
+export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+// When true, the Socket.IO handshake REQUIRES a valid JWT (tokenless connections
+// are rejected). When false (default, "permissive"), tokenless handshakes are
+// allowed and fall back to the legacy payload-based identity. This lets the app
+// keep working before the frontend is fully wired up (Phase 4). Flip to strict
+// (AUTH_STRICT=true) once every client sends a token.
+export const AUTH_STRICT =
+  (process.env.AUTH_STRICT || 'false').toLowerCase() === 'true';
+

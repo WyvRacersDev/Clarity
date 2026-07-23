@@ -1,0 +1,28 @@
+# Clarity — local development services
+# Postgres is the single source of truth for the backend (replaces Supabase + JSON files).
+#
+#   docker compose up -d        # start Postgres
+#   docker compose down         # stop (data persists in the named volume)
+#   docker compose down -v      # stop AND wipe the database
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clarity-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clarity
+      POSTGRES_PASSWORD: clarity
+      POSTGRES_DB: clarity
+    # Host port 5433 to avoid clashing with a local Postgres on 5432.
+    ports:
+      - "5433:5432"
+    volumes:
+      - clarity_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clarity -d clarity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  clarity_pgdata:

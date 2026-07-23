@@ -23,6 +23,14 @@
         <span class="element-count">{{ getElements().length }} elements</span>
       </div>
       <div class="header-actions">
+        <!-- Phase 6b: presence avatars for users in this project's room -->
+        @if (presenceUsers.length > 0) {
+          <div class="presence-bar" title="People in this project">
+            @for (u of presenceUsers; track u.username) {
+              <span class="presence-avatar" [title]="u.username">{{ getInitials(u.username) }}</span>
+            }
+          </div>
+        }
         <button class="add-btn" (click)="openAddElementModal()">
           <span class="btn-icon">+</span>
           Add Element
@@ -113,6 +121,15 @@
               <div class="resize-handle ne" (mousedown)="startResize($event, element, 0, i, 'ne')"></div>
               <div class="resize-handle sw" (mousedown)="startResize($event, element, 0, i, 'sw')"></div>
               <div class="resize-handle se" (mousedown)="startResize($event, element, 0, i, 'se')"></div>
+            </div>
+          }
+          <!-- Phase 6b: remote collaborators' cursors (canvas-content coords) -->
+          @for (cursor of getRemoteCursors(); track cursor.username) {
+            <div class="remote-cursor"
+                 [style.left.px]="cursor.x"
+                 [style.top.px]="cursor.y">
+              <span class="remote-cursor-pointer">▲</span>
+              <span class="remote-cursor-label">{{ cursor.username }}</span>
             </div>
           }
           @if (getElements().length === 0) {

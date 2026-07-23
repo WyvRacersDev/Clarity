@@ -1,8 +1,6 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { SupabaseService } from '../../services/supabase.service';
-import { SupabaseAuthService } from '../../services/supabase-auth.service';
+import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -44,48 +42,36 @@ import { AuthService } from '../../services/auth.service';
 })
 export class AuthCallbackComponent implements OnInit {
   constructor(
-    private supabaseService: SupabaseService,
-    private supabaseAuth: SupabaseAuthService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   async ngOnInit(): Promise<void> {
-    try {
-      // Wait for Supabase to process the OAuth callback
-      const { data: { session }, error } = await this.supabaseService.client.auth.getSession();
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
 
-      if (error) {
-        console.error('OAuth callback error:', error);
-        this.authService.setAuthMode(true);
+    try {
+      // The backend Google-login flow redirects here with ?token=<jwt>.
+      const token = this.route.snapshot.queryParamMap.get('token');
+
+      if (!token) {
+        console.error('[AuthCallback] No token in callback URL');
         this.router.navigate(['/']);
         return;
       }
 
-      if (session?.user) {
-        // Ensure auth mode is set to Supabase
-        this.authService.setAuthMode(true);
-
-        // Wait a moment for the auth state to propagate
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Check if user is now authenticated
-        if (this.authService.isLoggedIn()) {
-          this.router.navigate(['/dashboard']);
-        } else {
-          // Force reload of user profile
-          const user = await this.supabaseAuth.getSession();
-          if (user) {
-            this.router.navigate(['/dashboard']);
-          } else {
-            this.router.navigate(['/']);
-          }
-        }
+      const ok = await this.authService.completeTokenLogin(token);
+      if (ok) {
+        this.router.navigate(['/dashboard']);
       } else {
+        console.error('[AuthCallback] Failed to complete token login');
         this.router.navigate(['/']);
       }
     } catch (err) {
-      console.error('Error handling OAuth callback:', err);
+      console.error('[AuthCallback] Error handling OAuth callback:', err);
       this.router.navigate(['/']);
     }
   }

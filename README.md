@@ -21,7 +21,8 @@ Mohammad Hamza Iqbal, Bilal Kashif, Mawahid Abbas
 
 - **Frontend**: Angular 21, TypeScript, SCSS
 - **Backend**: Node.js, Express, Socket.IO
-- **Database**: Supabase (for hosted projects)
+- **Database**: PostgreSQL (single source of truth, run via Docker on port 5433)
+- **Auth**: Backend-issued JWTs (verified by the Socket.IO/Express server)
 - **AI**: LangChain + Google Gemini
 - **Canvas Libraries**: Konva.js, Fabric.js, SVG.js (modular canvas implementations)
 
@@ -149,7 +150,7 @@ Frontend default URL: `http://localhost:4200`
 
 - In the app Settings screen, you can configure the backend URL at runtime
 - Local projects are stored in `angular+socket/socket-server/projects/local/`
-- Hosted projects sync with Supabase for multi-device access
+- Hosted projects are persisted in PostgreSQL (the single source of truth) and sync in real time via Socket.IO for multi-device access
 - User preferences are stored in `angular+socket/socket-server/users/`
 
 ## Scripts (Frontend)

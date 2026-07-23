@@ -1,9 +1,18 @@
 import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { SupabaseService } from './supabase.service';
-import { SupabaseAuthService } from './supabase-auth.service';
+import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { SocketService } from './socket.service';
+import { getServerConfig } from '../config/server.config';
 
+/**
+ * Phase 4: StorageService is now backed by the backend `uploadFile`/`deleteFile`
+ * Socket.IO events (base64 payload -> server writes to disk, returns a relative
+ * `filePath` served from `/projects/...`). Files live on the backend's disk.
+ *
+ * Public method signatures are preserved so existing callers keep compiling.
+ * The `bucket` argument now maps to the project name and the `path` encodes the
+ * `<projectType>/<fileName>` used by the backend asset layout.
+ */
 @Injectable({
   providedIn: 'root'
 })
@@ -17,18 +26,28 @@ export class StorageService {
   public loading$: Observable<boolean> = this.loadingSubject.asObservable();
 
   constructor(
-    private supabaseService: SupabaseService,
-    private supabaseAuth: SupabaseAuthService,
+    private socketService: SocketService,
     @Inject(PLATFORM_ID) platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
   }
 
+  private inferFileType(fileName: string): 'image' | 'video' {
+    return /\.(mp4|mov|webm|avi|mkv)$/i.test(fileName) ? 'video' : 'image';
+  }
+
+  private async fileToBase64(file: File | Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   /**
-   * Upload a file to Supabase Storage
-   * @param bucket The storage bucket name
-   * @param path The path within the bucket
-   * @param file The file to upload (File or Blob)
+   * Upload a file via the backend socket. `bucket` is treated as the project name
+   * and `path` as `<projectType>/<fileName>` (projectType defaults to 'local').
    */
   async uploadFile(bucket: string, path: string, file: File | Blob): Promise<{ url: string | null; error: string | null }> {
     if (!this.isBrowser) {
@@ -37,25 +56,26 @@ export class StorageService {
 
     this.uploadingSubject.next(true);
     try {
-      const { data, error } = await this.supabaseService.client.storage
-        .from(bucket)
-        .upload(path, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
+      const segments = path.split('/');
+      const fileName = segments[segments.length - 1];
+      const projectType: 'local' | 'hosted' = path.startsWith('hosted/') ? 'hosted' : 'local';
+      const fileType = this.inferFileType(fileName);
+      const fileData = await this.fileToBase64(file);
 
-      if (error) {
-        console.error('Error uploading file:', error);
-        this.uploadingSubject.next(false);
-        return { url: null, error: error.message };
-      }
-
-      const { data: urlData } = this.supabaseService.client.storage
-        .from(bucket)
-        .getPublicUrl(data.path);
+      const response = await firstValueFrom(
+        this.socketService.uploadFile(bucket, projectType, fileName, fileData, fileType)
+      );
 
       this.uploadingSubject.next(false);
-      return { url: urlData.publicUrl, error: null };
+
+      if (response && response.success) {
+        const filePath: string = response.filePath || response.path || '';
+        const url = filePath.startsWith('http')
+          ? filePath
+          : `${getServerConfig()}/projects/${filePath}`;
+        return { url, error: null };
+      }
+      return { url: null, error: response?.message || 'Upload failed' };
     } catch (err) {
       this.uploadingSubject.next(false);
       return { url: null, error: String(err) };
@@ -63,11 +83,7 @@ export class StorageService {
   }
 
   /**
-   * Upload a project asset (image or video)
-   * @param projectId The project ID
-   * @param fileName The file name
-   * @param file The file to upload
-   * @param fileType 'image' or 'video'
+   * Upload a project asset (image or video) via the backend socket.
    */
   async uploadProjectAsset(
     projectId: string,
@@ -75,14 +91,12 @@ export class StorageService {
     file: File | Blob,
     fileType: 'image' | 'video'
   ): Promise<{ url: string | null; error: string | null }> {
-    const path = `${projectId}/${fileType}s/${fileName}`;
-    return this.uploadFile('project-assets', path, file);
+    return this.uploadFile(projectId, `local/${fileName}`, file);
   }
 
   /**
-   * Delete a file from Supabase Storage
-   * @param bucket The storage bucket name
-   * @param path The path to the file
+   * Delete a file via the backend socket. `bucket` is the project name and
+   * `path` is `<projectType>/<relativePath>`.
    */
   async deleteFile(bucket: string, path: string): Promise<{ success: boolean; error: string | null }> {
     if (!this.isBrowser) {
@@ -90,80 +104,50 @@ export class StorageService {
     }
 
     try {
-      const { error } = await this.supabaseService.client.storage
-        .from(bucket)
-        .remove([path]);
+      const projectType: 'local' | 'hosted' = path.startsWith('hosted/') ? 'hosted' : 'local';
+      const relativePath = path.replace(/^(local|hosted)\//, '');
 
-      if (error) {
-        console.error('Error deleting file:', error);
-        return { success: false, error: error.message };
+      const response = await firstValueFrom(
+        this.socketService.deleteFile(bucket, projectType, relativePath)
+      );
+
+      if (response && response.success) {
+        return { success: true, error: null };
       }
-
-      return { success: true, error: null };
+      return { success: false, error: response?.message || 'Delete failed' };
     } catch (err) {
       return { success: false, error: String(err) };
     }
   }
 
   /**
-   * Delete a project asset
-   * @param projectId The project ID
-   * @param fileName The file name
-   * @param fileType 'image' or 'video'
+   * Delete a project asset via the backend socket.
    */
   async deleteProjectAsset(
     projectId: string,
     fileName: string,
     fileType: 'image' | 'video'
   ): Promise<{ success: boolean; error: string | null }> {
-    const path = `${projectId}/${fileType}s/${fileName}`;
-    return this.deleteFile('project-assets', path);
+    return this.deleteFile(projectId, `local/${fileName}`);
   }
 
   /**
-   * List files in a bucket folder
-   * @param bucket The storage bucket name
-   * @param folder The folder path
+   * Listing arbitrary bucket folders is not supported by the disk-backed backend.
    */
-  async listFiles(bucket: string, folder: string): Promise<{ files: any[] | null; error: string | null }> {
-    if (!this.isBrowser) {
-      return { files: null, error: 'Not in browser environment' };
-    }
-
-    this.loadingSubject.next(true);
-    try {
-      const { data, error } = await this.supabaseService.client.storage
-        .from(bucket)
-        .list(folder);
-
-      if (error) {
-        console.error('Error listing files:', error);
-        this.loadingSubject.next(false);
-        return { files: null, error: error.message };
-      }
-
-      this.loadingSubject.next(false);
-      return { files: data, error: null };
-    } catch (err) {
-      this.loadingSubject.next(false);
-      return { files: null, error: String(err) };
-    }
+  async listFiles(_bucket: string, _folder: string): Promise<{ files: any[] | null; error: string | null }> {
+    return { files: [], error: null };
   }
 
   /**
-   * Get public URL for a file
-   * @param bucket The storage bucket name
-   * @param path The path to the file
+   * Build the public URL for a stored file served from `/projects/...`.
    */
-  getPublicUrl(bucket: string, path: string): string {
-    const { data } = this.supabaseService.client.storage
-      .from(bucket)
-      .getPublicUrl(path);
-    return data.publicUrl;
+  getPublicUrl(_bucket: string, path: string): string {
+    if (path.startsWith('http')) return path;
+    return `${getServerConfig()}/projects/${path}`;
   }
 
   /**
-   * Convert a base64 data URL to a File/Blob
+   * Convert a base64 data URL to a File/Blob.
    */
   base64ToFile(base64: string, fileName: string): Blob {
     const arr = base64.split(',');

@@ -21,7 +21,12 @@ export class SocketService {
 
     // Only initialize socket in browser environment (not during SSR)
     if (this.isBrowser) {
-      this.socket = io(this.serverUrl);
+      // Phase 3: send the backend-issued JWT in the handshake if we have one.
+      // If there's no token, connect exactly as before (permissive fallback).
+      const token = this.getAuthToken();
+      this.socket = token
+        ? io(this.serverUrl, { auth: { token } })
+        : io(this.serverUrl);
       this.setupConnection();
     }
   }
@@ -31,6 +36,26 @@ export class SocketService {
    */
   private isSocketAvailable(): boolean {
     return this.isBrowser && this.socket !== null;
+  }
+
+  /**
+   * Reconnect the socket so the current `auth_token` (Phase 3 JWT) is sent in
+   * the handshake. Call this after login/logout, since the token is read only
+   * at connect time.
+   */
+  reconnect(): void {
+    if (!this.isBrowser) return;
+
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
+    const token = this.getAuthToken();
+    this.socket = token
+      ? io(this.serverUrl, { auth: { token } })
+      : io(this.serverUrl);
+    this.setupConnection();
   }
 
   private setupConnection(): void {
@@ -73,6 +98,22 @@ export class SocketService {
       return currentUserName;
     } catch (error) {
       console.error('Error getting current user:', error);
+    }
+    return null;
+  }
+
+  /**
+   * Read the backend-issued JWT from localStorage (Phase 3).
+   * Returns null when absent so the socket connects as before (permissive).
+   */
+  private getAuthToken(): string | null {
+    try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+        return null;
+      }
+      return localStorage.getItem('auth_token');
+    } catch (error) {
+      console.error('Error getting auth token:', error);
     }
     return null;
   }
@@ -552,6 +593,102 @@ export class SocketService {
       };
     });
   }
+  // ==========================================================================
+  // Phase 6b: Granular realtime collaboration (element:* / cursor / presence).
+  // These are ADDITIVE. The whole-project save/load path above is untouched and
+  // remains the durable persistence/fallback path.
+  // ==========================================================================
+
+  /**
+   * Join a project's collaboration room. The ack returns the current presence
+   * list `{ users: [{ username }] }`.
+   */
+  joinProjectRoom(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      this.socket!.emit('joinProjectRoom', { projectName, projectType }, (ack: any) => {
+        observer.next(ack);
+        observer.complete();
+      });
+    });
+  }
+
+  /** Leave a project's collaboration room. */
+  leaveProjectRoom(projectName: string, projectType: 'local' | 'hosted'): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('leaveProjectRoom', { projectName, projectType });
+  }
+
+  // --- Emit local element ops -------------------------------------------------
+
+  emitElementCreate(projectName: string, projectType: 'local' | 'hosted', gridId: string, element: any): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('element:create', { projectName, projectType, gridId, element });
+  }
+
+  emitElementMove(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    elementId: string,
+    x_pos: number,
+    y_pos: number,
+    x_scale: number,
+    y_scale: number
+  ): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('element:move', { projectName, projectType, elementId, x_pos, y_pos, x_scale, y_scale });
+  }
+
+  emitElementUpdateContent(projectName: string, projectType: 'local' | 'hosted', elementId: string, content: any): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('element:update', { projectName, projectType, elementId, content });
+  }
+
+  emitElementDelete(projectName: string, projectType: 'local' | 'hosted', elementId: string): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('element:delete', { projectName, projectType, elementId });
+  }
+
+  emitCursorMove(projectName: string, projectType: 'local' | 'hosted', x: number, y: number): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('cursor:move', { projectName, projectType, x, y });
+  }
+
+  // --- Listen for remote element ops -----------------------------------------
+
+  private onEvent(eventName: string): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.complete();
+        return;
+      }
+      const handler = (data: any) => observer.next(data);
+      this.socket!.on(eventName, handler);
+      return () => {
+        if (this.isSocketAvailable()) {
+          this.socket!.off(eventName, handler);
+        }
+      };
+    });
+  }
+
+  /** `{ gridId, element }` — a remote peer created an element. */
+  onElementCreated(): Observable<any> { return this.onEvent('element:created'); }
+  /** `{ elementId, x_pos, y_pos, x_scale, y_scale }` — remote move/resize. */
+  onElementMoved(): Observable<any> { return this.onEvent('element:moved'); }
+  /** `{ elementId, content }` — remote content patch (JSONB merge). */
+  onElementUpdated(): Observable<any> { return this.onEvent('element:updated'); }
+  /** `{ elementId }` — remote delete. */
+  onElementDeleted(): Observable<any> { return this.onEvent('element:deleted'); }
+  /** `{ room, users: [{ username }] }`. */
+  onPresenceUpdate(): Observable<any> { return this.onEvent('presence:update'); }
+  /** `{ username, x, y }` — remote cursor position. */
+  onCursorMoved(): Observable<any> { return this.onEvent('cursor:moved'); }
+
    /**
    * Import Google Contacts for a user
    * @param username Username to import contacts for

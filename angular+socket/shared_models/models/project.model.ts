@@ -1,6 +1,7 @@
 import { Screen_Element } from "../models/screen-elements.model";
 
 export class Grid{
+    id?:string; // stable DB uuid (Phase 6b). Optional/additive so element ops can locate the grid.
     name:string;
     Screen_elements: Screen_Element[] =[]; //list of screen elements in the grid
 

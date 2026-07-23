@@ -86,7 +86,7 @@ export class Chat_Agent extends AI_agent {
         return textOutput;
     }
     async send_invite(invitee: string, project_name: string, username: string): Promise<string> {
-        let curr_user = userHandler.loadUser(username).user!;
+        let curr_user = (await userHandler.loadUser(username)).user!;
         console.log("[Chat_Agent] current user:", curr_user);
         if (curr_user === null) {
             console.error("[Chat_Agent] No current user set. Call setUserName() first.");
@@ -120,9 +120,9 @@ export class Chat_Agent extends AI_agent {
             if (!projectName) {
                 return "Please specify a project name to summarize.";
             }
-            let curr_project = projectHandler.loadProject(projectName, "local");
+            let curr_project = await projectHandler.loadProject(projectName, "local");
             if (!curr_project.success) {
-                curr_project = projectHandler.loadProject(projectName, "hosted");
+                curr_project = await projectHandler.loadProject(projectName, "hosted");
             }
             if (curr_project.success) {
                 let summary = await this.summarise_project(curr_project.project!);
@@ -138,9 +138,9 @@ export class Chat_Agent extends AI_agent {
             if (!projectName) {
                 return "Please specify a project name to suggest schedule for.";
             }
-            let curr_project = projectHandler.loadProject(projectName, "local");
+            let curr_project = await projectHandler.loadProject(projectName, "local");
             if (!curr_project.success) {
-                curr_project = projectHandler.loadProject(projectName, "hosted");
+                curr_project = await projectHandler.loadProject(projectName, "hosted");
             }
             if (curr_project.success) {
                 let schedule = await this.suggest_schedule(curr_project.project!);

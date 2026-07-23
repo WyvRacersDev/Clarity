@@ -3,6 +3,7 @@ import dayjs from 'dayjs'; //for scheduled_task ki class
 
 export abstract class Screen_Element {
 
+  id?: string; // stable DB uuid (Phase 6b). Optional/additive: old payloads omit it.
   name: String;
   x_pos: number;  //BRUH WDYM "number", int/float better
   y_pos: number;
@@ -66,6 +67,8 @@ export abstract class Screen_Element {
   {
     return {
       type: this.constructor.name,
+      // Include the stable id only when present (backward-compatible).
+      ...(this.id !== undefined ? { id: this.id } : {}),
       name: this.name,
       x_pos: this.x_pos,
       y_pos: this.y_pos,
@@ -321,6 +324,15 @@ export class objects_builder {
   static rebuild(obj: any): Screen_Element | scheduled_task | any {
     if (!obj) return obj;
 
+    // Restore the stable id (Phase 6b) onto any rebuilt Screen_Element.
+    // Additive: old payloads without `id` leave the field undefined.
+    const withId = (el: any) => {
+      if (el && obj.id !== undefined && el instanceof Screen_Element) {
+        el.id = obj.id;
+      }
+      return el;
+    };
+
     // Fallback: Detect elements by their fields if type is missing or wrong
     // Check for ToDoLst first (by scheduled_tasks array)
     if (obj.scheduled_tasks !== undefined && Array.isArray(obj.scheduled_tasks)) {
@@ -338,7 +350,7 @@ export class objects_builder {
       if (obj.tags !== undefined && Array.isArray(obj.tags)) {
         list.tags = obj.tags;
       }
-      return list;
+      return withId(list);
     }
 
     // Check for Text_document (by Text_field)
@@ -349,7 +361,7 @@ export class objects_builder {
       // Restore scale values if present
       if (obj.x_scale !== undefined) textDoc.x_scale = obj.x_scale;
       if (obj.y_scale !== undefined) textDoc.y_scale = obj.y_scale;
-      return textDoc;
+      return withId(textDoc);
     }
 
     // Check for Image (by imagepath, imagePath, or ImageBase64)
@@ -361,7 +373,7 @@ export class objects_builder {
       if (obj.x_scale !== undefined) img.x_scale = obj.x_scale;
       if (obj.y_scale !== undefined) img.y_scale = obj.y_scale;
       if (obj.ImageBase64) img.imageFile = Buffer.from(obj.ImageBase64, 'base64');
-      return img;
+      return withId(img);
     }
 
     // Check for Video (by VideoPath, videoPath, or videoBase64)
@@ -373,7 +385,7 @@ export class objects_builder {
       if (obj.x_scale !== undefined) vid.x_scale = obj.x_scale;
       if (obj.y_scale !== undefined) vid.y_scale = obj.y_scale;
       if (obj.videoBase64) vid.VideoFile = obj.videoBase64;
-      return vid;
+      return withId(vid);
     }
 
     if (!obj.type) return obj;
@@ -384,7 +396,7 @@ export class objects_builder {
         // Restore scale values if present
         if (obj.x_scale !== undefined) textDoc.x_scale = obj.x_scale;
         if (obj.y_scale !== undefined) textDoc.y_scale = obj.y_scale;
-        return textDoc;
+        return withId(textDoc);
 
       case 'Image':
         {
@@ -397,7 +409,7 @@ export class objects_builder {
           if (obj.y_scale !== undefined) img.y_scale = obj.y_scale;
           // Keep base64 for backward compatibility if present
           if (obj.ImageBase64) img.imageFile = Buffer.from(obj.ImageBase64, 'base64');
-          return img;
+          return withId(img);
         }
 
       case 'Video':
@@ -411,7 +423,7 @@ export class objects_builder {
           if (obj.y_scale !== undefined) vid.y_scale = obj.y_scale;
           // Keep base64 for backward compatibility if present
           if (obj.videoBase64) vid.VideoFile = obj.videoBase64;
-          return vid;
+          return withId(vid);
         }
 
       case 'scheduled_task': //not really an element but needs to be rebuilt too lol
@@ -441,7 +453,7 @@ export class objects_builder {
           if (obj.tags !== undefined && Array.isArray(obj.tags)) {
             list.tags = obj.tags;
           }
-          return list;
+          return withId(list);
         }
 
       default:

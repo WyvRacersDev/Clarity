@@ -5,8 +5,6 @@ import { User, settings } from '../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../shared_models/models/project.model';
 import { Screen_Element, objects_builder } from '../../../../shared_models/models/screen-elements.model';
 import { SocketService } from './socket.service';
-import { DatabaseService } from './database.service';
-import { SupabaseAuthService } from './supabase-auth.service';
 import { getServerConfig } from '../config/server.config';
 
 @Injectable({
@@ -20,7 +18,7 @@ export class DataService {
   private usersData: Map<string, User> = new Map();
   private currentUserName: string | null = null;
 
-  private useSupabase = true; // Flag to switch between Supabase and legacy Socket.IO
+  // Phase 4: all data flows through the Socket.IO/Postgres backend.
 
   private savingProjectSubject = new BehaviorSubject<boolean>(false);
   public savingProject$ = this.savingProjectSubject.asObservable();
@@ -36,9 +34,7 @@ export class DataService {
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
-    private socketService: SocketService,
-    private databaseService: DatabaseService,
-    private supabaseAuth: SupabaseAuthService
+    private socketService: SocketService
   ) {
     this.loadInitialData();
   }
@@ -222,24 +218,6 @@ const user = this.currentUserSubject.value;
       return null;
     }
 
-    // Use Supabase if enabled
-    if (this.useSupabase) {
-      const currentUser = this.supabaseAuth.getCurrentUser();
-      if (currentUser) {
-        try {
-          const project = await this.databaseService.createProject(projectName, projectType);
-          if (project) {
-            user.projects.push(project);
-            this.currentUserSubject.next(user);
-            return project;
-          }
-        } catch (error) {
-          console.error('[DataService] Error creating project in Supabase:', error);
-        }
-      }
-    }
-
-    // Fallback to local creation
     const project = new Project(projectName, user.name, projectType);
     user.projects.push(project);
     this.currentUserSubject.next(user);
@@ -252,36 +230,6 @@ const user = this.currentUserSubject.value;
     console.log(`[DataService] saveProject called: project="${project.name}", projectType="${finalProjectType}"`);
     this.savingProjectSubject.next(true);
 
-    // Use Supabase if enabled and project has an ID
-    if (this.useSupabase && (project as any).id) {
-      try {
-        const success = await this.databaseService.updateProject(project);
-        if (success) {
-          const user = this.getCurrentUser();
-          if (user) {
-            const index = user.projects.findIndex(p => (p as any).id === (project as any).id);
-            if (index === -1) {
-              user.projects.push(project);
-            } else {
-              user.projects[index] = project;
-            }
-            this.currentUserSubject.next(user);
-          }
-          console.log('[DataService] Save to Supabase successful');
-          this.savingProjectSubject.next(false);
-          return true;
-        }
-        console.error('[DataService] Failed to save project to Supabase');
-        this.savingProjectSubject.next(false);
-        return false;
-      } catch (error) {
-        console.error('[DataService] Error saving project to Supabase:', error);
-        this.savingProjectSubject.next(false);
-        return false;
-      }
-    }
-
-    // Fallback to Socket.IO
     try {
       const serializedProject = this.serializeProjectForSaving(project);
       serializedProject.project_type = finalProjectType;
@@ -319,26 +267,6 @@ const user = this.currentUserSubject.value;
   async loadProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Promise<Project | null> {
     this.loadingProjectSubject.next(true);
 
-    // Try Supabase first if enabled
-    if (this.useSupabase) {
-      const currentUser = this.supabaseAuth.getCurrentUser();
-      if (currentUser) {
-        try {
-          const projects = await this.databaseService.getProjects((currentUser as any).id, projectType);
-          const project = projects.find(p => p.name === projectName);
-          if (project) {
-            (project as any).projectType = projectType;
-            (project as any).isLocal = projectType === 'local';
-            this.loadingProjectSubject.next(false);
-            return project;
-          }
-        } catch (error) {
-          console.error('[DataService] Error loading project from Supabase:', error);
-        }
-      }
-    }
-
-    // Fallback to Socket.IO
     try {
       const response = await firstValueFrom(
         this.socketService.loadProject(projectName, projectType)
@@ -365,27 +293,6 @@ const user = this.currentUserSubject.value;
   async listProjects(projectType: 'local' | 'hosted' = 'local'): Promise<Project[]> {
     this.listingProjectsSubject.next(true);
 
-    // Use Supabase if enabled
-    if (this.useSupabase) {
-      const currentUser = this.supabaseAuth.getCurrentUser();
-      if (currentUser) {
-        try {
-          const projects = await this.databaseService.getProjects((currentUser as any).id, projectType);
-          const validProjects = projects.map(p => {
-            (p as any).projectType = projectType;
-            (p as any).isLocal = projectType === 'local';
-            return p;
-          });
-          console.log(`[DataService] Returning ${validProjects.length} ${projectType} projects from Supabase:`, validProjects.map(p => p.name));
-          this.listingProjectsSubject.next(false);
-          return validProjects;
-        } catch (error) {
-          console.error(`[DataService] Error listing ${projectType} projects from Supabase:`, error);
-        }
-      }
-    }
-
-    // Fallback to Socket.IO
     try {
       const response = await firstValueFrom(
         this.socketService.listProjects(projectType)
@@ -441,31 +348,6 @@ const user = this.currentUserSubject.value;
   async deleteProject(projectName: string, projectType: 'local' | 'hosted' = 'local'): Promise<boolean> {
     this.deletingProjectSubject.next(true);
 
-    // Use Supabase if enabled
-    if (this.useSupabase) {
-      const user = this.getCurrentUser();
-      if (user) {
-        const project = user.projects.find(p => p.name === projectName);
-        if (project && (project as any).id) {
-          try {
-            const success = await this.databaseService.deleteProject((project as any).id);
-            if (success) {
-              const index = user.projects.findIndex(p => p.name === projectName);
-              if (index !== -1) {
-                user.projects.splice(index, 1);
-              }
-              this.currentUserSubject.next(user);
-              this.deletingProjectSubject.next(false);
-              return true;
-            }
-          } catch (error) {
-            console.error('[DataService] Error deleting project from Supabase:', error);
-          }
-        }
-      }
-    }
-
-    // Fallback to Socket.IO
     try {
       const response = await firstValueFrom(
         this.socketService.deleteProject(projectName, projectType)
@@ -733,19 +615,10 @@ const user = this.currentUserSubject.value;
       user.settings = settings;
       this.saveUserDataToStorage();
 
-      if (this.useSupabase && (user as any).id) {
-        this.databaseService.updateUserSettings((user as any).id, settings);
-      } else {
-        this.saveUserToBackend(user);
-      }
+      this.saveUserToBackend(user);
 
       this.currentUserSubject.next(user);
     }
-  }
-
-  // Switch between Supabase and legacy mode
-  setUseSupabase(useSupabase: boolean): void {
-    this.useSupabase = useSupabase;
   }
 
    private saveUserDataToStorage(): void {
@@ -934,28 +807,6 @@ const user = this.currentUserSubject.value;
 
     user.projects = [];
 
-    // Use Supabase if enabled
-    if (this.useSupabase) {
-      const currentUser = this.supabaseAuth.getCurrentUser();
-      if (currentUser) {
-        try {
-          const allProjects = await this.databaseService.getProjects((currentUser as any).id);
-          user.projects = allProjects.map(p => {
-            (p as any).projectType = (p as any).projectType || 'local';
-            (p as any).isLocal = (p as any).projectType === 'local';
-            return p;
-          });
-          console.log(`[DataService] Loaded ${user.projects.length} projects from Supabase for user ${user.name}`);
-          this.currentUserSubject.next(user);
-          this.saveUserDataToStorage();
-          return;
-        } catch (error) {
-          console.error('[DataService] Error loading projects from Supabase:', error);
-        }
-      }
-    }
-
-    // Fallback to Socket.IO
     const localProjects = await this.listProjects('local');
     const hostedProjects = await this.listProjects('hosted');
     user.projects = [...localProjects, ...hostedProjects];
