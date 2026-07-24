@@ -122,6 +122,33 @@ export const cursorMoveSchema = z
   })
   .passthrough();
 
+// === Task comments (A3) ===
+
+/**
+ * task:comment:add — persist a comment on a task, then ack + broadcast.
+ * projectName/projectType identify the room to broadcast `task:comment:added`
+ * into (same room-key pattern as the other collab events). `body` must be
+ * non-empty; `author` is derived server-side from identity(), never trusted
+ * from the payload.
+ */
+export const taskCommentAddSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    taskId: z.string(),
+    body: z.string().min(1),
+  })
+  .passthrough();
+
+/** task:comment:list — fetch the comment thread for a task. */
+export const taskCommentListSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    taskId: z.string(),
+  })
+  .passthrough();
+
 // === User events ===
 
 export const saveUserSchema = z

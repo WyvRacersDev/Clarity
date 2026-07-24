@@ -206,6 +206,83 @@ export class Chat_Agent extends AI_agent {
     }
 
     /**
+     * True when a valid Gemini key is configured. Used by callers (e.g. the
+     * notification cron) to decide whether to use the LLM path or a heuristic.
+     */
+    hasValidKey(): boolean {
+        return !this.key_invalid;
+    }
+
+    /**
+     * Streaming counterpart to `chat()` (C3). Yields plain-text chunks as Gemini
+     * produces them, for Server-Sent Events. This deliberately uses a *plain*
+     * (tool-free) prompt: token streaming and multi-step tool execution don't
+     * compose cleanly, and the blocking `chat()` remains the tool-calling path.
+     *
+     * Degrades gracefully:
+     *   - Missing/placeholder key -> yields a single config message, then ends.
+     *   - Stream failure           -> yields a single error message, then ends.
+     * Never throws to the route; SSE handlers just forward whatever is yielded.
+     */
+    async *chatStream(user_input: string, username: string): AsyncGenerator<string> {
+        console.log("[Chat_Agent] (stream) Received user input:", user_input);
+
+        if (this.key_invalid) {
+            yield "The AI assistant is not configured: a valid GEMINI_API_KEY is missing. " +
+                "Please set GEMINI_API_KEY in the server environment.";
+            return;
+        }
+
+        const messages: Array<SystemMessage | HumanMessage> = [
+            new SystemMessage(
+                "You are a helpful assistant for a productivity app called Clarity. " +
+                `You are talking to the user named "${username}"; address them by name.`
+            ),
+            new HumanMessage(user_input),
+        ];
+
+        try {
+            // LangChain chat models expose `.stream()` -> async iterable of
+            // message chunks; each chunk's `.content` is a token (or a small
+            // group of tokens) that we flatten to plain text.
+            const stream = await this.model.stream(messages);
+            for await (const chunk of stream) {
+                const piece = this.extract_text((chunk as any).content);
+                if (piece) yield piece;
+            }
+        } catch (err: any) {
+            console.error("[Chat_Agent] Streaming failed:", err);
+            yield "\n\nSorry, the AI assistant ran into a problem while streaming. Please try again.";
+        }
+    }
+
+    /**
+     * Heuristic-free schedule suggestion over a plain list of task rows (C2).
+     * Used by the proactive notification cron so it can suggest an ordering
+     * without a full Project object. Returns a short natural-language plan.
+     * Falls back to the caller's heuristic if the model errors.
+     */
+    async suggest_task_ordering(
+        tasks: Array<{ taskname: string; priority: number; due: string | null }>
+    ): Promise<string> {
+        if (this.key_invalid || tasks.length === 0) return "";
+        try {
+            const chain = RunnableSequence.from([this.suggest_schedule_prompt, this.model]);
+            const response = await chain.invoke({
+                input:
+                    "Here are tasks that are overdue or missing a due date. In 2-3 short " +
+                    "sentences, suggest the order to tackle them (earliest deadline / " +
+                    "highest priority first) and flag anything missing a due date. Tasks: " +
+                    JSON.stringify(tasks),
+            });
+            return this.extract_text(response.content);
+        } catch (err) {
+            console.error("[Chat_Agent] suggest_task_ordering failed:", err);
+            return "";
+        }
+    }
+
+    /**
      * Main entry point (signature UNCHANGED — called from ai.routes.ts via
      * `agent.chat(input, username)`).
      *

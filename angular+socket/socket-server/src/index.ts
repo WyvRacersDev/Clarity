@@ -23,7 +23,7 @@ import { ProjectHandler } from "@services/project.service.js";
 import { UserHandler } from "@services/user.service.js";
 import { Chat_Agent } from "@services/agent.service.js";
 import { DiskStorageService } from "@services/storage/DiskStorageService.js";
-import { startNotificationService } from "@services/notification.service.js";
+import { startNotificationService, userRoom } from "@services/notification.service.js";
 import {
   SERVER_HOST,
   SERVER_PORT,
@@ -156,8 +156,9 @@ app.use(miscRouter);
 // === Socket.IO handshake auth (permissive by default; strict via AUTH_STRICT) ===
 io.use(socketAuth);
 
-// checkUpcomingTasks();
-startNotificationService();
+// Pass io + agent so the cron ALSO pushes proactive `ai:suggestion` events
+// (C2) to per-user rooms, in addition to the existing task-due emails.
+startNotificationService({ io, agent });
 
 // === Socket Event Handlers ===
 
@@ -186,6 +187,17 @@ io.on("connection", (socket: Socket) => {
     const legacy = payloadName ?? userSessions.get(socket.id);
     return { username: legacy, email: legacy };
   };
+
+  // Join this socket to its per-user room so the notification cron can push
+  // targeted `ai:suggestion` events (C2). Re-joins on identifyUser below too,
+  // covering the permissive path where the username arrives after connect.
+  const joinUserRoom = (name?: string) => {
+    if (name && name !== "Demo User") socket.join(userRoom(name));
+  };
+  joinUserRoom(identity().username);
+  socket.on("identifyUser", (data: { username?: string }) => {
+    joinUserRoom(socket.data.user?.username ?? data?.username);
+  });
 
   const deps: GatewayDeps = { project_handler, user_handler, storage, identity };
 

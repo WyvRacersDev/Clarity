@@ -29,6 +29,14 @@ import { SocketService } from './socket.service';
  */
 export interface PresenceUser { username: string; }
 export interface RemoteCursor { username: string; x: number; y: number; }
+/** A2/A3 — task comment shape (mirrors backend comment.repository.ts). */
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  author: string;
+  body: string;
+  created_at: string; // ISO 8601
+}
 
 export type ProjectType = 'local' | 'hosted';
 
@@ -146,5 +154,40 @@ export class CollabService {
 
   onRemoteCursor(): Observable<RemoteCursor> {
     return this.socketService.onCursorMoved();
+  }
+
+  // --- A3: task comments -----------------------------------------------------
+  // Thin wrappers over the ack-based add/list events + the room broadcast.
+  // `projectName`/`projectType` are taken from the currently-joined room so
+  // callers only pass the task id + body (author is derived server-side).
+
+  /** Add a comment to a task. Resolves with the created comment or throws. */
+  async addComment(taskId: string, body: string): Promise<TaskComment | null> {
+    if (!this.isBrowser || !this.isJoined) return null;
+    const ack = await firstValueFrom(
+      this.socketService.emitTaskCommentAdd(this.activeProjectName!, this.activeProjectType!, taskId, body)
+    );
+    if (ack?.success) return ack.comment as TaskComment;
+    throw new Error(ack?.message || 'Failed to add comment');
+  }
+
+  /** List comments for a task (oldest-first). */
+  async listComments(taskId: string): Promise<TaskComment[]> {
+    if (!this.isBrowser || !this.isJoined) return [];
+    const ack = await firstValueFrom(
+      this.socketService.emitTaskCommentList(this.activeProjectName!, this.activeProjectType!, taskId)
+    );
+    if (ack?.success && Array.isArray(ack.comments)) return ack.comments as TaskComment[];
+    return [];
+  }
+
+  /** Live stream of comments added by anyone in the room (`{ comment }`). */
+  onCommentAdded(): Observable<TaskComment> {
+    return new Observable<TaskComment>(observer => {
+      const sub = this.socketService.onTaskCommentAdded().subscribe((data: any) => {
+        if (data?.comment) observer.next(data.comment as TaskComment);
+      });
+      return () => sub.unsubscribe();
+    });
   }
 }

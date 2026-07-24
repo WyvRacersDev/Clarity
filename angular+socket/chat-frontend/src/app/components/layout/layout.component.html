@@ -1,95 +1,116 @@
-<div class="layout-container">
-  <!-- Sidebar -->
-  <aside class="sidebar" [class.collapsed]="!isSidebarOpen">
-    <div class="sidebar-header">
-      @if (isSidebarOpen) {
-        <h1 class="logo">Clarity</h1>
+<div class="layout" [class.rail]="collapsed()">
+  <!-- ─────────────── Sidebar ─────────────── -->
+  <aside class="sidebar">
+    <!-- Brand -->
+    <div class="brand">
+      <img class="brand-logo" src="assets/clarity-logo.jpg" alt="Clarity" width="28" height="28" />
+      @if (!collapsed()) {
+        <span class="brand-word">Clarity</span>
       }
-      <button class="toggle-btn" (click)="toggleSidebar()">
-        @if (isSidebarOpen) {
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        }
-        @if (!isSidebarOpen) {
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <button class="collapse-btn btn-icon" (click)="toggleSidebar()"
+              [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+        @if (collapsed()) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         }
       </button>
     </div>
 
-    <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
-      <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item" aria-label="Dashboard">
-        <span class="nav-icon-wrapper" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        </span>
-        @if (isSidebarOpen) {
-          <span class="nav-text">Dashboard</span>
-        }
-      </a>
-      <a routerLink="/dashboard/projects" routerLinkActive="active" class="nav-item" aria-label="Projects">
-        <span class="nav-icon-wrapper" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-        </span>
-        @if (isSidebarOpen) {
-          <span class="nav-text">Projects</span>
-        }
-      </a>
-      <a routerLink="/dashboard/tasks" routerLinkActive="active" class="nav-item" aria-label="Tasks and Calendar">
-        <span class="nav-icon-wrapper" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-        </span>
-        @if (isSidebarOpen) {
-          <span class="nav-text">Tasks & Calendar</span>
-        }
-      </a>
-      <a routerLink="/dashboard/analytics" routerLinkActive="active" class="nav-item" aria-label="Analytics">
-        <span class="nav-icon-wrapper" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        </span>
-        @if (isSidebarOpen) {
-          <span class="nav-text">Analytics</span>
-        }
-      </a>
-      <a routerLink="/dashboard/ai-insights" routerLinkActive="active" class="nav-item" aria-label="AI Insights">
-        <span class="nav-icon-wrapper" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M12 2a4 4 0 00-4 4c0 1.95 1.4 3.58 3.25 3.93"/><path d="M12 10v4"/><circle cx="12" cy="18" r="2"/><path d="M6 18h12"/><path d="M4 22h16"/></svg>
-        </span>
-        @if (isSidebarOpen) {
-          <span class="nav-text">AI Insights</span>
-        }
-      </a>
-      <a routerLink="/dashboard/settings" routerLinkActive="active" class="nav-item" aria-label="Settings">
-        <span class="nav-icon-wrapper" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-        </span>
-        @if (isSidebarOpen) {
-          <span class="nav-text">Settings</span>
-        }
-      </a>
+    <!-- Nav -->
+    <nav class="nav" role="navigation" aria-label="Main navigation">
+      @for (item of navItems; track item.link) {
+        <a class="nav-item"
+           [routerLink]="item.link"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: item.exact }"
+           [attr.title]="collapsed() ? item.label : null"
+           [attr.aria-label]="item.label">
+          <span class="nav-indicator" aria-hidden="true"></span>
+          <span class="nav-icon" aria-hidden="true">
+            @switch (item.icon) {
+              @case ('grid') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              }
+              @case ('folder') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              }
+              @case ('check') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              }
+              @case ('chart') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              }
+              @case ('ai') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M12 2a4 4 0 00-4 4c0 1.95 1.4 3.58 3.25 3.93"/><path d="M12 10v4"/><circle cx="12" cy="18" r="2"/><path d="M6 18h12"/><path d="M4 22h16"/></svg>
+              }
+              @case ('settings') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+              }
+            }
+          </span>
+          @if (!collapsed()) {
+            <span class="nav-label">{{ item.label }}</span>
+          }
+        </a>
+      }
     </nav>
 
+    <!-- Footer: user avatar + menu -->
     <div class="sidebar-footer">
-      @if (isSidebarOpen) {
-        <div class="user-info">
-          <div class="user-avatar">{{ currentUser?.name?.charAt(0) || 'U' }}</div>
-          <div class="user-details">
-            <div class="user-name">{{ currentUser?.name || 'User' }}</div>
-            <div class="user-email">{{ currentUser?.name || 'user' }}&#64;clarity.app</div>
-          </div>
+      @if (userMenuOpen()) {
+        <div class="menu user-menu">
+          <button class="menu-item danger" (click)="logout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Logout</span>
+          </button>
         </div>
       }
-      @if (!isSidebarOpen) {
-        <div class="user-avatar user-avatar-small">{{ currentUser?.name?.charAt(0) || 'U' }}</div>
-      }
-      <button class="logout-btn" (click)="logout()" aria-label="Logout">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        @if (isSidebarOpen) {
-          <span>Logout</span>
+      <button class="user-btn" (click)="toggleUserMenu()" [attr.aria-expanded]="userMenuOpen()" aria-label="User menu">
+        <span class="avatar avatar-sm">{{ userInitial }}</span>
+        @if (!collapsed()) {
+          <span class="user-meta">
+            <span class="user-name">{{ currentUser?.name || 'User' }}</span>
+            <span class="user-email">{{ currentUser?.name || 'user' }}&#64;clarity.app</span>
+          </span>
+          <svg class="user-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         }
       </button>
     </div>
   </aside>
 
-  <!-- Main Content -->
-  <main class="main-content">
-    <router-outlet></router-outlet>
-  </main>
+  <!-- ─────────────── Content column ─────────────── -->
+  <div class="content">
+    <!-- Topbar -->
+    <header class="topbar glass">
+      <div class="topbar-left">
+        <h1 class="page-title">{{ pageTitle() }}</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="cmdk-trigger" (click)="palette.open()" aria-label="Open command palette">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="cmdk-label">Search</span>
+          <span class="kbd">⌘K</span>
+        </button>
+
+        <button class="btn-icon theme-toggle" (click)="toggleTheme()" [attr.aria-label]="isDark() ? 'Switch to light theme' : 'Switch to dark theme'">
+          @if (isDark()) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          }
+        </button>
+
+        <span class="avatar avatar-sm topbar-avatar">{{ userInitial }}</span>
+      </div>
+    </header>
+
+    <!-- Routed screen -->
+    <main class="main-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+
+  <!-- Command palette (⌘K) -->
+  <app-command-palette #palette></app-command-palette>
 </div>

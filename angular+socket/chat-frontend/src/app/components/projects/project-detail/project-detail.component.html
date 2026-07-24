@@ -23,12 +23,17 @@
         <span class="element-count">{{ getElements().length }} elements</span>
       </div>
       <div class="header-actions">
-        <!-- Phase 6b: presence avatars for users in this project's room -->
+        <!-- Phase 6b / B2: presence avatars (album-palette per user) -->
         @if (presenceUsers.length > 0) {
-          <div class="presence-bar" title="People in this project">
-            @for (u of presenceUsers; track u.username) {
-              <span class="presence-avatar" [title]="u.username">{{ getInitials(u.username) }}</span>
-            }
+          <div class="presence-cluster" title="People in this project">
+            <div class="presence-bar">
+              @for (u of presenceUsers; track u.username) {
+                <span class="presence-avatar"
+                      [title]="u.username"
+                      [style.background]="getUserColor(u.username)">{{ getInitials(u.username) }}</span>
+              }
+            </div>
+            <span class="presence-pill">{{ presenceUsers.length }} here</span>
           </div>
         }
         <button class="add-btn" (click)="openAddElementModal()">
@@ -59,6 +64,15 @@
         </div>
       </div>
 
+      <!-- A2: link-mode banner -->
+      @if (linkSourceId) {
+        <div class="link-mode-banner">
+          <span class="link-mode-icon">🔗</span>
+          <span>Click a todo list to make it a dependency</span>
+          <button class="link-mode-cancel" (click)="cancelLinkMode()">Cancel</button>
+        </div>
+      }
+
       <!-- Canvas Area -->
       <div class="canvas-container"
            #canvasContainer
@@ -67,20 +81,54 @@
            (click)="onCanvasClick($event)"
            [class.no-grid]="!showGrid">
         <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
+          <!-- A2: dependency links overlay (behind the element cards) -->
+          <svg class="dependency-layer" width="100%" height="100%" [attr.aria-hidden]="true">
+            <defs>
+              <marker id="dep-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+                <path d="M0,0 L8,4 L0,8 Z" fill="var(--accent-blue)"></path>
+              </marker>
+              <marker id="dep-arrow-clear" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+                <path d="M0,0 L8,4 L0,8 Z" fill="var(--accent-green)"></path>
+              </marker>
+            </defs>
+            @for (link of getDependencyLinks(); track link.key) {
+              <line
+                class="dependency-link"
+                [class.blocked]="link.blocked"
+                [attr.x1]="link.x1" [attr.y1]="link.y1"
+                [attr.x2]="link.x2" [attr.y2]="link.y2"
+                [attr.marker-end]="link.blocked ? 'url(#dep-arrow)' : 'url(#dep-arrow-clear)'"></line>
+            }
+          </svg>
           @for (element of getElements(); track element; let i = $index) {
             <div
               class="canvas-element"
+              [attr.data-type]="getElementType(element)"
               [class.selected]="selectedElementIndex === i"
+              [class.link-source]="linkSourceId && linkSourceId === element.id"
+              [class.link-target-candidate]="linkSourceId && linkSourceId !== element.id && canLinkElement(element)"
+              [class.is-blocked]="isElementBlocked(element)"
               [style.left.px]="getElementX(element, i)"
               [style.top.px]="getElementY(element, i)"
               [style.width.px]="getElementWidth(element)"
               (mousedown)="onElementMouseDown($event, i)"
+              (click)="linkSourceId ? pickLinkTarget(element, $event) : null"
               (dblclick)="onElementDoubleClick(element, i)"
             >
               <!-- Element Header -->
               <div class="element-header">
                 <span class="element-type-badge">{{ getElementType(element) }}</span>
                 <span class="element-name">{{ element.name }}</span>
+                @if (isElementBlocked(element)) {
+                  <span class="blocked-badge" title="Blocked by an incomplete dependency">Blocked</span>
+                }
+                @if (canLinkElement(element)) {
+                  <button
+                    class="element-link-btn"
+                    [class.active]="linkSourceId === element.id"
+                    [title]="linkSourceId === element.id ? 'Click another list to link, or click again to cancel' : 'Link a dependency'"
+                    (click)="startLinkMode(element, $event)">🔗</button>
+                }
                 <button class="element-delete-btn" (click)="deleteElement(i); $event.stopPropagation()">×</button>
               </div>
 
@@ -127,9 +175,10 @@
           @for (cursor of getRemoteCursors(); track cursor.username) {
             <div class="remote-cursor"
                  [style.left.px]="cursor.x"
-                 [style.top.px]="cursor.y">
-              <span class="remote-cursor-pointer">▲</span>
-              <span class="remote-cursor-label">{{ cursor.username }}</span>
+                 [style.top.px]="cursor.y"
+                 [style.--cursor-color]="getUserColor(cursor.username)">
+              <span class="remote-cursor-pointer" [style.color]="getUserColor(cursor.username)">▲</span>
+              <span class="remote-cursor-label" [style.background]="getUserColor(cursor.username)">{{ cursor.username }}</span>
             </div>
           }
           @if (getElements().length === 0) {
@@ -161,7 +210,7 @@
 
     <!-- Full Screen Todo View -->
     @if (showFullScreenTodo && fullScreenTodoElement) {
-      <div class="fullscreen-todo-overlay">
+      <div class="fullscreen-todo-overlay" [class.with-comments]="selectedCommentTask">
         <div class="fullscreen-todo-container">
           <div class="fullscreen-header">
             <h1>{{ fullScreenTodoElement.name }}</h1>
@@ -178,14 +227,65 @@
           </div>
           <div class="tasks-list">
             @for (task of getUpcomingTasks(); track task) {
-              <div class="task-item">
+              <div class="task-item" [class.comment-active]="selectedCommentTask === task">
                 <input type="checkbox" [checked]="task.is_done" (change)="toggleTaskStatusInFullScreen(task)" />
-                <span [class.done]="task.is_done">{{ task.taskname }}</span>
+                <span class="task-item-name" [class.done]="task.is_done">{{ task.taskname }}</span>
+                <button class="comment-badge-btn" (click)="openTaskComments(task, $event)" title="Comments">
+                  💬
+                  @if (getCommentCount(task) > 0) {
+                    <span class="comment-count">{{ getCommentCount(task) }}</span>
+                  }
+                </button>
                 <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
               </div>
             }
           </div>
         </div>
+
+        <!-- A3: task comments panel -->
+        @if (selectedCommentTask) {
+          <div class="comments-panel">
+            <div class="comments-header">
+              <div class="comments-title">
+                <span class="comments-title-label">Comments</span>
+                <span class="comments-task-name">{{ selectedCommentTask.taskname }}</span>
+              </div>
+              <button class="close-btn" (click)="closeTaskComments()">×</button>
+            </div>
+
+            <div class="comments-body">
+              @if (!canComment) {
+                <p class="comments-hint">Comments sync once this task is saved to the server. Reopen the project to enable them.</p>
+              } @else if (isLoadingComments) {
+                <p class="comments-hint">Loading comments…</p>
+              } @else if (taskComments.length === 0) {
+                <p class="comments-hint">No comments yet. Start the conversation.</p>
+              } @else {
+                @for (comment of taskComments; track comment.id) {
+                  <div class="comment-item">
+                    <div class="comment-meta">
+                      <span class="comment-author" [style.color]="getUserColor(comment.author)">{{ comment.author }}</span>
+                      <span class="comment-time">{{ formatRelativeTime(comment.created_at) }}</span>
+                    </div>
+                    <div class="comment-text">{{ comment.body }}</div>
+                  </div>
+                }
+              }
+            </div>
+
+            @if (canComment) {
+              <div class="comments-composer field">
+                <textarea
+                  class="textarea"
+                  rows="2"
+                  placeholder="Write a comment…"
+                  [(ngModel)]="newCommentBody"
+                  (keydown.enter)="$event.preventDefault(); submitComment()"></textarea>
+                <button class="submit-btn" (click)="submitComment()" [disabled]="!newCommentBody.trim()">Send</button>
+              </div>
+            }
+          </div>
+        }
       </div>
     }
   </div>

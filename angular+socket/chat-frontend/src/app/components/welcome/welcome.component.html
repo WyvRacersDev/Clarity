@@ -1,127 +1,268 @@
-<div class="welcome-container" (click)="playAudioOnInteraction()">
+<div class="wc-root" (click)="playAudioOnInteraction()">
+
+  <!-- Hidden audio element — keep intact; logic lives in .ts -->
   <audio #backgroundMusic loop>
     <source src="/assets/welcome-music.mp3" type="audio/mpeg">
   </audio>
 
-  <button class="mute-btn" (click)="toggleMute(); $event.stopPropagation()" [class.muted]="isMuted">
-    <svg *ngIf="!isMuted" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-    <svg *ngIf="isMuted" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-  </button>
+  <!-- ── Left hero panel ─────────────────────────────────────────────── -->
+  <div class="wc-hero" aria-hidden="true">
 
-  <!-- Subtle ambient glow -->
-  <div class="ambient-glow"></div>
+    <!-- Aurora mesh backdrop layers -->
+    <div class="wc-mesh wc-mesh-1"></div>
+    <div class="wc-mesh wc-mesh-2"></div>
+    <div class="wc-mesh wc-mesh-3"></div>
 
-  <!-- Legacy elements (hidden via CSS) -->
-  <div class="stars-background"></div>
-  <div class="glow-orb glow-orb-1"></div>
-  <div class="glow-orb glow-orb-2"></div>
-
-  <div class="welcome-content">
-    <h1 class="app-title">
-      <span class="title-welcome">Welcome to</span>
-      <span class="title-clarity">Clarity</span>
-    </h1>
-
-    <p class="tagline">An All-in-One Productivity App</p>
-
-    <!-- Auth Form -->
-    <div class="auth-container" *ngIf="!isLoading">
-      <!-- Mode Toggle -->
-      <div class="auth-toggle">
-        <button [class.active]="isLoginMode" (click)="isLoginMode = true; clearError()">Login</button>
-        <button [class.active]="!isLoginMode" (click)="isLoginMode = false; clearError()">Sign Up</button>
+    <!-- Brand -->
+    <div class="wc-hero-brand">
+      <div class="wc-logo-mark">
+        <img src="assets/clarity-logo.jpg" alt="Clarity" width="40" height="40" />
       </div>
-
-      <!-- Form -->
-      <form (ngSubmit)="onSubmit()" class="auth-form">
-        <!-- Email -->
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input
-            type="email"
-            id="email"
-            [(ngModel)]="email"
-            name="email"
-            placeholder="Enter your email"
-            required
-            email
-          />
-        </div>
-
-        <!-- Username (only for signup) -->
-        <div class="form-group" *ngIf="!isLoginMode">
-          <label for="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            [(ngModel)]="username"
-            name="username"
-            placeholder="Choose a username"
-            [required]="!isLoginMode"
-          />
-        </div>
-
-        <!-- Password -->
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            [(ngModel)]="password"
-            name="password"
-            placeholder="Enter your password"
-            required
-            minlength="6"
-          />
-        </div>
-
-        <!-- Error Message -->
-        <div class="error-message" *ngIf="errorMessage">
-          {{ errorMessage }}
-        </div>
-
-        <!-- Submit Button -->
-        <button type="submit" class="submit-btn" [disabled]="isLoading">
-          <span *ngIf="!isLoading">{{ isLoginMode ? 'Login' : 'Create Account' }}</span>
-          <span *ngIf="isLoading">Please wait...</span>
-        </button>
-      </form>
-
-      <!-- Divider -->
-      <div class="divider">
-        <span>or</span>
-      </div>
-
-      <!-- Google Login -->
-      <button class="google-btn" (click)="loginWithGoogle()" [disabled]="isLoading">
-        <svg width="20" height="20" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-        </svg>
-        Continue with Google
-      </button>
-
-      <!-- Demo Mode -->
-      <button class="demo-btn" (click)="enterAsDemo()" [disabled]="isLoading">
-        Try Demo Mode
-      </button>
+      <span class="wc-wordmark">Clarity</span>
     </div>
 
-    <!-- Loading State -->
-    <div class="loading-state" *ngIf="isLoading">
-      <div class="spinner"></div>
-      <p>Please wait...</p>
+    <!-- Headline -->
+    <div class="wc-hero-copy">
+      <h1 class="wc-headline">
+        Focus on what<br>
+        <span class="wc-headline-accent">truly matters.</span>
+      </h1>
+      <p class="wc-subheadline">
+        The all-in-one workspace that brings your projects,
+        tasks, and team into a single calm surface.
+      </p>
     </div>
 
-    <div class="credits">
-      <span class="credits-label">Created by</span>
-      <div class="team-members">
-        <span class="member">Bilal Kashif</span>
-        <span class="member">Mohammad Hamza Iqbal</span>
-        <span class="member">Mawahid Abbas</span>
+    <!-- Value props -->
+    <ul class="wc-value-props" aria-label="Key features">
+      <li class="wc-value-prop">
+        <span class="wc-value-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </span>
+        <span>Visual canvas for project work</span>
+      </li>
+      <li class="wc-value-prop">
+        <span class="wc-value-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </span>
+        <span>Smart task management</span>
+      </li>
+      <li class="wc-value-prop">
+        <span class="wc-value-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        </span>
+        <span>AI-powered insights</span>
+      </li>
+      <li class="wc-value-prop">
+        <span class="wc-value-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </span>
+        <span>Real-time team collaboration</span>
+      </li>
+    </ul>
+
+    <!-- Credits (bottom of hero) -->
+    <div class="wc-credits">
+      <span class="wc-credits-label">Created by</span>
+      <div class="wc-team">
+        <span class="wc-member">Bilal Kashif</span>
+        <span class="wc-sep" aria-hidden="true">·</span>
+        <span class="wc-member">Mohammad Hamza Iqbal</span>
+        <span class="wc-sep" aria-hidden="true">·</span>
+        <span class="wc-member">Mawahid Abbas</span>
       </div>
     </div>
   </div>
+
+  <!-- ── Right auth panel ────────────────────────────────────────────── -->
+  <div class="wc-auth-side">
+
+    <div class="wc-auth-card glass">
+
+      <!-- Card header: logo on mobile + mode toggle -->
+      <div class="wc-card-header">
+        <!-- Mobile-only brand (hidden on desktop where hero shows) -->
+        <div class="wc-mobile-brand" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+            <defs>
+              <linearGradient id="logo-grad-m" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#2E6FB0"/>
+                <stop offset="100%" stop-color="#34C471"/>
+              </linearGradient>
+            </defs>
+            <polygon points="14,2 26,10 26,18 14,26 2,18 2,10" fill="url(#logo-grad-m)" opacity="0.20"/>
+            <circle cx="14" cy="14" r="4" fill="url(#logo-grad-m)"/>
+          </svg>
+          <span class="wc-wordmark">Clarity</span>
+        </div>
+
+        <div class="wc-mode-headline">
+          @if (isLoginMode) {
+            <h2 class="wc-card-title">Welcome back</h2>
+            <p class="wc-card-sub">Sign in to continue to your workspace</p>
+          } @else {
+            <h2 class="wc-card-title">Create account</h2>
+            <p class="wc-card-sub">Get started with Clarity for free</p>
+          }
+        </div>
+
+        <!-- Login / Sign-up toggle tabs -->
+        <div class="wc-tabs" role="tablist" aria-label="Authentication mode">
+          <button
+            class="wc-tab"
+            [class.wc-tab-active]="isLoginMode"
+            role="tab"
+            [attr.aria-selected]="isLoginMode"
+            (click)="isLoginMode = true; clearError()"
+          >Sign in</button>
+          <button
+            class="wc-tab"
+            [class.wc-tab-active]="!isLoginMode"
+            role="tab"
+            [attr.aria-selected]="!isLoginMode"
+            (click)="isLoginMode = false; clearError()"
+          >Sign up</button>
+        </div>
+      </div>
+
+      <!-- Card body -->
+      <div class="wc-card-body">
+
+        @if (!isLoading) {
+          <!-- Google button -->
+          <button
+            type="button"
+            class="wc-google-btn btn btn-secondary"
+            (click)="loginWithGoogle()"
+            [disabled]="isLoading"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Continue with Google
+          </button>
+
+          <!-- Divider -->
+          <div class="wc-or" role="separator">
+            <span class="wc-or-line" aria-hidden="true"></span>
+            <span class="wc-or-text">or</span>
+            <span class="wc-or-line" aria-hidden="true"></span>
+          </div>
+
+          <!-- Auth form -->
+          <form (ngSubmit)="onSubmit()" class="wc-form" novalidate>
+
+            <!-- Email field -->
+            <div class="field">
+              <label class="field-label" for="wc-email">Email</label>
+              <input
+                class="input"
+                type="email"
+                id="wc-email"
+                name="email"
+                [(ngModel)]="email"
+                placeholder="you@example.com"
+                autocomplete="email"
+                required
+              />
+            </div>
+
+            <!-- Username field (sign-up only) -->
+            @if (!isLoginMode) {
+              <div class="field">
+                <label class="field-label" for="wc-username">Username</label>
+                <input
+                  class="input"
+                  type="text"
+                  id="wc-username"
+                  name="username"
+                  [(ngModel)]="username"
+                  placeholder="Choose a username"
+                  autocomplete="username"
+                  [required]="!isLoginMode"
+                />
+              </div>
+            }
+
+            <!-- Password field -->
+            <div class="field">
+              <label class="field-label" for="wc-password">Password</label>
+              <input
+                class="input"
+                type="password"
+                id="wc-password"
+                name="password"
+                [(ngModel)]="password"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                required
+                minlength="6"
+              />
+            </div>
+
+            <!-- Error message -->
+            @if (errorMessage) {
+              <div class="wc-error" role="alert">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>{{ errorMessage }}</span>
+                <button type="button" class="wc-error-dismiss btn-icon" (click)="clearError()" aria-label="Dismiss error">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            }
+
+            <!-- Submit -->
+            <button
+              type="submit"
+              class="btn btn-primary btn-lg wc-submit"
+              [disabled]="isLoading"
+            >
+              @if (isLoginMode) { Sign in } @else { Create account }
+            </button>
+
+          </form>
+
+          <!-- Demo mode link -->
+          <button
+            type="button"
+            class="wc-demo-link"
+            (click)="enterAsDemo()"
+            [disabled]="isLoading"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Try the demo
+          </button>
+
+        } @else {
+
+          <!-- Loading state -->
+          <div class="wc-loading" role="status" aria-live="polite">
+            <div class="spinner spinner-lg wc-spinner"></div>
+            <p class="wc-loading-text">Please wait…</p>
+          </div>
+
+        }
+      </div>
+    </div>
+  </div>
+
 </div>

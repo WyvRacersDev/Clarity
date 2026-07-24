@@ -1,0 +1,35 @@
+-- ============================================================================
+-- A2 — task/element dependencies (blocks / blocked-by)
+--
+-- Dependencies are modeled at the ELEMENT level: a ToDoLst element may be
+-- "blocked by" one or more other ToDoLst elements, referenced by their stable
+-- screen_elements.id. This is the simplest thing to visualize on the canvas.
+--
+-- PERSISTENCE DECISION (see project.repository.ts buildElementContent):
+--   saveProject cherry-picks ToDoLst fields into the screen_elements.content
+--   JSONB blob ({ collaborators, tags }). We store `dependsOn: string[]` inside
+--   that same content JSONB — it rides along with collaborators/tags on every
+--   whole-project save AND on the granular element:update (content ||) path.
+--   loadProject / serializeElementRow read it back as `dependsOn`.
+--
+-- Therefore NO new column or table is required for A2. This migration is an
+-- intentional no-op that documents the decision and keeps the migration
+-- sequence contiguous (0001_init -> 0002 -> 0003_task_comments). It exists so
+-- that a fresh `db:migrate` and an already-provisioned DB both record the same
+-- ordered history.
+--
+-- If a future requirement needs relational querying of dependencies (e.g.
+-- "what blocks element X" across projects), promote this to a real table:
+--
+--   CREATE TABLE element_dependencies (
+--     element_id    UUID NOT NULL REFERENCES screen_elements(id) ON DELETE CASCADE,
+--     depends_on_id UUID NOT NULL REFERENCES screen_elements(id) ON DELETE CASCADE,
+--     PRIMARY KEY (element_id, depends_on_id)
+--   );
+--
+-- ...but for the demo the content-JSONB approach keeps saveProject's
+-- full-replace transaction simple and needs no extra writes.
+-- ============================================================================
+
+-- no-op (dependsOn persisted inside screen_elements.content JSONB)
+SELECT 1;

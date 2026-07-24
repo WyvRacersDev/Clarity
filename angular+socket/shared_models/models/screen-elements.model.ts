@@ -109,8 +109,6 @@ export class Text_document extends Screen_Element {
 
 }
 
-//TODO need to put all other screen element classes here as well
-
 export class Image extends Screen_Element {
   imagepath: string;
   imageFile?: Buffer;  // The actual image data
@@ -152,6 +150,7 @@ export class Video extends Screen_Element {
 }
 
 export class scheduled_task {
+  id?: string; // stable DB uuid for the task row. Optional/additive: old payloads omit it.
   taskname: string;
   priority: number;
   is_done: boolean;
@@ -232,6 +231,8 @@ export class scheduled_task {
   toJSON() {
     return {
       type: this.constructor.name,
+      // Include the stable id only when present (backward-compatible).
+      ...(this.id !== undefined ? { id: this.id } : {}),
       taskname: this.taskname,
       priority: this.priority,
       is_done: this.is_done,
@@ -250,6 +251,7 @@ export class ToDoLst extends Screen_Element {
   override scheduled_tasks: scheduled_task[] = [];
   collaborators: string[] = []; // list of usernames who can collaborate on this todo list
   tags: string[] = []; //tags for the todo list
+  dependsOn: string[] = []; // element ids of ToDoLst elements this one is blocked by (A2)
   add_task(task: scheduled_task) {
     this.scheduled_tasks.push(task);
   }
@@ -319,7 +321,8 @@ export class ToDoLst extends Screen_Element {
       ...super.toJSON(),
       scheduled_tasks: this.scheduled_tasks.map(t => t.toJSON()),
       collaborators: this.collaborators,
-      tags: this.tags
+      tags: this.tags,
+      dependsOn: this.dependsOn
     };
   }
 }
@@ -354,6 +357,10 @@ export class objects_builder {
       // ⭐ Restore tags
       if (obj.tags !== undefined && Array.isArray(obj.tags)) {
         list.tags = obj.tags;
+      }
+      // Restore element dependencies (A2)
+      if (obj.dependsOn !== undefined && Array.isArray(obj.dependsOn)) {
+        list.dependsOn = obj.dependsOn;
       }
       return withId(list);
     }
@@ -436,6 +443,8 @@ export class objects_builder {
           // Handle priority as both string and number (JSON might serialize numbers as strings)
           const priority = typeof obj.priority === 'string' ? parseInt(obj.priority, 10) : (obj.priority || 2);
           const t = new scheduled_task(obj.taskname, priority, obj.time || '');
+          // Restore the stable task id (guard so old payloads without it are fine).
+          if (obj.id !== undefined) t.id = obj.id;
           t.is_done = obj.is_done !== undefined ? obj.is_done : false;
           // Restore completion info if present
           if (obj.completion_time !== undefined) t.completion_time = obj.completion_time;
@@ -457,6 +466,14 @@ export class objects_builder {
           // ⭐ Restore tags
           if (obj.tags !== undefined && Array.isArray(obj.tags)) {
             list.tags = obj.tags;
+          }
+          // Restore element dependencies (A2)
+          if (obj.dependsOn !== undefined && Array.isArray(obj.dependsOn)) {
+            list.dependsOn = obj.dependsOn;
+          }
+          // Restore collaborators if present (switch path parity with field-detect path)
+          if (obj.collaborators !== undefined && Array.isArray(obj.collaborators)) {
+            list.collaborators = obj.collaborators;
           }
           return withId(list);
         }

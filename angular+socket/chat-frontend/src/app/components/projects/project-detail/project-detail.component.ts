@@ -6,7 +6,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { DataService } from '../../../services/data.service';
 import { SocketService } from '../../../services/socket.service';
-import { CollabService, PresenceUser } from '../../../services/collab.service';
+import { CollabService, PresenceUser, TaskComment } from '../../../services/collab.service';
 import { getServerConfig } from '../../../config/server.config';
 import { User } from '../../../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../../../shared_models/models/project.model';
@@ -144,6 +144,20 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private collabSubscriptions: Subscription[] = [];
   private lastCursorEmit = 0;
   private lastMoveEmit = 0;
+
+  // ---- A2: dependency links on the canvas ----
+  /** When set, we're in "pick a target ToDoLst" mode; value is the source element id. */
+  linkSourceId: string | null = null;
+
+  // ---- A3: task comments panel (in the fullscreen todo overlay) ----
+  /** The task whose comments panel is open, or null. */
+  selectedCommentTask: scheduled_task | null = null;
+  /** Comments for the selected task, oldest-first. */
+  taskComments: TaskComment[] = [];
+  newCommentBody = '';
+  isLoadingComments = false;
+  /** Per-task comment counts, keyed by task id. */
+  private commentCounts: Map<string, number> = new Map();
 
   constructor(
     private dataService: DataService,
@@ -348,7 +362,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           this.remoteCursors.set(c.username, { x: c.x, y: c.y });
           this.cdr.detectChanges();
         }
-      })
+      }),
+      // A3: live task comments — bump counts and append to the open panel.
+      this.collabService.onCommentAdded().subscribe(comment => this.applyRemoteComment(comment))
     );
   }
 
@@ -1175,6 +1191,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.fullScreenTodoElement = null;
     this.fullScreenTodoElementIndex = -1;
     this.fullScreenTodoGridIndex = -1;
+    this.closeTaskComments();
   }
 
   async addTaskToFullScreenTodo(): Promise<void> {
@@ -2064,6 +2081,292 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     console.log('Getting tags for element:', element);
   return element?.tags ?? [];
 }
+
+  // =========================================================================
+  // B2: presence + cursor color palette (hash username -> accent spectrum)
+  // =========================================================================
+
+  private readonly accentSpectrum = [
+    'var(--accent)',
+    'var(--accent-blue)',
+    'var(--accent-teal)',
+    'var(--accent-green)',
+    'var(--accent-lime)'
+  ];
+
+  /** Deterministically map a username to one of the album accent colors. */
+  getUserColor(username: string): string {
+    if (!username) return this.accentSpectrum[0];
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+      hash = (hash * 31 + username.charCodeAt(i)) & 0x7fffffff;
+    }
+    return this.accentSpectrum[hash % this.accentSpectrum.length];
+  }
+
+  // =========================================================================
+  // A2: dependency links on the canvas
+  // =========================================================================
+
+  /** All ToDoLst elements in the current grid (with their index). */
+  private getTodoElements(): { element: Screen_Element; index: number }[] {
+    const out: { element: Screen_Element; index: number }[] = [];
+    this.getElements().forEach((element, index) => {
+      if (this.getElementType(element) === 'ToDoLst') out.push({ element, index });
+    });
+    return out;
+  }
+
+  /** Center X of an element card (canvas-content coords). */
+  getElementCenterX(element: Screen_Element, index: number): number {
+    return this.getElementX(element, index) + this.getElementWidth(element) / 2;
+  }
+
+  /** Center Y of an element card (canvas-content coords). */
+  getElementCenterY(element: Screen_Element, index: number): number {
+    const yscale = (element as any).y_scale;
+    const h = yscale && yscale > 10 ? yscale : 120;
+    return this.getElementY(element, index) + h / 2;
+  }
+
+  /**
+   * Renderable dependency links for the current grid. Each link is a straight
+   * line from a source ToDoLst (the one that `dependsOn` another) to the target
+   * it depends on, plus a `blocked` flag driving the color.
+   */
+  getDependencyLinks(): Array<{
+    x1: number; y1: number; x2: number; y2: number; blocked: boolean; key: string;
+  }> {
+    const links: Array<{ x1: number; y1: number; x2: number; y2: number; blocked: boolean; key: string }> = [];
+    const todos = this.getTodoElements();
+    for (const { element, index } of todos) {
+      const dependsOn = (element as any).dependsOn as string[] | undefined;
+      if (!Array.isArray(dependsOn) || dependsOn.length === 0) continue;
+      const sx = this.getElementCenterX(element, index);
+      const sy = this.getElementCenterY(element, index);
+      for (const targetId of dependsOn) {
+        const target = todos.find(t => (t.element as any).id === targetId);
+        if (!target) continue;
+        const tx = this.getElementCenterX(target.element, target.index);
+        const ty = this.getElementCenterY(target.element, target.index);
+        links.push({
+          x1: tx, y1: ty, x2: sx, y2: sy,
+          blocked: !this.isElementComplete(target.element),
+          key: `${(element as any).id}->${targetId}`
+        });
+      }
+    }
+    return links;
+  }
+
+  /** A blocking element is "done" (unblocks its dependents) when every task is done. */
+  isElementComplete(element: Screen_Element): boolean {
+    const tasks = this.getTodoTasks(element);
+    if (tasks.length === 0) return false;
+    return tasks.every((t: any) => t.is_done);
+  }
+
+  /** True if this ToDoLst is blocked by at least one incomplete dependency. */
+  isElementBlocked(element: Screen_Element): boolean {
+    const dependsOn = (element as any).dependsOn as string[] | undefined;
+    if (!Array.isArray(dependsOn) || dependsOn.length === 0) return false;
+    const todos = this.getTodoElements();
+    return dependsOn.some(id => {
+      const target = todos.find(t => (t.element as any).id === id);
+      return target ? !this.isElementComplete(target.element) : false;
+    });
+  }
+
+  /** Whether the "add dependency" affordance should be shown for an element. */
+  canLinkElement(element: Screen_Element): boolean {
+    return this.getElementType(element) === 'ToDoLst' && !!(element as any).id;
+  }
+
+  /** Start "pick target" mode from the given source ToDoLst element. */
+  startLinkMode(element: Screen_Element, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const id = (element as any).id as string | undefined;
+    if (!id) {
+      this.showError('This todo list needs to sync with the server before it can link. Try again in a moment.');
+      return;
+    }
+    this.linkSourceId = this.linkSourceId === id ? null : id;
+    this.cdr.detectChanges();
+  }
+
+  cancelLinkMode(): void {
+    this.linkSourceId = null;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * In link mode, clicking another ToDoLst sets the source's dependsOn to
+   * include that target. Persists via whole-project save + granular collab.
+   */
+  async pickLinkTarget(element: Screen_Element, event?: MouseEvent): Promise<void> {
+    if (!this.linkSourceId || !this.project) return;
+    if (event) event.stopPropagation();
+    const targetId = (element as any).id as string | undefined;
+    if (!targetId || targetId === this.linkSourceId) {
+      this.cancelLinkMode();
+      return;
+    }
+    const found = this.findElementById(this.linkSourceId);
+    this.linkSourceId = null;
+    if (!found) return;
+
+    const source = found.element as any;
+    if (!Array.isArray(source.dependsOn)) source.dependsOn = [];
+    if (source.dependsOn.includes(targetId)) {
+      this.cdr.detectChanges();
+      return;
+    }
+    source.dependsOn.push(targetId);
+    this.dataService.updateCurrentUser();
+
+    // Granular sync (element:update merges dependsOn into content JSONB).
+    this.emitElementContent(found.element, { dependsOn: source.dependsOn });
+
+    // Durable whole-project save.
+    const projectType = (this.project as any).projectType || this.project.project_type;
+    if (projectType) {
+      this.lastSaveTimestamp = Date.now();
+      await this.dataService.saveProject(this.project, projectType);
+    }
+    this.cdr.detectChanges();
+  }
+
+  /** Remove a single dependency from a ToDoLst element. */
+  async removeDependency(element: Screen_Element, targetId: string, event?: MouseEvent): Promise<void> {
+    if (event) event.stopPropagation();
+    if (!this.project) return;
+    const source = element as any;
+    if (!Array.isArray(source.dependsOn)) return;
+    const i = source.dependsOn.indexOf(targetId);
+    if (i === -1) return;
+    source.dependsOn.splice(i, 1);
+    this.dataService.updateCurrentUser();
+    this.emitElementContent(element, { dependsOn: source.dependsOn });
+    const projectType = (this.project as any).projectType || this.project.project_type;
+    if (projectType) {
+      this.lastSaveTimestamp = Date.now();
+      await this.dataService.saveProject(this.project, projectType);
+    }
+    this.cdr.detectChanges();
+  }
+
+  /** dependsOn ids for a ToDoLst (empty array if none). */
+  getDependencies(element: Screen_Element): string[] {
+    const d = (element as any).dependsOn;
+    return Array.isArray(d) ? d : [];
+  }
+
+  // =========================================================================
+  // A3: task comments panel
+  // =========================================================================
+
+  /** Stable comment key for a task (the DB uuid attached on load, if present). */
+  private getTaskId(task: scheduled_task | null): string | null {
+    const id = (task as any)?.id;
+    return typeof id === 'string' && id.length > 0 ? id : null;
+  }
+
+  /** Comment count badge for a task (0 when unknown). */
+  getCommentCount(task: scheduled_task): number {
+    const id = this.getTaskId(task);
+    if (!id) return 0;
+    return this.commentCounts.get(id) ?? 0;
+  }
+
+  /** True when the selected task can actually load/post comments. */
+  get canComment(): boolean {
+    return !!this.getTaskId(this.selectedCommentTask);
+  }
+
+  /** Open the comments panel for a task and load its comments. */
+  async openTaskComments(task: scheduled_task, event?: MouseEvent): Promise<void> {
+    if (event) event.stopPropagation();
+    this.selectedCommentTask = task;
+    this.taskComments = [];
+    this.newCommentBody = '';
+    const id = this.getTaskId(task);
+    if (!id) {
+      // No DB id yet (whole-project load doesn't emit task ids) — panel opens
+      // with a hint instead of breaking.
+      this.cdr.detectChanges();
+      return;
+    }
+    this.isLoadingComments = true;
+    this.cdr.detectChanges();
+    try {
+      const comments = await this.collabService.listComments(id);
+      this.taskComments = comments;
+      this.commentCounts.set(id, comments.length);
+    } catch (e) {
+      console.warn('[ProjectDetail] listComments failed:', e);
+    } finally {
+      this.isLoadingComments = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  closeTaskComments(): void {
+    this.selectedCommentTask = null;
+    this.taskComments = [];
+    this.newCommentBody = '';
+    this.cdr.detectChanges();
+  }
+
+  /** Post a new comment to the selected task. */
+  async submitComment(): Promise<void> {
+    const id = this.getTaskId(this.selectedCommentTask);
+    const body = this.newCommentBody.trim();
+    if (!id || !body) return;
+    this.newCommentBody = '';
+    try {
+      // The broadcast (task:comment:added) delivers the comment to us too, so
+      // we let applyRemoteComment append it to avoid duplication.
+      await this.collabService.addComment(id, body);
+    } catch (e) {
+      console.warn('[ProjectDetail] addComment failed:', e);
+      this.newCommentBody = body; // restore on failure
+    }
+    this.cdr.detectChanges();
+  }
+
+  /** Apply a broadcast comment: bump the count and append if its panel is open. */
+  private applyRemoteComment(comment: TaskComment): void {
+    if (!comment?.taskId) return;
+    this.commentCounts.set(comment.taskId, (this.commentCounts.get(comment.taskId) ?? 0) + 1);
+    const openId = this.getTaskId(this.selectedCommentTask);
+    if (openId && openId === comment.taskId) {
+      if (!this.taskComments.some(c => c.id === comment.id)) {
+        this.taskComments = [...this.taskComments, comment];
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
+  /** Relative "time ago" label for a comment timestamp. */
+  formatRelativeTime(iso: string): string {
+    if (!iso) return '';
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return '';
+    const diff = Date.now() - then;
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}d ago`;
+    try {
+      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  }
 
   ngOnDestroy(): void {
     // Clean up subscriptions

@@ -1,18 +1,15 @@
-
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
+// Angular Material theming — Clarity Aurora.
+// Material is only used on the Analytics screen; it should read from the Aurora
+// tokens so it visually matches the rest of the redesigned app in both themes.
 @use '@angular/material' as mat;
 
 html {
   @include mat.theme((
     color: (
-      primary: mat.$azure-palette,
+      primary: mat.$violet-palette,
       tertiary: mat.$blue-palette,
     ),
-    typography: Roboto,
+    typography: Inter,
     density: 0,
   ));
 }
@@ -21,13 +18,17 @@ body {
   // Default the application to a dark color theme.
   color-scheme: dark;
 
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: #000000;
-  color: #FFFFFF;
+  // Background + text come from the Aurora semantic tokens so Material surfaces
+  // sit on the same canvas as the redesigned screens (and flip with the theme).
+  background-color: var(--bg-app);
+  color: var(--text-primary);
   font: var(--mat-sys-body-medium);
+  font-family: var(--font-sans);
 
-  // Reset the user agent margin.
   margin: 0;
+}
+
+// Light theme: switch Material's own color-scheme so its components render light.
+:root[data-theme="light"] body {
+  color-scheme: light;
 }

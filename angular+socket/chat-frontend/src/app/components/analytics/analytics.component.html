@@ -1,54 +1,184 @@
+<div class="analytics-page">
 
-<div class="analytics-container">
-  <div class="analytics-header">
-    <h1>Analytics</h1>
-    <div class="tag-selector">
-      <mat-chip-set>
-        <mat-chip-option
-            *ngFor="let tag of availableTags"
-            [selected]="selectedTags.includes(tag)"
-            (click)="toggleTag(tag)">
-          {{ tag }}
-        </mat-chip-option>
-      </mat-chip-set>
+  <!-- Page header -->
+  <header class="analytics-header">
+    <div class="analytics-title-row">
+      <div class="analytics-title-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6"  y1="20" x2="6"  y2="14"/>
+          <line x1="2"  y1="20" x2="22" y2="20"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="analytics-heading">Analytics</h1>
+        <p class="analytics-subheading">Last 30 days &middot; task performance overview</p>
+      </div>
     </div>
-  </div>
 
+    <!-- Tag filter chips -->
+    <div class="tag-filter">
+      @if (!lineChartReady) {
+        <div class="chips-skeleton">
+          <span class="skeleton chip-skeleton"></span>
+          <span class="skeleton chip-skeleton"></span>
+          <span class="skeleton chip-skeleton"></span>
+        </div>
+      } @else if (hasAvailableTags) {
+        <span class="filter-label">Filter by tag:</span>
+        <div class="chips-row" role="group" aria-label="Tag filters">
+          @for (tag of availableTags; track tag) {
+            <button
+              class="chip"
+              [class.chip-active]="selectedTags.includes(tag)"
+              [attr.aria-pressed]="selectedTags.includes(tag)"
+              (click)="toggleTag(tag)">
+              {{ tag }}
+            </button>
+          }
+        </div>
+      } @else {
+        <span class="filter-empty">No tags available</span>
+      }
+    </div>
+  </header>
+
+  <!-- KPI stat cards -->
+  <section class="kpi-row" aria-label="Key performance indicators">
+    @if (!kpiReady) {
+      @for (i of [1,2,3,4]; track i) {
+        <div class="card kpi-card kpi-skeleton">
+          <div class="skeleton kpi-sk-value"></div>
+          <div class="skeleton kpi-sk-label"></div>
+          <div class="skeleton kpi-sk-sub"></div>
+        </div>
+      }
+    } @else {
+      @for (stat of kpiStats; track stat.label) {
+        <div class="card kpi-card" [attr.data-variant]="stat.variant">
+          <div class="kpi-icon-row">
+            <span class="kpi-dot" [attr.data-variant]="stat.variant"></span>
+            <span class="kpi-trend" [attr.data-trend]="stat.trend">
+              @if (stat.trend === 'up') {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="18 15 12 9 6 15"/>
+                </svg>
+              } @else if (stat.trend === 'down') {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              }
+            </span>
+          </div>
+          <p class="kpi-value">{{ stat.value }}</p>
+          <p class="kpi-label">{{ stat.label }}</p>
+          <p class="kpi-sub">{{ stat.sub }}</p>
+        </div>
+      }
+    }
+  </section>
+
+  <!-- Charts grid -->
   <div class="charts-grid">
-    <div class="chart-card">
-      <h2>Tasks per day</h2>
-      <div class="chart-area">
-        <div *ngIf="!lineChartReady" class="chart-loading">
-          <mat-spinner diameter="40" style="--mdc-circular-progress-active-indicator-color: #00D4FF;"></mat-spinner>
-          <p>Loading chart data...</p>
+
+    <!-- Tasks per day line chart -->
+    <div class="card chart-card chart-card--line">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <span class="chart-accent-bar"></span>
+          <h2>Tasks per day</h2>
         </div>
-        <canvas *ngIf="lineChartReady"
-          baseChart
-          #lineChart
-          id="lineChart"
-          [data]="lineChartData"
-          [type]="'line'"
-          [options]="lineChartOptions">
-        </canvas>
+        @if (lineChartReady && hasAvailableTags) {
+          <span class="badge badge-accent">
+            {{ selectedTags.length }} / {{ availableTags.length }} tags
+          </span>
+        }
+      </div>
+
+      <div class="chart-area">
+        @if (!lineChartReady) {
+          <div class="chart-loading">
+            <span class="spinner" aria-label="Loading chart data"></span>
+            <p>Loading chart data&hellip;</p>
+          </div>
+        } @else if (!hasLineChartData) {
+          <div class="empty-state chart-empty-state">
+            <div class="empty-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </div>
+            <h3>Select a tag to chart</h3>
+            <p>Use the tag chips above to pick one or more tags and visualise completed tasks per day.</p>
+          </div>
+        } @else {
+          <canvas
+            baseChart
+            #lineChart
+            id="lineChart"
+            [data]="lineChartData"
+            [type]="'line'"
+            [options]="lineChartOptions">
+          </canvas>
+        }
       </div>
     </div>
 
-    <div class="chart-card">
-      <h2>Completion rate</h2>
-      <div class="chart-area">
-        <div *ngIf="!completionChartReady" class="chart-loading">
-          <mat-spinner diameter="40" style="--mdc-circular-progress-active-indicator-color: #00D4FF;"></mat-spinner>
-          <p>Loading chart data...</p>
+    <!-- Completion rate bar chart -->
+    <div class="card chart-card chart-card--bar">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <span class="chart-accent-bar"></span>
+          <h2>Completion rate</h2>
         </div>
-        <canvas *ngIf="completionChartReady"
-          baseChart
-          #barChart
-          id="barChart"
-          [data]="completionChartData"
-          [type]="'bar'"
-          [options]="barChartOptions">
-        </canvas>
+        @if (completionChartReady && hasCompletionData) {
+          <span class="badge badge-success">by tag</span>
+        }
+      </div>
+
+      <div class="chart-area">
+        @if (!completionChartReady) {
+          <div class="chart-loading">
+            <span class="spinner" aria-label="Loading chart data"></span>
+            <p>Loading chart data&hellip;</p>
+          </div>
+        } @else if (!hasCompletionData) {
+          <div class="empty-state chart-empty-state">
+            <div class="empty-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6"  y1="20" x2="6"  y2="14"/>
+                <line x1="2"  y1="20" x2="22" y2="20"/>
+              </svg>
+            </div>
+            <h3>No completion data</h3>
+            <p>No tasks were completed in the last 30 days. Complete some tasks to see data here.</p>
+          </div>
+        } @else {
+          <canvas
+            baseChart
+            #barChart
+            id="barChart"
+            [data]="completionChartData"
+            [type]="'bar'"
+            [options]="barChartOptions">
+          </canvas>
+        }
       </div>
     </div>
+
   </div>
+
 </div>

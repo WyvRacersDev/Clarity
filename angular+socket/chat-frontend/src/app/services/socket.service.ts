@@ -689,6 +689,66 @@ export class SocketService {
   /** `{ username, x, y }` — remote cursor position. */
   onCursorMoved(): Observable<any> { return this.onEvent('cursor:moved'); }
 
+  // --- A3: task comments (ack-based add/list + broadcast) --------------------
+
+  /**
+   * Add a comment to a task. Resolves with the backend ack
+   * `{ success: true, comment }` or `{ success: false, message }`.
+   */
+  emitTaskCommentAdd(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    taskId: string,
+    body: string
+  ): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        observer.error(new Error('Add comment timeout'));
+        observer.complete();
+      }, 10000);
+      this.socket!.emit('task:comment:add', { projectName, projectType, taskId, body }, (ack: any) => {
+        clearTimeout(timeout);
+        observer.next(ack);
+        observer.complete();
+      });
+    });
+  }
+
+  /**
+   * List comments for a task (oldest-first). Resolves with the backend ack
+   * `{ success: true, comments }` or `{ success: false, message }`.
+   */
+  emitTaskCommentList(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    taskId: string
+  ): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        observer.error(new Error('List comments timeout'));
+        observer.complete();
+      }, 10000);
+      this.socket!.emit('task:comment:list', { projectName, projectType, taskId }, (ack: any) => {
+        clearTimeout(timeout);
+        observer.next(ack);
+        observer.complete();
+      });
+    });
+  }
+
+  /** `{ comment }` — a comment was added (broadcast to the whole room). */
+  onTaskCommentAdded(): Observable<any> { return this.onEvent('task:comment:added'); }
+
    /**
    * Import Google Contacts for a user
    * @param username Username to import contacts for

@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, signal } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
+import { NgClass } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { SocketService } from '../../services/socket.service';
@@ -11,15 +12,21 @@ import { isLocalhostServer } from '../../config/server.config';
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [FormsModule, RouterModule],
+  imports: [FormsModule, RouterModule, NgClass],
   templateUrl: './projects.component.html',
   styleUrls: ['./projects.component.css']
 })
 export class ProjectsComponent implements OnInit, OnDestroy {
+  // Expose Math for template usage (progress bar capping)
+  readonly Math = Math;
+
   currentUser: User | null = null;
   showCreateModal = false;
   newProjectName = '';
   projectType: 'local' | 'hosted' = 'local';
+
+  // Local UI state — grid/list toggle (signal: zoneless-safe, no Zone.js required)
+  viewMode = signal<'grid' | 'list'>('grid');
 
   // Error/Alert modal
   showErrorModal = false;
@@ -50,6 +57,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     private router: Router,
     private cdr: ChangeDetectorRef
   ) { }
+
+  setViewMode(mode: 'grid' | 'list'): void {
+    this.viewMode.set(mode);
+  }
 
   ngOnInit(): void {
     // Reset loading flags when component initializes
@@ -112,7 +123,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       clearTimeout(this.loadingTimeout);
     }
 
- 
+
     this.isLoading = false;
     this.isLoadingProjects = false;
 
@@ -139,8 +150,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     }
 
     this.isLoadingProjects = true;
-    this.isLoading = true; 
-    this.hasLoadedProjects = false; 
+    this.isLoading = true;
+    this.hasLoadedProjects = false;
 
      if (this.loadingTimeout) {
       clearTimeout(this.loadingTimeout);
@@ -310,6 +321,30 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       return 0;
     }
     return project.grid.reduce((total, grid) => total + grid.Screen_elements.length, 0);
+  }
+
+  /** Returns one of 5 album-spectrum accent class names based on card index. */
+  getCardAccentClass(index: number): string {
+    const classes = [
+      'cover-accent-cyan',
+      'cover-accent-blue',
+      'cover-accent-teal',
+      'cover-accent-green',
+      'cover-accent-lime',
+    ];
+    return classes[index % classes.length];
+  }
+
+  /** Returns one of 5 strip/icon accent class names based on card index. */
+  getRowAccentClass(index: number): string {
+    const classes = [
+      'row-accent-cyan',
+      'row-accent-blue',
+      'row-accent-teal',
+      'row-accent-green',
+      'row-accent-lime',
+    ];
+    return classes[index % classes.length];
   }
 
   selectProject(index: number): void {

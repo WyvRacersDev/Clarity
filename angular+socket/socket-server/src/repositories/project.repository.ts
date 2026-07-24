@@ -126,6 +126,7 @@ export async function loadProject(
       } else if (el.element_type === "ToDoLst") {
         const taskRows = await sql<
           Array<{
+            id: string;
             taskname: string;
             priority: number;
             is_done: boolean;
@@ -137,7 +138,7 @@ export async function loadProject(
             notified: boolean;
           }>
         >`
-          select t.taskname, t.priority, t.is_done, t.time,
+          select t.id, t.taskname, t.priority, t.is_done, t.time,
                  t.completion_time, t.creation_time, t.calendar_event_id,
                  t.notified, cu.username as completed_by_username
           from tasks t
@@ -148,6 +149,7 @@ export async function loadProject(
 
         const scheduled_tasks = taskRows.map((t) => ({
           type: "scheduled_task",
+          id: t.id,
           taskname: t.taskname,
           priority: t.priority,
           is_done: t.is_done,
@@ -170,6 +172,7 @@ export async function loadProject(
             ? content.collaborators
             : [],
           tags: Array.isArray(content.tags) ? content.tags : [],
+          dependsOn: Array.isArray(content.dependsOn) ? content.dependsOn : [],
         });
       } else {
         // Unknown type — pass through content fields defensively.
@@ -298,24 +301,53 @@ export async function saveProject(
                 ? completedByCache.get(t.completed_by) ?? null
                 : null;
 
-            await tx`
-              insert into tasks
-                (element_id, taskname, priority, is_done, time, completion_time,
-                 completed_by, notified, calendar_event_id, creation_time, sort_order)
-              values (
-                ${elementId},
-                ${t.taskname ?? ""},
-                ${typeof t.priority === "number" ? t.priority : parseInt(t.priority, 10) || 2},
-                ${!!t.is_done},
-                ${toTimestampOrNull(t.time)},
-                ${toTimestampOrNull(t.completion_time)},
-                ${completedBy},
-                ${!!t.notified},
-                ${t.calendar_event_id ?? null},
-                ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()},
-                ${ti}
-              )
-            `;
+            // Reuse the incoming stable task id as the row PK when present so
+            // task ids survive whole-project saves (mirrors the screen_elements
+            // pattern above). Combined with task_comments no longer cascading on
+            // task delete (migration 0004), this keeps comments attached across
+            // full-replace saves. New (unsaved) tasks let Postgres generate one.
+            const incomingTaskId =
+              typeof t.id === "string" && t.id.length > 0 ? t.id : null;
+
+            if (incomingTaskId) {
+              await tx`
+                insert into tasks
+                  (id, element_id, taskname, priority, is_done, time, completion_time,
+                   completed_by, notified, calendar_event_id, creation_time, sort_order)
+                values (
+                  ${incomingTaskId}, ${elementId},
+                  ${t.taskname ?? ""},
+                  ${typeof t.priority === "number" ? t.priority : parseInt(t.priority, 10) || 2},
+                  ${!!t.is_done},
+                  ${toTimestampOrNull(t.time)},
+                  ${toTimestampOrNull(t.completion_time)},
+                  ${completedBy},
+                  ${!!t.notified},
+                  ${t.calendar_event_id ?? null},
+                  ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()},
+                  ${ti}
+                )
+              `;
+            } else {
+              await tx`
+                insert into tasks
+                  (element_id, taskname, priority, is_done, time, completion_time,
+                   completed_by, notified, calendar_event_id, creation_time, sort_order)
+                values (
+                  ${elementId},
+                  ${t.taskname ?? ""},
+                  ${typeof t.priority === "number" ? t.priority : parseInt(t.priority, 10) || 2},
+                  ${!!t.is_done},
+                  ${toTimestampOrNull(t.time)},
+                  ${toTimestampOrNull(t.completion_time)},
+                  ${completedBy},
+                  ${!!t.notified},
+                  ${t.calendar_event_id ?? null},
+                  ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()},
+                  ${ti}
+                )
+              `;
+            }
           }
         }
       }
@@ -361,6 +393,10 @@ function buildElementContent(elementType: string, el: any): Record<string, unkno
       return {
         collaborators: Array.isArray(el.collaborators) ? el.collaborators : [],
         tags: Array.isArray(el.tags) ? el.tags : [],
+        // A2: element-level dependencies (ids of ToDoLst elements this one is
+        // blocked by). Stored inside content JSONB — saveProject cherry-picks
+        // ToDoLst content, so this rides along with collaborators/tags.
+        dependsOn: Array.isArray(el.dependsOn) ? el.dependsOn : [],
       };
     default:
       return {};
@@ -416,6 +452,7 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
   if (el.element_type === "ToDoLst") {
     const taskRows = await sql<
       Array<{
+        id: string;
         taskname: string;
         priority: number;
         is_done: boolean;
@@ -427,7 +464,7 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
         notified: boolean;
       }>
     >`
-      select t.taskname, t.priority, t.is_done, t.time,
+      select t.id, t.taskname, t.priority, t.is_done, t.time,
              t.completion_time, t.creation_time, t.calendar_event_id,
              t.notified, cu.username as completed_by_username
       from tasks t
@@ -437,6 +474,7 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
     `;
     const scheduled_tasks = taskRows.map((t) => ({
       type: "scheduled_task",
+      id: t.id,
       taskname: t.taskname,
       priority: t.priority,
       is_done: t.is_done,
@@ -452,6 +490,7 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
       scheduled_tasks,
       collaborators: Array.isArray(content.collaborators) ? content.collaborators : [],
       tags: Array.isArray(content.tags) ? content.tags : [],
+      dependsOn: Array.isArray(content.dependsOn) ? content.dependsOn : [],
     };
   }
   return { ...base, ...content };

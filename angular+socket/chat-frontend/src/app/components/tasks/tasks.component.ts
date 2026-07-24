@@ -1,11 +1,19 @@
-import { Component, OnInit } from '@angular/core';
-
+import { Component, OnInit, signal, computed, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
 import { scheduled_task, ToDoLst } from '../../../../../shared_models/models/screen-elements.model';
 import { calender } from '../../../../../shared_models/models/user.model';
 import dayjs from 'dayjs';
+
+export interface CalendarDay {
+  date: string;
+  dayNum: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+}
 
 @Component({
   selector: 'app-tasks',
@@ -15,6 +23,9 @@ import dayjs from 'dayjs';
   styleUrls: ['./tasks.component.css']
 })
 export class TasksComponent implements OnInit {
+  private readonly platformId = inject(PLATFORM_ID);
+
+  // Existing data fields (preserved verbatim)
   currentUser: User | null = null;
   allTasks: scheduled_task[] = [];
   filteredTasks: scheduled_task[] = [];
@@ -27,6 +38,39 @@ export class TasksComponent implements OnInit {
   filterPriority: 'all' | 1 | 2 | 3 = 'all';
   filterStatus: 'all' | 'completed' | 'pending' = 'all';
   selectedProjectIndex: number = 0;
+
+  // New local UI state (signals)
+  readonly activeView = signal<'list' | 'calendar'>('list');
+  readonly calendarMonth = signal<string>(dayjs().startOf('month').format('YYYY-MM-DD'));
+  readonly isLoading = signal<boolean>(true);
+
+  readonly calendarMonthLabel = computed(() =>
+    dayjs(this.calendarMonth()).format('MMMM YYYY')
+  );
+
+  readonly calendarWeeks = computed((): CalendarDay[][] => {
+    const monthStart = dayjs(this.calendarMonth());
+    const gridStart = monthStart.startOf('week');
+    const today = dayjs().format('YYYY-MM-DD');
+    const weeks: CalendarDay[][] = [];
+    let cursor = gridStart;
+    for (let w = 0; w < 6; w++) {
+      const week: CalendarDay[] = [];
+      for (let d = 0; d < 7; d++) {
+        const dateStr = cursor.format('YYYY-MM-DD');
+        week.push({
+          date: dateStr,
+          dayNum: cursor.date(),
+          isCurrentMonth: cursor.month() === monthStart.month(),
+          isToday: dateStr === today,
+          isSelected: dateStr === this.selectedDate,
+        });
+        cursor = cursor.add(1, 'day');
+      }
+      weeks.push(week);
+    }
+    return weeks;
+  });
 
   constructor(private dataService: DataService) {}
 
@@ -47,6 +91,7 @@ export class TasksComponent implements OnInit {
       if (user) {
         this.loadAllTasks();
       }
+      this.isLoading.set(false);
     });
   }
 
@@ -73,15 +118,14 @@ export class TasksComponent implements OnInit {
   applyFilters(): void {
     this.filteredTasks = this.allTasks.filter(task => {
       const matchesPriority = this.filterPriority === 'all' || task.priority === this.filterPriority;
-      const matchesStatus = 
+      const matchesStatus =
         this.filterStatus === 'all' ||
         (this.filterStatus === 'completed' && task.is_done) ||
         (this.filterStatus === 'pending' && !task.is_done);
-      
+
       return matchesPriority && matchesStatus;
     });
 
-    // Sort by time
     this.filteredTasks.sort((a, b) => {
       const dateA = new Date(a.time).getTime();
       const dateB = new Date(b.time).getTime();
@@ -117,7 +161,6 @@ export class TasksComponent implements OnInit {
   addTask(): void {
     if (!this.newTaskName.trim() || !this.newTaskTime) return;
 
-    // Find first ToDoLst in first project/grid to add task
     if (this.currentUser && this.currentUser.projects.length > 0) {
       const firstProject = this.currentUser.projects[0];
       if (firstProject.grid.length > 0) {
@@ -137,7 +180,6 @@ export class TasksComponent implements OnInit {
           this.loadAllTasks();
           this.closeAddTaskModal();
         } else {
-          // Create a new ToDoLst if none exists
           const newTodoList = new ToDoLst('Tasks', 0, 0);
           const task = new scheduled_task(
             this.newTaskName.trim(),
@@ -185,7 +227,10 @@ export class TasksComponent implements OnInit {
   }
 
   getPriorityColor(priority: number): string {
-    return priority === 1 ? '#e74c3c' : priority === 2 ? '#f39c12' : '#27ae60';
+    // Returns CSS variable references (no hardcoded hex)
+    if (priority === 1) return 'var(--danger)';
+    if (priority === 2) return 'var(--accent-blue)';
+    return 'var(--accent-teal)';
   }
 
   formatTime(time: string): string {
@@ -210,5 +255,62 @@ export class TasksComponent implements OnInit {
 
   getFormattedDate(format: string = 'MMMM D, YYYY'): string {
     return dayjs(this.selectedDate).format(format);
+  }
+
+  // New local UI methods
+
+  setView(view: 'list' | 'calendar'): void {
+    this.activeView.set(view);
+    this.viewMode = view;
+    if (view === 'calendar') {
+      this.calendarMonth.set(dayjs(this.selectedDate).startOf('month').format('YYYY-MM-DD'));
+    }
+  }
+
+  previousMonth(): void {
+    this.calendarMonth.set(
+      dayjs(this.calendarMonth()).subtract(1, 'month').format('YYYY-MM-DD')
+    );
+  }
+
+  nextMonth(): void {
+    this.calendarMonth.set(
+      dayjs(this.calendarMonth()).add(1, 'month').format('YYYY-MM-DD')
+    );
+  }
+
+  selectCalendarDay(date: string): void {
+    this.selectedDate = date;
+  }
+
+  getTaskPillLabel(task: scheduled_task): string {
+    return task.taskname.slice(0, 12);
+  }
+
+  getPriorityBadgeClass(priority: number): string {
+    // Maps priorities to Zedd Clarity album-spectrum hues
+    if (priority === 1) return 'badge-danger';          // red — urgency stays
+    if (priority === 2) return 'badge-priority-medium'; // album electric-blue
+    return 'badge-priority-low';                        // album luminous-teal
+  }
+
+  getHighPriorityTasks(): scheduled_task[] {
+    return this.filteredTasks.filter(t => t.priority === 1);
+  }
+
+  getMediumPriorityTasks(): scheduled_task[] {
+    return this.filteredTasks.filter(t => t.priority === 2);
+  }
+
+  getLowPriorityTasks(): scheduled_task[] {
+    return this.filteredTasks.filter(t => t.priority === 3);
+  }
+
+  getTaskCountForDate(date: string): number {
+    return this.getTasksForDate(date).length;
+  }
+
+  isToday(): boolean {
+    return this.selectedDate === dayjs().format('YYYY-MM-DD');
   }
 }

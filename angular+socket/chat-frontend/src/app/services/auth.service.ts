@@ -55,12 +55,26 @@ export class AuthService {
   }
 
   private loadCurrentUser(): void {
-    // If we still hold a JWT, restore the last known user from DataService.
-    if (this.getToken()) {
+    // If we still hold a JWT, fully restore identity FROM THE TOKEN. Decoding the
+    // JWT (rather than reading DataService's in-memory cache, which is empty on a
+    // fresh page load) is what keeps the canonical `username` identity — and thus
+    // project owner filtering / access checks — working across refreshes. The
+    // socket is already re-created with this token by SocketService's constructor.
+    const token = this.getToken();
+    if (!token) return;
+    const claims = this.decodeJwt(token);
+    if (claims && (claims['username'] || claims['email'])) {
+      this.adoptBackendUser({
+        id: String(claims['sub'] ?? ''),
+        username: String(claims['username'] ?? ''),
+        email: String(claims['email'] ?? ''),
+      }).catch(() => {
+        const user = this.dataService.getCurrentUser();
+        if (user) this.currentUserSubject.next(user);
+      });
+    } else {
       const user = this.dataService.getCurrentUser();
-      if (user) {
-        this.currentUserSubject.next(user);
-      }
+      if (user) this.currentUserSubject.next(user);
     }
   }
 
@@ -100,7 +114,15 @@ export class AuthService {
    * identity) resolves the same identity string the backend uses.
    */
   private async adoptBackendUser(backendUser: { id: string; username: string; email: string }): Promise<User> {
-    const identity = backendUser.email || backendUser.username;
+    // The canonical identity MUST be the JWT `username`, because that is exactly
+    // what the backend compares against: project `owner_name` is derived from
+    // `users.username`, and the gateways filter/authorize with
+    // `identity().username` (the JWT username). Adopting `email` here would store
+    // e.g. "demo@clarity.local" as `current_user_name`, which never matches the
+    // owner_name "demo" — so the projects list comes back empty and local
+    // projects fail the owner check. Fall back to email only if username is
+    // somehow absent.
+    const identity = backendUser.username || backendUser.email;
     // Load (or create) the corresponding user record via the backend socket path.
     const user = await this.dataService.createUserAsync(identity);
     (user as any).id = backendUser.id;

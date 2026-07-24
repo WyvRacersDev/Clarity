@@ -1,149 +1,434 @@
-<div class="projects-container">
-  <div class="projects-header">
-    <h1>Projects</h1>
-    <button class="create-btn" (click)="openCreateModal()" [disabled]="isLoading">
-      <span class="btn-icon">➕</span>
-      New Project
-    </button>
-  </div>
+<div class="projects-page">
 
-  <!-- Loading indicator -->
-  @if (isLoading) {
-    <div class="loading-container">
-      <div class="spinner-large"></div>
-      <p>Loading projects...</p>
+  <!-- ── Page header ─────────────────────────────────────────────────────── -->
+  <header class="projects-header">
+    <div class="header-left">
+      <h1 class="projects-title">Projects</h1>
+      <span class="projects-count badge badge-accent">
+        {{ currentUser?.projects?.length ?? 0 }}
+      </span>
     </div>
-  }
 
-  @if (!isLoading && currentUser && currentUser.projects.length > 0) {
-    <div class="projects-list">
-      @for (project of currentUser.projects; track project; let i = $index) {
-        <div
-          class="project-card"
-          (click)="selectProject(i)"
-          >
-          <div class="project-card-header">
-            <div class="project-title-section">
-              <h2>{{ project.name }}</h2>
-              <span class="project-type-badge" [class.local]="isLocalProject(project)" [class.hosted]="!isLocalProject(project)">
-                <img [src]="isLocalProject(project) ? '/assets/folder.svg' : '/assets/globe.svg'" alt="" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"> {{ isLocalProject(project) ? 'Local' : 'Hosted' }}
-              </span>
-            </div>
-            <button
-              class="delete-btn"
-              (click)="deleteProject(i, $event)"
-              title="Delete project"
-              [disabled]="isDeleting && deletingProjectIndex === i"
-              >
-              @if (isDeleting && deletingProjectIndex === i) {
-                <span class="spinner-small"></span>
-              }
-              @if (!(isDeleting && deletingProjectIndex === i)) {
-                <img src="/assets/bin.png" alt="Delete" style="width: 20px; height: 20px;">
-              }
-            </button>
-          </div>
-          <div class="project-stats">
-            <span>{{ getTotalElements(project) }} elements</span>
+    <div class="header-right">
+      <!-- Grid / List toggle -->
+      <div class="view-toggle" role="group" aria-label="View mode">
+        <button
+          class="btn btn-icon btn-sm view-toggle-btn"
+          [class.is-active]="viewMode() === 'grid'"
+          (click)="setViewMode('grid')"
+          aria-label="Grid view"
+          title="Grid view"
+        >
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="7" height="7" rx="1.5"/>
+            <rect x="11" y="2" width="7" height="7" rx="1.5"/>
+            <rect x="2" y="11" width="7" height="7" rx="1.5"/>
+            <rect x="11" y="11" width="7" height="7" rx="1.5"/>
+          </svg>
+        </button>
+        <button
+          class="btn btn-icon btn-sm view-toggle-btn"
+          [class.is-active]="viewMode() === 'list'"
+          (click)="setViewMode('list')"
+          aria-label="List view"
+          title="List view"
+        >
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="5" x2="17" y2="5"/>
+            <line x1="3" y1="10" x2="17" y2="10"/>
+            <line x1="3" y1="15" x2="17" y2="15"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- New project CTA -->
+      <button class="btn btn-primary" (click)="openCreateModal()" [disabled]="isLoading">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+          <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
+        </svg>
+        New Project
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Loading state — skeleton grid ──────────────────────────────────── -->
+  @if (isLoading) {
+    <div class="projects-grid" aria-label="Loading projects">
+      @for (sk of [1,2,3,4,5,6]; track sk) {
+        <div class="project-card card skeleton-card" aria-hidden="true">
+          <div class="card-cover skeleton" style="height: 120px; border-radius: var(--radius-md) var(--radius-md) 0 0;"></div>
+          <div class="card-body">
+            <div class="skeleton" style="height: 16px; width: 65%; border-radius: var(--radius-sm);"></div>
+            <div class="skeleton" style="height: 12px; width: 40%; margin-top: 8px; border-radius: var(--radius-sm);"></div>
+            <div class="skeleton" style="height: 6px; width: 100%; margin-top: 16px; border-radius: var(--radius-full);"></div>
           </div>
         </div>
       }
     </div>
   }
 
-  @if (!isLoading && (!currentUser || currentUser.projects.length === 0)) {
-    <div class="empty-projects">
-      <h2>No projects yet</h2>
-      <p>Create a new project to get started</p>
-    </div>
-  }
+  <!-- ── Project grid / list ────────────────────────────────────────────── -->
+  @if (!isLoading && currentUser && currentUser.projects.length > 0) {
+    <div
+      [class]="viewMode() === 'grid' ? 'projects-grid' : 'projects-list-view'"
+      role="list"
+    >
+      @for (project of currentUser.projects; track project; let i = $index) {
 
-  <!-- Create Project Modal -->
-  @if (showCreateModal) {
-    <div class="modal-overlay" (click)="closeCreateModal()">
-      <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h2>Create New Project</h2>
-          <button class="close-btn" (click)="closeCreateModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Project Name *</label>
-            <input
-              type="text"
-              [(ngModel)]="newProjectName"
-              placeholder="Enter project name"
-              (keydown.enter)="$event.preventDefault(); createProject()"
+        <!-- ── Card (grid mode) ──────────────────────────────────────────── -->
+        @if (viewMode() === 'grid') {
+          <article
+            class="project-card card card-hover"
+            role="listitem"
+            (click)="selectProject(i)"
+            tabindex="0"
+            (keydown.enter)="selectProject(i)"
+            (keydown.space)="$event.preventDefault(); selectProject(i)"
+          >
+            <!-- Cover with album-spectrum tint cycling through 5 accent hues -->
+            <div class="card-cover" [ngClass]="getCardAccentClass(i)">
+              <div class="cover-pattern"></div>
+              <!-- Project type badge over cover -->
+              <span class="cover-badge badge" [class.badge-info]="isLocalProject(project)" [class.badge-success]="!isLocalProject(project)">
+                @if (isLocalProject(project)) {
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 6l6-4 6 4v8a1 1 0 01-1 1H3a1 1 0 01-1-1V6z"/><path d="M6 14V9h4v5"/>
+                  </svg>
+                  Local
+                } @else {
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c-1.5 2-2.5 4-2.5 6s1 4 2.5 6M8 2c1.5 2 2.5 4 2.5 6s-1 4-2.5 6"/>
+                  </svg>
+                  Hosted
+                }
+              </span>
+
+              <!-- Hover quick-actions -->
+              <div class="card-actions" (click)="$event.stopPropagation()">
+                <button
+                  class="btn btn-icon btn-sm card-action-btn card-action-delete"
+                  (click)="deleteProject(i, $event)"
+                  [disabled]="isDeleting && deletingProjectIndex === i"
+                  title="Delete project"
+                  aria-label="Delete project"
+                >
+                  @if (isDeleting && deletingProjectIndex === i) {
+                    <span class="spinner spinner-sm"></span>
+                  } @else {
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 17 6"/><path d="M8 6V4h4v2"/><path d="M16 6l-1 11a1 1 0 01-1 1H6a1 1 0 01-1-1L4 6"/>
+                    </svg>
+                  }
+                </button>
+              </div>
+            </div>
+
+            <!-- Card body -->
+            <div class="card-body">
+              <h2 class="project-name">{{ project.name }}</h2>
+
+              <div class="project-meta">
+                <span class="meta-item">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="12" height="10" rx="1.5"/><line x1="2" y1="7" x2="14" y2="7"/>
+                  </svg>
+                  {{ getTotalElements(project) }} elements
+                </span>
+                <span class="meta-item">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="12" height="11" rx="1.5"/><line x1="6" y1="1" x2="6" y2="5"/><line x1="10" y1="1" x2="10" y2="5"/>
+                  </svg>
+                  {{ project.grid?.length ?? 0 }} screens
+                </span>
+              </div>
+
+              <!-- Progress bar (elements / 100 max for visual) -->
+              <div class="project-progress" aria-label="Project progress">
+                <div class="progress-track">
+                  <div
+                    class="progress-fill"
+                    [style.width.%]="Math.min(getTotalElements(project), 100)"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Open arrow hint -->
+              <div class="card-footer">
+                <span class="open-hint">Open project</span>
+                <svg class="open-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="3" y1="8" x2="13" y2="8"/><polyline points="9 4 13 8 9 12"/>
+                </svg>
+              </div>
+            </div>
+          </article>
+        }
+
+        <!-- ── Row (list mode) ──────────────────────────────────────────── -->
+        @if (viewMode() === 'list') {
+          <div
+            class="project-row"
+            role="listitem"
+            (click)="selectProject(i)"
+            tabindex="0"
+            (keydown.enter)="selectProject(i)"
+            (keydown.space)="$event.preventDefault(); selectProject(i)"
+          >
+            <!-- Color strip — cycles album spectrum by index -->
+            <div class="row-strip" [ngClass]="getRowAccentClass(i)"></div>
+
+            <!-- Icon area — cycles album spectrum by index -->
+            <div class="row-icon" [ngClass]="getRowAccentClass(i)">
+              @if (isLocalProject(project)) {
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 8l7-5 7 5v9a1 1 0 01-1 1H4a1 1 0 01-1-1V8z"/><path d="M8 17v-6h4v6"/>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c-2 2.5-3 5-3 7.5s1 5 3 7.5M10 2.5c2 2.5 3 5 3 7.5s-1 5-3 7.5"/>
+                </svg>
+              }
+            </div>
+
+            <!-- Info -->
+            <div class="row-info">
+              <span class="row-name">{{ project.name }}</span>
+              <div class="row-meta">
+                <span class="badge" [class.badge-info]="isLocalProject(project)" [class.badge-success]="!isLocalProject(project)">
+                  {{ isLocalProject(project) ? 'Local' : 'Hosted' }}
+                </span>
+                <span class="meta-item">{{ getTotalElements(project) }} elements</span>
+                <span class="meta-item">{{ project.grid?.length ?? 0 }} screens</span>
+              </div>
+            </div>
+
+            <!-- Progress inline -->
+            <div class="row-progress">
+              <div class="progress-track">
+                <div class="progress-fill" [style.width.%]="Math.min(getTotalElements(project), 100)"></div>
+              </div>
+            </div>
+
+            <!-- Actions (right side, visible on hover) -->
+            <div class="row-actions" (click)="$event.stopPropagation()">
+              <button
+                class="btn btn-icon btn-sm row-action-delete"
+                (click)="deleteProject(i, $event)"
+                [disabled]="isDeleting && deletingProjectIndex === i"
+                title="Delete project"
+                aria-label="Delete project"
               >
+                @if (isDeleting && deletingProjectIndex === i) {
+                  <span class="spinner spinner-sm"></span>
+                } @else {
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="4 7 7 7 17 7"/><path d="M9 7V5h2v2"/><path d="M16 7l-.9 10.1a1 1 0 01-1 .9H5.9a1 1 0 01-1-.9L4 7"/>
+                  </svg>
+                }
+              </button>
+              <svg class="row-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="8" x2="13" y2="8"/><polyline points="9 4 13 8 9 12"/>
+              </svg>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Project Type</label>
-            <select [(ngModel)]="projectType" [disabled]="!isLocalProjectsAvailable() && projectType === 'local'">
-              <option value="local" [disabled]="!isLocalProjectsAvailable()">Local Project {{ !isLocalProjectsAvailable() ? '(Only on localhost)' : '' }}</option>
-              <option value="hosted">Hosted/Shared Project</option>
-            </select>
-            @if (!isLocalProjectsAvailable()) {
-              <p class="form-hint">
-                Local projects are only available when connected to localhost. Switch to hosted projects or connect to a local server.
-              </p>
-            }
+        }
+
+      }
+
+      <!-- New project CTA card (grid mode only) -->
+      @if (viewMode() === 'grid') {
+        <button
+          class="new-project-card"
+          (click)="openCreateModal()"
+          aria-label="Create new project"
+        >
+          <div class="new-project-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button class="cancel-btn" (click)="closeCreateModal()">Cancel</button>
-          <button
-            class="submit-btn"
-            (click)="createProject()"
-            [disabled]="!newProjectName.trim() || isSaving"
-            >
-            @if (isSaving) {
-              <span class="spinner-small"></span>
-            }
-            @if (!isSaving) {
-              <span>Create</span>
-            }
-          </button>
-        </div>
-      </div>
+          <span class="new-project-label">New Project</span>
+        </button>
+      }
     </div>
   }
 
-  <!-- Error Modal -->
-  @if (showErrorModal) {
-    <div class="modal-overlay" (click)="closeErrorModal()">
-      <div class="modal-content error-modal" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <img src="/assets/warning.png" alt="Warning" style="width: 24px; height: 24px;">
-          <h2>Error</h2>
-          <button class="close-btn" (click)="closeErrorModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <p class="error-message">{{ errorMessage }}</p>
-        </div>
-        <div class="modal-footer">
-          <button class="submit-btn" (click)="closeErrorModal()">OK</button>
-        </div>
+  <!-- ── Empty state ────────────────────────────────────────────────────── -->
+  @if (!isLoading && (!currentUser || currentUser.projects.length === 0)) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="5" width="22" height="18" rx="3"/><path d="M3 10h22"/><path d="M9 5V3M19 5V3"/>
+          <line x1="9" y1="15" x2="19" y2="15"/><line x1="9" y1="19" x2="15" y2="19"/>
+        </svg>
       </div>
+      <h3>No projects yet</h3>
+      <p>Create your first project to start building shared canvases with your team.</p>
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+          <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
+        </svg>
+        Create your first project
+      </button>
     </div>
   }
 
-  <!-- Confirmation Modal -->
-  @if (showConfirmModal) {
-    <div class="modal-overlay" (click)="closeConfirmModal()">
-      <div class="modal-content confirm-modal" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <img src="/assets/warning.png" alt="Warning" style="width: 24px; height: 24px;">
-          <h2>Are you sure?</h2>
-          <button class="close-btn" (click)="closeConfirmModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <p class="confirm-message">{{ confirmMessage }}</p>
-        </div>
-        <div class="modal-footer">
-          <button class="cancel-btn" (click)="closeConfirmModal()">Cancel</button>
-          <button class="submit-btn delete-confirm-btn" (click)="confirmDelete()">OK</button>
-        </div>
-      </div>
-    </div>
-  }
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Create Project Modal
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (showCreateModal) {
+  <div class="scrim" (click)="closeCreateModal()" role="dialog" aria-modal="true" aria-labelledby="create-modal-title">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <div class="modal-icon-wrap modal-icon-create">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+              <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
+            </svg>
+          </div>
+          <h2 id="create-modal-title" class="modal-title">New Project</h2>
+        </div>
+        <button class="btn btn-icon btn-sm" (click)="closeCreateModal()" aria-label="Close modal">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Project name -->
+        <div class="field" style="margin-bottom: var(--space-5);">
+          <label class="field-label" for="new-project-name">Project Name <span class="required">*</span></label>
+          <input
+            id="new-project-name"
+            class="input"
+            type="text"
+            [(ngModel)]="newProjectName"
+            placeholder="e.g. Marketing Dashboard"
+            (keydown.enter)="$event.preventDefault(); createProject()"
+          >
+        </div>
+
+        <!-- Project type -->
+        <div class="field">
+          <label class="field-label" for="project-type">Project Type</label>
+          <select
+            id="project-type"
+            class="select"
+            [(ngModel)]="projectType"
+            [disabled]="!isLocalProjectsAvailable() && projectType === 'local'"
+          >
+            <option value="local" [disabled]="!isLocalProjectsAvailable()">
+              Local Project{{ !isLocalProjectsAvailable() ? ' (localhost only)' : '' }}
+            </option>
+            <option value="hosted">Hosted / Shared Project</option>
+          </select>
+          @if (!isLocalProjectsAvailable()) {
+            <span class="field-hint">
+              Local projects are only available on a localhost server. Switch to Hosted or connect locally.
+            </span>
+          }
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeCreateModal()">Cancel</button>
+        <button
+          class="btn btn-primary"
+          (click)="createProject()"
+          [disabled]="!newProjectName.trim() || isSaving"
+        >
+          @if (isSaving) {
+            <span class="spinner spinner-sm"></span>
+            Creating...
+          } @else {
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+              <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
+            </svg>
+            Create Project
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Error Modal
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (showErrorModal) {
+  <div class="scrim" (click)="closeErrorModal()" role="alertdialog" aria-modal="true" aria-labelledby="error-modal-title">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <div class="modal-icon-wrap modal-icon-danger">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 3L18 17H2L10 3z"/><line x1="10" y1="9" x2="10" y2="13"/><circle cx="10" cy="15.5" r="0.5" fill="currentColor"/>
+            </svg>
+          </div>
+          <h2 id="error-modal-title" class="modal-title">Error</h2>
+        </div>
+        <button class="btn btn-icon btn-sm" (click)="closeErrorModal()" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body modal-body-centered">
+        <p class="modal-message">{{ errorMessage }}</p>
+      </div>
+
+      <div class="modal-footer modal-footer-center">
+        <button class="btn btn-secondary" (click)="closeErrorModal()">Dismiss</button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Confirmation / Delete Modal
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (showConfirmModal) {
+  <div class="scrim" (click)="closeConfirmModal()" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <div class="modal-icon-wrap modal-icon-danger">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 7 7 7 17 7"/><path d="M9 7V5h2v2"/><path d="M16 7l-.9 10.1a1 1 0 01-1 .9H5.9a1 1 0 01-1-.9L4 7"/>
+            </svg>
+          </div>
+          <h2 id="confirm-modal-title" class="modal-title">Delete Project?</h2>
+        </div>
+        <button class="btn btn-icon btn-sm" (click)="closeConfirmModal()" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body modal-body-centered">
+        <p class="modal-message">{{ confirmMessage }}</p>
+        <p class="modal-subtext">This action cannot be undone. All canvas elements and screens in this project will be permanently removed.</p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+        <button class="btn btn-danger" (click)="confirmDelete()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 7 7 7 17 7"/><path d="M9 7V5h2v2"/><path d="M16 7l-.9 10.1a1 1 0 01-1 .9H5.9a1 1 0 01-1-.9L4 7"/>
+          </svg>
+          Delete Project
+        </button>
+      </div>
+
+    </div>
+  </div>
+}

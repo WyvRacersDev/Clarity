@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, Inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, Inject, ChangeDetectorRef, signal } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
@@ -18,6 +18,10 @@ import { isPlatformBrowser } from '@angular/common';
 export class SettingsComponent implements OnInit {
   currentUser: User | null = null;
   userSettings: settings | null = null;
+
+  // Local UI state — signals for zoneless safety
+  activeSection = signal<'profile' | 'integrations' | 'server' | 'appearance'>('profile');
+  isDarkTheme = signal<boolean>(true);
 
   isConnectingCalendar = false;
   isConnectingContacts = false;
@@ -98,12 +102,15 @@ export class SettingsComponent implements OnInit {
       }
     });
 
-  
+
     if (isPlatformBrowser(this.platformId)) {
       this.serverUrl = getCurrentServerConfig();
+      // Read current theme from document attribute (set by the layout theme toggle)
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      this.isDarkTheme.set(currentTheme !== 'light');
     }
   }
-  
+
   private async processOAuthCallback(tokenId: string): Promise<void> {
     this.isProcessingOAuth = true;
 
@@ -148,6 +155,25 @@ export class SettingsComponent implements OnInit {
       this.isProcessingOAuth = false;
     }
   }
+
+  setActiveSection(section: 'profile' | 'integrations' | 'server' | 'appearance'): void {
+    this.activeSection.set(section);
+  }
+
+  setTheme(dark: boolean): void {
+    if (isPlatformBrowser(this.platformId)) {
+      if (dark) {
+        document.documentElement.removeAttribute('data-theme');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+      try {
+        localStorage.setItem('clarity-theme', dark ? 'dark' : 'light');
+      } catch { /* SSR-safe */ }
+      this.isDarkTheme.set(dark);
+    }
+  }
+
   toggleNotifications(): void {
     if (this.userSettings) {
       this.userSettings.toggle_notif();
@@ -171,7 +197,7 @@ export class SettingsComponent implements OnInit {
 
   async connectGoogleCalendar(): Promise<void> {
     this.isConnectingCalendar = true;
-    
+
     if(this.googleIntegration.isGmailConnected())
     {
       try {
@@ -290,7 +316,7 @@ export class SettingsComponent implements OnInit {
       return;
     }
 
- 
+
     try {
       const url = new URL(this.serverUrl);
 
@@ -323,7 +349,7 @@ export class SettingsComponent implements OnInit {
     this.serverUrl = 'http://localhost:3000';
     this.saveServerConfig();
   }
-  
+
   async importGoogleContacts(): Promise<void> {
     if (!this.userSettings?.allow_invite) {
       this.importMessage = 'Enable "Allow Invites" to import contacts';
@@ -342,7 +368,7 @@ export class SettingsComponent implements OnInit {
       this.importMessage = result.message;
 
       if (result.success) {
-        
+
         this.loadUserContacts();
       }
          this.cdr.detectChanges();
@@ -350,7 +376,7 @@ export class SettingsComponent implements OnInit {
       console.error('[Settings] Error importing contacts:', error);
       this.importSuccess = false;
       this.importMessage = `Error: ${error.message}`;
-      
+
       this.cdr.detectChanges();
     } finally {
       this.isImportingContacts = false;

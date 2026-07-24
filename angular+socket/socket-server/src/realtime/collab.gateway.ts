@@ -11,6 +11,9 @@
  *   - PRESENCE: in-memory room membership, broadcast `presence:update` on
  *     join/leave/disconnect.
  *   - CURSORS: `cursor:move` broadcast to the room (NOT persisted).
+ *   - TASK COMMENTS (A3): `task:comment:add` persists to Postgres, acks the
+ *     created comment, and broadcasts `task:comment:added` to the room;
+ *     `task:comment:list` acks a task's comment thread.
  *
  * Authorization reuses the existing permissive `identity()` pattern (token
  * identity when present; payload/session fallback) — nothing is tightened.
@@ -29,6 +32,8 @@ import {
   elementUpdateSchema,
   elementDeleteSchema,
   cursorMoveSchema,
+  taskCommentAddSchema,
+  taskCommentListSchema,
   formatZodError,
 } from "../validation/schemas.js";
 import {
@@ -38,6 +43,10 @@ import {
   deleteElement,
   findFirstGridId,
 } from "../repositories/project.repository.js";
+import {
+  addComment,
+  listComments,
+} from "../repositories/comment.repository.js";
 
 type Ack = (response: any) => void;
 
@@ -313,6 +322,66 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
         x: data.x,
         y: data.y,
       });
+    }
+  );
+
+  // ─── Task comments (A3) ─────────────────────────────────────────────────────
+  //
+  // Persisted to Postgres (task_comments). `author` is taken from the socket's
+  // identity, never trusted from the payload. On add: ack the created comment to
+  // the sender AND broadcast `task:comment:added` to the whole project room
+  // (INCLUDING the sender — comments are low-frequency, so echoing keeps every
+  // client's thread consistent without special-casing the author's own view).
+
+  socket.on(
+    "task:comment:add",
+    async (
+      data: {
+        projectName: string;
+        projectType: "local" | "hosted";
+        taskId: string;
+        body: string;
+      },
+      ack?: Ack
+    ) => {
+      const parsed = taskCommentAddSchema.safeParse(data);
+      if (!parsed.success) {
+        ack?.({ success: false, message: formatZodError(parsed.error) });
+        return;
+      }
+      try {
+        const roomKey = roomKeyFor(data.projectType, data.projectName);
+        const author = currentUsername();
+        const comment = await addComment(data.taskId, author, data.body);
+
+        // Broadcast to everyone in the room (including the sender).
+        io.to(roomKey).emit("task:comment:added", { comment });
+        ack?.({ success: true, comment });
+      } catch (error: any) {
+        console.error("[Collab] task:comment:add error:", error);
+        ack?.({ success: false, message: `Error: ${error.message}` });
+      }
+    }
+  );
+
+  socket.on(
+    "task:comment:list",
+    async (
+      data: { projectName: string; projectType: "local" | "hosted"; taskId: string },
+      ack?: Ack
+    ) => {
+      const parsed = taskCommentListSchema.safeParse(data);
+      if (!parsed.success) {
+        ack?.({ success: false, message: formatZodError(parsed.error) });
+        return;
+      }
+      try {
+        const comments = await listComments(data.taskId);
+        ack?.({ success: true, comments });
+      } catch (error: any) {
+        console.error("[Collab] task:comment:list error:", error);
+        ack?.({ success: false, message: `Error: ${error.message}` });
+      }
     }
   );
 
