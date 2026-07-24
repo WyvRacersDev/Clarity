@@ -6,7 +6,7 @@ _A working list of things to change/improve, to tackle **one at a time**. Pick a
 **Effort:** S (hours) · M (a day) · L (multi-day)
 **Status:** `[x]` done · `[~]` partial — some shipped, the rest scoped/deferred (see the item's italic note) · `[ ]` open or deliberately deferred
 
-**Where things stand (2026-07-24):** **23 done** · **1 partial** (E4) · **3 open** — B1 & B3 deferred by your call, G5 still undefined. Sections **C, D, F** are fully complete. All shipped work is verified (15 tests green, both builds clean) and pushed to `hamza-clarity`.
+**Where things stand (2026-07-24):** **23 done** · **1 partial** (E4) · **3 open** — B1 & B3 deferred by your call, G5 now scoped (backend-only `clarity2` copy for a fresh frontend). Sections **C, D, F** are fully complete. All shipped work is verified (15 tests green, both builds clean) and pushed to `hamza-clarity`. **All work paused until after 2026-07-29.**
 
 ---
 
@@ -59,7 +59,7 @@ You said you want to reshape a lot. Tell me which of these you mean (or describe
 - [x] **G2** ✅ · **Canvas UX** — restyled workspace (floating glass toolbar, refined cards/handles, minimap, presence/cursors) **plus interaction depth**: multi-select (shift-click, shift-drag marquee, ⌘A/Esc, group-move/delete), grid snapping on drop (toggle), and a Templates quick-start (Kanban / Note+Tasks). All pan/zoom/drag/resize + A2 link mode preserved.
 - [x] **G3** ✅ · **Onboarding & empty states** — empty states + skeletons + premium split-hero welcome, **plus** a 4-step first-run spotlight **tour** (localStorage-tracked, skippable) and a **"Create a sample project"** action on the empty projects state.
 - [x] **G4** ✅ · **Visual redesign** — replaced the Neobrutalist theme with the Aurora system; consistent spacing/radius/shadows/type, **dark + light** both working, no hardcoded colors.
-- [ ] **G5** 🔵 · **Something else entirely** — tell me what's bugging you and we'll scope it.
+- [ ] **G5** 🟡 L · **Fresh frontend on a backend-only copy.** Make a copy of this entire project into a new folder `~/Documents/clarity2` — **backend/infra only, zero frontend files** (no `src/` Angular app, no frontend build config). A brand-new frontend will be built there against the existing Socket.IO + JWT + Postgres backend. _Deferred to after 2026-07-29. Scoped only — no work done yet._
 
 ---
 
