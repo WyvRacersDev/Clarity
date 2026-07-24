@@ -8,6 +8,7 @@
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.6.0",
     "googleapis": "^166.0.0",
     "jsonwebtoken": "^9.0.3",
     "langchain": "^1.1.5",
@@ -24,7 +25,10 @@
     "start": "node dist/index.js",
     "db:up": "docker compose -f ../docker-compose.yml up -d",
     "db:down": "docker compose -f ../docker-compose.yml down",
-    "db:migrate": "tsx --tsconfig socket-server/tsconfig.json socket-server/db/migrate.ts"
+    "db:migrate": "tsx --tsconfig socket-server/tsconfig.json socket-server/src/infrastructure/migrate.ts",
+    "db:seed": "tsx --tsconfig socket-server/tsconfig.json socket-server/src/infrastructure/seed.ts",
+    "db:seed-google": "tsx --tsconfig socket-server/tsconfig.json socket-server/src/infrastructure/seed-google.ts",
+    "test": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -34,6 +38,7 @@
     "@types/nodemailer": "^7.0.4",
     "@types/socket.io": "^3.0.1",
     "tsx": "^4.7.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   }
 }
