@@ -6,7 +6,7 @@ _A working list of things to change/improve, to tackle **one at a time**. Pick a
 **Effort:** S (hours) · M (a day) · L (multi-day)
 **Status:** `[x]` done · `[~]` partial — some shipped, the rest scoped/deferred (see the item's italic note) · `[ ]` open or deliberately deferred
 
-**Where things stand (2026-07-24):** **21 done** · **3 partial** (E4, G2, G3) · **3 open** — B1 & B3 deferred by your call, G5 still undefined. Sections **C, D, F** are fully complete. Latest batch (design reshape + A2/A3/B2/C2/C3/D2/E1) shipped, verified (15 tests green, both builds clean), and pushed to `hamza-clarity`.
+**Where things stand (2026-07-24):** **23 done** · **1 partial** (E4) · **3 open** — B1 & B3 deferred by your call, G5 still undefined. Sections **C, D, F** are fully complete. All shipped work is verified (15 tests green, both builds clean) and pushed to `hamza-clarity`.
 
 ---
 
@@ -41,7 +41,7 @@ _A working list of things to change/improve, to tackle **one at a time**. Pick a
 - [x] **E1** ✅ S · **Code cleanup.** Removed the stale `screen-elements.model.ts` TODO (all used element classes already exist). Deleted dead code: unused `svg-canvas`/`canvas-workspace`/`fabric-canvas` components, orphaned `ai-assistant/`, the stray `components.projects/` dir, the mis-located `projects/project-detail.component.css`, and `settings.component 3.css`; removed commented OAuth/`checkUpcomingTasks` blocks. Fixed `ai.service.ts` hardcoded `localhost:3000` → `getServerConfig()`. Build + typecheck green.
 - [x] **E2** ✅ M · **Fixed pre-existing TypeScript errors.** `tsc --noEmit -p socket-server` is now **0 errors** (was 36 with in-flight work). Fixed: `shared_models` `.js` import extensions (nodenext) + dayjs `isSameOrBefore` typing + implicit-any; `OAuth2Client` exactOptionalPropertyTypes; auth.middleware type-only imports + token guard; a real masked bug in `project.service.ts` (null `calendar_event_id` pushed into `string[]`). Angular build re-verified green. Tests excluded from the app typecheck (Vitest owns them). Can gate CI now.
 - [x] **E3** ✅ M · **Tests.** Vitest harness added: repository integration tests (identity/user/project — round-trips, upserts, granular element ops, cleanup) + a Socket.IO contract test (real `socketAuth` + `project.gateway` `listProjects`, JWT handshake, owner-filtering). **15 tests, all green** via `npm test`. _Assumes local Postgres up + migrated._
-- [~] **E4** 🟢 S · **Shared models drift.** Added `shared_models/package.json` (`@clarity/shared-models`) documenting the single source of truth; both apps compile the same `.ts` source (backend via `@models/*` alias, frontend via relative import). **Full buildable/published package extraction deferred** — would force the Angular app onto compiled `.d.ts`/`.js` and risk its build. Also noted: stale `shared_models/dist/` legacy output worth deleting.
+- [~] **E4** 🟢 S · **Shared models drift.** Added `shared_models/package.json` (`@clarity/shared-models`) documenting the single source of truth; both apps compile the same `.ts` source (backend via `@models/*` alias, frontend via relative import). **Full buildable/published package extraction deferred** — would force the Angular app onto compiled `.d.ts`/`.js` and risk its build. Stale `shared_models/dist/` legacy output **deleted** (unreferenced; both apps compile the `.ts` source directly).
 
 ## F. Data & infra
 
@@ -56,8 +56,8 @@ You said you want to reshape a lot. Tell me which of these you mean (or describe
 > **Reshape delivered — "Clarity Aurora" ground-up redesign** (agent-orchestrated, build-verified). New design system in `src/styles.css` (semantic tokens, dark default + real light theme, full primitive set: buttons/cards/glass/inputs/fields/chips/badges/tabs/menus/modals/toasts/skeletons/empty-states/avatars/switches). All 9 screens + the layout shell rebuilt against it, visual-layer only (no Socket.IO/model/route/handler drift), SSR- and zoneless-safe. `ng build` green. Contract lives in the `clarity-redesign` skill; executed via `clarity-ui-orchestrator`/`-design-foundation`/`-ui-builder`/`-ui-reviewer` agents.
 
 - [x] **G1** ✅ · **Navigation / IA** — collapsible sidebar (rail mode, persisted), slim glass topbar, and a new **⌘K command palette** (fuzzy nav + quick actions + theme toggle).
-- [~] **G2** 🟡 · **Canvas UX** — workspace fully **restyled** (floating glass toolbar, refined element cards/handles, minimap, presence/cursors) with all pan/zoom/drag/resize handlers preserved. _Deeper interaction work (snapping, multi-select, templates) still open — pairs with A2._
-- [~] **G3** 🟡 · **Onboarding & empty states** — real **empty states** + loading skeletons added across screens; a premium split-hero welcome/auth. _Guided first-run tour / sample-project walkthrough still open._
+- [x] **G2** ✅ · **Canvas UX** — restyled workspace (floating glass toolbar, refined cards/handles, minimap, presence/cursors) **plus interaction depth**: multi-select (shift-click, shift-drag marquee, ⌘A/Esc, group-move/delete), grid snapping on drop (toggle), and a Templates quick-start (Kanban / Note+Tasks). All pan/zoom/drag/resize + A2 link mode preserved.
+- [x] **G3** ✅ · **Onboarding & empty states** — empty states + skeletons + premium split-hero welcome, **plus** a 4-step first-run spotlight **tour** (localStorage-tracked, skippable) and a **"Create a sample project"** action on the empty projects state.
 - [x] **G4** ✅ · **Visual redesign** — replaced the Neobrutalist theme with the Aurora system; consistent spacing/radius/shadows/type, **dark + light** both working, no hardcoded colors.
 - [ ] **G5** 🔵 · **Something else entirely** — tell me what's bugging you and we'll scope it.
 
