@@ -4,6 +4,9 @@ _A working list of things to change/improve, to tackle **one at a time**. Pick a
 
 **Priority:** 🔴 P0 (do soon) · 🟡 P1 (should) · 🟢 P2 (nice) · 🔵 decision (needs your call)
 **Effort:** S (hours) · M (a day) · L (multi-day)
+**Status:** `[x]` done · `[~]` partial — some shipped, the rest scoped/deferred (see the item's italic note) · `[ ]` open or deliberately deferred
+
+**Where things stand (2026-07-24):** **21 done** · **3 partial** (E4, G2, G3) · **3 open** — B1 & B3 deferred by your call, G5 still undefined. Sections **C, D, F** are fully complete. Latest batch (design reshape + A2/A3/B2/C2/C3/D2/E1) shipped, verified (15 tests green, both builds clean), and pushed to `hamza-clarity`.
 
 ---
 
