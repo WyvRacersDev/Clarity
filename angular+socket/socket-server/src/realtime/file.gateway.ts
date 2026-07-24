@@ -10,6 +10,7 @@
 import type { Server, Socket } from "socket.io";
 import type { GatewayDeps } from "./types.js";
 import { uploadFileSchema, deleteFileSchema, formatZodError } from "../validation/schemas.js";
+import { MAX_UPLOAD_BYTES } from "../config/index.js";
 
 export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
   const { storage } = deps;
@@ -33,6 +34,22 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
         socket.emit("fileUploaded", { success: false, message: formatZodError(parsed.error) });
         return;
       }
+
+      // Enforce a max payload size before persisting. `fileData` is a base64
+      // string; its UTF-8 byte length is the encoded size on the wire. We bound
+      // against that (a small overhead vs. the decoded bytes, which is fine as a
+      // ceiling). If it's too big, do NOT persist — ack an error and bail.
+      // FUTURE: switch to streamed/multipart uploads so large files never have
+      // to be buffered fully in memory as a single base64 frame.
+      const payloadBytes = Buffer.byteLength(data.fileData ?? "", "utf8");
+      if (payloadBytes > MAX_UPLOAD_BYTES) {
+        socket.emit("fileUploaded", {
+          success: false,
+          message: `File too large: ${payloadBytes} bytes exceeds the ${MAX_UPLOAD_BYTES} byte limit.`,
+        });
+        return;
+      }
+
       try {
         const { filePath, fileName } = await storage.saveAsset(
           data.projectName,

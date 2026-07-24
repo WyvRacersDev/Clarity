@@ -8,6 +8,10 @@
  * file only wires them together. Behavior (event names, response events,
  * broadcasts, permissive identity) is unchanged.
  */
+// Load .env FIRST (resolved by module path, not CWD) so config/index.ts and
+// everything downstream see env vars regardless of where the process started.
+import './loadenv.js';
+
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -26,6 +30,9 @@ import {
   FRONTEND_URL,
   ALLOWED_ORIGINS,
   SOCKET_CORS_ORIGIN,
+  IS_PRODUCTION,
+  MAX_UPLOAD_BYTES,
+  getExplicitAllowedOrigins,
 } from "./config/index.js";
 import { socketAuth } from "./middleware/socketAuth.js";
 
@@ -47,13 +54,40 @@ import { register as registerCollabGateway } from "./realtime/collab.gateway.js"
 const app = express();
 const server = http.createServer(app);
 
+// === CORS: config-driven ===
+// Production: only the explicit origins from SOCKET_CORS_ORIGIN / FRONTEND_URL
+// are allowed (wildcard is refused at startup in config/index.ts).
+// Development: keep the permissive localhost/LAN regex allow-list.
+const PROD_ALLOWED_ORIGINS = getExplicitAllowedOrigins();
+
+function isOriginAllowed(origin: string): boolean {
+  if (IS_PRODUCTION) {
+    return PROD_ALLOWED_ORIGINS.includes(origin);
+  }
+  return ALLOWED_ORIGINS.some((pattern) =>
+    typeof pattern === "string" ? pattern === origin : pattern.test(origin)
+  );
+}
+
+// Socket.IO CORS origin resolver — production uses the explicit list; dev is
+// permissive (echo any origin) to match the express behavior below.
+const socketCorsOrigin = IS_PRODUCTION
+  ? PROD_ALLOWED_ORIGINS
+  : (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) return cb(null, true); // non-browser clients
+      return cb(null, isOriginAllowed(origin));
+    };
+
 const io = new Server(server, {
   cors: {
-    origin: SOCKET_CORS_ORIGIN, // Configurable CORS origin
+    origin: socketCorsOrigin as any,
     methods: ["GET", "POST"],
     credentials: true,
   },
-  maxHttpBufferSize: 1e8, // 100MB - maximum buffer size for file uploads
+  // Bound the transport frame size slightly above MAX_UPLOAD_BYTES so oversized
+  // frames are rejected at the transport layer (defense-in-depth with the
+  // per-message check in the file gateway).
+  maxHttpBufferSize: MAX_UPLOAD_BYTES + 1024 * 1024,
 });
 
 // Dynamic CORS middleware in TypeScript
@@ -62,18 +96,15 @@ const corsOptions: CorsOptions = {
     // Allow non-browser requests (Postman, CURL, mobile apps)
     if (!origin) return callback(null, true);
 
-    const isAllowed = ALLOWED_ORIGINS.some((pattern) => {
-      if (typeof pattern === "string") {
-        return pattern === origin;
-      } else {
-        return pattern.test(origin);
-      }
-    });
-
-    if (isAllowed) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      console.warn(`[CORS] Blocked origin: ${origin}. Add it to ALLOWED_ORIGINS in config.ts`);
+      console.warn(
+        `[CORS] Blocked origin: ${origin}. ` +
+          (IS_PRODUCTION
+            ? "Add it to SOCKET_CORS_ORIGIN / FRONTEND_URL."
+            : "Add it to ALLOWED_ORIGINS in config.ts")
+      );
       callback(new Error(`CORS blocked origin: ${origin}`));
     }
   },

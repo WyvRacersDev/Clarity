@@ -11,6 +11,12 @@
  *     to the legacy payload-based identity. A warning is logged.
  *   - STRICT (AUTH_STRICT=true): a missing or invalid token rejects the
  *     handshake with an error.
+ *
+ * NOTE (D2): AUTH_STRICT=true is the PRODUCTION TARGET, to be enabled once the
+ * frontend always sends the JWT via `socket.handshake.auth.token`. The default
+ * is intentionally left permissive (false) here and in config; flipping it
+ * requires live end-to-end testing (the client must send a valid token or every
+ * connection will be rejected). See .env.example for the AUTH_STRICT note.
  */
 import type { Socket } from "socket.io";
 import { verifyJwt } from "../services/auth.service.js";

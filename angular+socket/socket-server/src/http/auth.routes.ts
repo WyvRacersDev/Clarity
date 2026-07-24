@@ -16,6 +16,7 @@
  */
 import { Router } from "express";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import {
   registerWithPassword,
   loginWithPassword,
@@ -23,13 +24,24 @@ import {
 } from "../services/auth.service.js";
 import { getGlobalOAuthClient } from "../services/OAuth.service.js";
 import { registerSchema, loginSchema, formatZodError } from "../validation/schemas.js";
+import { AUTH_RATE_LIMIT_WINDOW_MS, AUTH_RATE_LIMIT_MAX } from "../config/index.js";
 
 export const authRouter: Router = Router();
 
 // Parse JSON bodies for the auth POST endpoints only (keeps global app untouched).
 authRouter.use(express.json());
 
-authRouter.post("/register", async (req, res) => {
+// Rate limiter for credential endpoints: caps brute-force / abuse per IP.
+// Window and max are env-configurable (defaults: 10 requests / 15 min per IP).
+const authRateLimiter = rateLimit({
+  windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+  max: AUTH_RATE_LIMIT_MAX,
+  standardHeaders: true, // expose RateLimit-* headers
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later." },
+});
+
+authRouter.post("/register", authRateLimiter, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({ error: formatZodError(parsed.error) });
@@ -47,7 +59,7 @@ authRouter.post("/register", async (req, res) => {
   }
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", authRateLimiter, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({ error: formatZodError(parsed.error) });

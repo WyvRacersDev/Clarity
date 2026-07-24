@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import { Request, Response, NextFunction } from 'express'
+import type { Request, Response, NextFunction } from 'express'
 import { JWT_SECRET } from '../config/index.js'
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
@@ -10,6 +10,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   }
 
   const token = authHeader.split(' ')[1]
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' })
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
