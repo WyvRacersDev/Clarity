@@ -1,6 +1,6 @@
 //pls bilal complete
 
-import { User } from "./user.model";
+import { User } from "./user.model.js";
 
 
 export class AI_agent
@@ -14,7 +14,10 @@ export class AI_agent
         this.api_key=api_key
     }
 
-    chat(user_input:string,user:User)
+    // Signature intentionally permissive so subclasses (e.g. backend Chat_Agent)
+    // may override with a narrower context arg (username: string) and an async
+    // string return without violating base-type assignability.
+    chat(user_input:string, user:User | string): void | Promise<string>
     {
 
     }

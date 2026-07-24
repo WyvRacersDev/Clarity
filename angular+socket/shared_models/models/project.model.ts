@@ -1,4 +1,4 @@
-import { Screen_Element } from "../models/screen-elements.model";
+import { Screen_Element } from "../models/screen-elements.model.js";
 
 export class Grid{
     id?:string; // stable DB uuid (Phase 6b). Optional/additive so element ops can locate the grid.

@@ -4,6 +4,11 @@ import dayjs from 'dayjs'; //for scheduled_task ki class
 export abstract class Screen_Element {
 
   id?: string; // stable DB uuid (Phase 6b). Optional/additive: old payloads omit it.
+  // Optional discriminator/payload fields that persistence & serialization code
+  // duck-types against on the base type. Additive; subclasses may make them
+  // required (e.g. ToDoLst.scheduled_tasks).
+  type?: string;
+  scheduled_tasks?: scheduled_task[];
   name: String;
   x_pos: number;  //BRUH WDYM "number", int/float better
   y_pos: number;
@@ -242,7 +247,7 @@ export class scheduled_task {
 }
 
 export class ToDoLst extends Screen_Element {
-  scheduled_tasks: scheduled_task[] = [];
+  override scheduled_tasks: scheduled_task[] = [];
   collaborators: string[] = []; // list of usernames who can collaborate on this todo list
   tags: string[] = []; //tags for the todo list
   add_task(task: scheduled_task) {

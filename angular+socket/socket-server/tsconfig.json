@@ -46,5 +46,8 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  // Tests are typechecked/run by Vitest (vitest.config.ts), which supplies the
+  // vitest globals and the @src/* alias — keep them out of the app typecheck.
+  "exclude": ["node_modules", "dist", "test"]
 }

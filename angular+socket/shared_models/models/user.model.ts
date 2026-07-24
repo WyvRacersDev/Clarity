@@ -1,9 +1,9 @@
-import { Project } from "../models/project.model";
-import {ToDoLst,scheduled_task} from "./screen-elements.model"
+import { Project } from "../models/project.model.js";
+import {ToDoLst,scheduled_task} from "./screen-elements.model.js"
 
 import dayjs from 'dayjs'; //for calender ki class (does require doing npm install dayjs)
-import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-dayjs.extend(isSameOrBefore); 
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore.js";
+dayjs.extend(isSameOrBefore);
 
 export class User
 {
@@ -167,7 +167,7 @@ export class calender
 
     constructor(ToDoLst:ToDoLst)
     {
-       ToDoLst.scheduled_tasks.forEach(element => {
+       ToDoLst.scheduled_tasks.forEach((element: scheduled_task) => {
         this.scheduled_tasks.push(element);
        });
     }

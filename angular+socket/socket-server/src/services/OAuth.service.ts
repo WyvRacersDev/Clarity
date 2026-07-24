@@ -1,6 +1,10 @@
 import { google } from "googleapis";
-import type { OAuth2Client } from "google-auth-library";
 import { sql } from "../infrastructure/db.js";
+
+// Derive the client type from the actual constructor so it matches the copy of
+// google-auth-library that `google.auth.OAuth2` produces (googleapis bundles its
+// own), avoiding cross-package "separate declarations" type errors.
+export type OAuth2Client = InstanceType<typeof google.auth.OAuth2>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,7 +128,7 @@ export async function getAuthForUser(email: string): Promise<OAuth2Client | { su
     scope: tokenRow.scope,
     token_type: tokenRow.token_type,
     id_token: tokenRow.id_token,
-    expiry_date: tokenRow.expiry_date === null ? undefined : Number(tokenRow.expiry_date),
+    expiry_date: tokenRow.expiry_date == null ? null : Number(tokenRow.expiry_date),
   });
   return oAuth2Client;
 }

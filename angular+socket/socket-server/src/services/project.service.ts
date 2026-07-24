@@ -176,7 +176,8 @@ export class ProjectHandler {
                                         if (element.type === 'ToDoLst' || (element.scheduled_tasks && Array.isArray(element.scheduled_tasks))) {
                                             const tasks = element.scheduled_tasks || [];
                                             for (const task of tasks) {
-                                                old_task_ids.push(task.calendar_event_id);
+                                                // calendar_event_id is null until the task is synced to Calendar
+                                                if (task.calendar_event_id) old_task_ids.push(task.calendar_event_id);
                                             }
                                         }
                                     }
