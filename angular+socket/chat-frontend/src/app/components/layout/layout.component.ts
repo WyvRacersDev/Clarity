@@ -12,6 +12,8 @@ import { AuthService } from '../../services/auth.service';
 import { GoogleIntegrationService } from '../../services/google-integration.service';
 import { ThemeService } from '../../services/theme.service';
 import { CommandPaletteComponent } from '../command-palette/command-palette.component';
+import { TourOverlayComponent } from '../tour/tour-overlay.component';
+import { TourService } from '../../services/tour.service';
 
 const SIDEBAR_KEY = 'clarity-sidebar-collapsed';
 
@@ -31,7 +33,7 @@ interface NavItem {
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterModule, CommandPaletteComponent],
+  imports: [RouterModule, CommandPaletteComponent, TourOverlayComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.css'],
 })
@@ -40,6 +42,7 @@ export class LayoutComponent implements OnInit {
   private router = inject(Router);
   private google_service = inject(GoogleIntegrationService);
   private platformId = inject(PLATFORM_ID);
+  private tour = inject(TourService);
   readonly themeService = inject(ThemeService);
 
   currentUser: any = null;
@@ -75,6 +78,17 @@ export class LayoutComponent implements OnInit {
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => this.syncTitle(e.urlAfterRedirects));
+
+    // Auto-start the onboarding tour once, on the first authed load only:
+    // browser-only, a user is present, and the tour hasn't been seen before.
+    // Deferred so the sidebar/topbar targets are painted before we measure.
+    if (
+      isPlatformBrowser(this.platformId) &&
+      this.currentUser &&
+      !this.tour.hasSeenTour()
+    ) {
+      setTimeout(() => this.tour.maybeAutoStart(), 400);
+    }
   }
 
   toggleSidebar(): void {

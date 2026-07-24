@@ -263,12 +263,29 @@
       </div>
       <h3>No projects yet</h3>
       <p>Create your first project to start building shared canvases with your team.</p>
-      <button class="btn btn-primary" (click)="openCreateModal()">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
-          <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
-        </svg>
-        Create your first project
-      </button>
+      <div class="empty-actions">
+        <button class="btn btn-primary" (click)="openCreateModal()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
+          </svg>
+          Create your first project
+        </button>
+        <button
+          class="btn btn-secondary"
+          (click)="createSampleProject()"
+          [disabled]="isCreatingSample || isSaving"
+        >
+          @if (isCreatingSample) {
+            <span class="spinner spinner-sm"></span>
+            Building sample...
+          } @else {
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 2l1.9 4.3L16.5 7l-3.2 3 .8 4.5L10 12.4 5.9 14.5l.8-4.5L3.5 7l4.6-.7z"/>
+            </svg>
+            Create a sample project
+          }
+        </button>
+      </div>
     </div>
   }
 

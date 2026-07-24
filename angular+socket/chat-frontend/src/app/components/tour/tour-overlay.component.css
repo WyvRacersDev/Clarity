@@ -1,0 +1,177 @@
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  pointer-events: none;
+}
+
+.tour-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Scrim ─────────────────────────────────────────────────────────────── */
+/* Plain scrim (no target measured): full-viewport dim. */
+.tour-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+  animation: tour-fade var(--dur) var(--ease);
+}
+
+/*
+ * Spotlight scrim: a transparent element sized/positioned over the target,
+ * with a huge spread box-shadow that paints the dim everywhere EXCEPT the
+ * cutout. Token-driven, no gradients.
+ */
+.tour-scrim-cut {
+  inset: auto;
+  top: var(--cut-top);
+  left: var(--cut-left);
+  width: var(--cut-w);
+  height: var(--cut-h);
+  background: transparent;
+  backdrop-filter: none;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  transition:
+    top var(--dur) var(--ease),
+    left var(--dur) var(--ease),
+    width var(--dur) var(--ease),
+    height var(--dur) var(--ease);
+}
+
+/* ── Highlight ring around the spotlighted element ─────────────────────── */
+.tour-ring {
+  position: fixed;
+  border-radius: var(--radius-md);
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 6px var(--accent-ring);
+  transition:
+    top var(--dur) var(--ease),
+    left var(--dur) var(--ease),
+    width var(--dur) var(--ease),
+    height var(--dur) var(--ease);
+  animation: tour-fade var(--dur) var(--ease);
+}
+
+/* ── Tooltip ───────────────────────────────────────────────────────────── */
+.tour-tip {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  animation: tour-pop var(--dur-slow) var(--ease-spring);
+  z-index: var(--z-modal);
+}
+
+.tour-tip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.tour-step-count {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.tour-close {
+  width: 26px;
+  height: 26px;
+  color: var(--text-muted);
+}
+.tour-close:hover {
+  color: var(--text-primary);
+}
+.tour-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tour-tip-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.tour-tip-body {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.tour-tip-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.tour-dots {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.tour-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  transition: background var(--dur) var(--ease), width var(--dur) var(--ease);
+}
+.tour-dot.is-active {
+  width: 18px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────── */
+@keyframes tour-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tour-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-scrim,
+  .tour-scrim-cut,
+  .tour-ring,
+  .tour-tip,
+  .tour-dot {
+    animation: none;
+    transition: none;
+  }
+}

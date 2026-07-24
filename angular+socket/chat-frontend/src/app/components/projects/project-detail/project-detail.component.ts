@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, Inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, Inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -159,6 +159,30 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   /** Per-task comment counts, keyed by task id. */
   private commentCounts: Map<string, number> = new Map();
 
+  // =========================================================================
+  // G2: multi-select, group move, grid snapping, templates (signal-based)
+  // =========================================================================
+  /** Indices (into the current grid's Screen_elements) that are multi-selected. */
+  selectedIndices = signal<Set<number>>(new Set<number>());
+  /** Whether drop-time grid snapping is enabled (toolbar toggle, default on). */
+  snapEnabled = signal<boolean>(true);
+  /** Marquee (shift+drag on empty canvas) rectangle in canvas-content coords, or null. */
+  marquee = signal<{ x: number; y: number; w: number; h: number } | null>(null);
+  /** True while the templates dropdown menu is open. */
+  showTemplatesMenu = signal<boolean>(false);
+
+  // Marquee drag internals (canvas-content coords for start point).
+  private isMarqueeSelecting = false;
+  private marqueeStartX = 0;
+  private marqueeStartY = 0;
+  /** Grid unit → pixel factors, matching getElementX/Y (×250 / ×200). */
+  private readonly GRID_PX_X = 250;
+  private readonly GRID_PX_Y = 200;
+  /** Snap increment in grid units. */
+  private readonly SNAP_UNIT = 0.5;
+  // Snapshot of {index -> {x_pos, y_pos}} captured at group-drag start.
+  private groupDragStart: Map<number, { x: number; y: number }> | null = null;
+
   constructor(
     private dataService: DataService,
     private socketService: SocketService,
@@ -285,6 +309,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       document.addEventListener('touchmove', (e) => this.onDocumentTouchMove(e), { passive: false });
       document.addEventListener('touchend', (e) => this.onDocumentTouchEnd(e));
       document.addEventListener('touchstart', (e) => this.onDocumentTouchStart(e));
+
+      // G2: canvas keyboard shortcuts (select-all / clear / delete selection).
+      document.addEventListener('keydown', (e) => this.onDocumentKeyDown(e));
     }
   }
 
@@ -1426,12 +1453,32 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const target = event.target as HTMLElement;
     const card = event.currentTarget as HTMLElement;
 
-    // Don't start drag if clicking on buttons
-    if (target.tagName === 'BUTTON' || target.closest('button')) {
+    // Don't start drag if clicking on buttons or resize handles
+    if (target.tagName === 'BUTTON' || target.closest('button') || target.closest('.resize-handle')) {
       return;
     }
 
     if (!card) return;
+
+    // In link-pick mode, let the (click) handler pick the target — no select/drag.
+    if (this.linkSourceId) {
+      return;
+    }
+
+    // G2: Shift+click toggles this element in the multi-selection (no drag).
+    if (event.shiftKey) {
+      event.preventDefault();
+      this.toggleSelectIndex(index);
+      return;
+    }
+
+    // G2: a plain mousedown on an element outside the current multi-selection
+    // collapses the selection to just this element (so single drags feel normal).
+    const sel = this.selectedIndices();
+    if (!sel.has(index)) {
+      this.selectedIndices.set(new Set([index]));
+    }
+    this.selectedElementIndex = index;
 
     // Show visual feedback immediately that long-press is starting
     this.longPressTargetIndex = index;
@@ -1444,7 +1491,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.elementDragOffsetX = event.clientX - rect.left;
       this.elementDragOffsetY = event.clientY - rect.top;
       this.draggedElementIndex = index;
+      this.draggedElementGridIndex = this.selectedGridIndex;
       this.draggedElement = card;
+
+      // G2: snapshot start positions for a group move.
+      this.groupDragStart = this.captureGroupStart(this.selectedGridIndex);
 
       card.style.cursor = 'grabbing';
     }, 300);
@@ -1481,31 +1532,88 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // pointer is over the canvas — independent of dragging state.
     this.emitCursor(event);
 
+    // G2: update the selection marquee while shift-dragging empty canvas.
+    if (this.isMarqueeSelecting) {
+      const canvas = document.querySelector('.canvas-container') as HTMLElement;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
+        const cy = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+        this.marquee.set({
+          x: Math.min(this.marqueeStartX, cx),
+          y: Math.min(this.marqueeStartY, cy),
+          w: Math.abs(cx - this.marqueeStartX),
+          h: Math.abs(cy - this.marqueeStartY)
+        });
+        this.cdr.detectChanges();
+      }
+      return;
+    }
+
+    // Empty-canvas panning (isPanning set by onCanvasMouseDown).
+    if (this.isPanning) {
+      this.canvasPanX = event.clientX - this.panStartX;
+      this.canvasPanY = event.clientY - this.panStartY;
+      this.cdr.detectChanges();
+      return;
+    }
+
     if (!this.isDraggingEnabled || this.draggedElement === null || !this.project) return;
 
-    const container = document.querySelector('.elements-grid') as HTMLElement;
-    if (!container) return;
+    // Prefer the legacy pixel-based grid container when present; otherwise drive
+    // the canvas (grid-unit) model so long-press drag works on the canvas surface.
+    const legacyGrid = document.querySelector('.elements-grid') as HTMLElement;
+    if (legacyGrid) {
+      const containerRect = legacyGrid.getBoundingClientRect();
+      const elementRect = this.draggedElement.getBoundingClientRect();
+      let x = event.clientX - containerRect.left - this.elementDragOffsetX;
+      let y = event.clientY - containerRect.top - this.elementDragOffsetY;
+      const containerPadding = 20; // From CSS padding
+      const maxX = legacyGrid.clientWidth - elementRect.width - containerPadding;
+      const maxY = legacyGrid.clientHeight - elementRect.height - containerPadding;
+      x = Math.max(0, Math.min(x, maxX));
+      y = Math.max(0, Math.min(y, maxY));
+      this.draggedElement.style.position = 'absolute';
+      this.draggedElement.style.left = x + 'px';
+      this.draggedElement.style.top = y + 'px';
+      this.draggedElement.style.zIndex = '1000';
+      return;
+    }
 
-    const containerRect = container.getBoundingClientRect();
-    const elementRect = this.draggedElement.getBoundingClientRect();
-    
-    // Calculate position with offset
-    let x = event.clientX - containerRect.left - this.elementDragOffsetX;
-    let y = event.clientY - containerRect.top - this.elementDragOffsetY;
-    
-    // Get container dimensions (accounting for padding)
-    const containerPadding = 20; // From CSS padding
-    const maxX = container.clientWidth - elementRect.width - containerPadding;
-    const maxY = container.clientHeight - elementRect.height - containerPadding;
-    
-    // Constrain within bounds
-    x = Math.max(0, Math.min(x, maxX));
-    y = Math.max(0, Math.min(y, maxY));
+    // Canvas (grid-unit) drag path with group-move support.
+    const canvas = document.querySelector('.canvas-container') as HTMLElement;
+    if (!canvas || this.draggedElementIndex < 0) return;
+    const gridIdx = this.draggedElementGridIndex >= 0 ? this.draggedElementGridIndex : this.selectedGridIndex;
+    if (!this.project.grid[gridIdx]) return;
+    const gridEls = this.project.grid[gridIdx].Screen_elements;
+    const leader = gridEls[this.draggedElementIndex];
+    if (!leader) return;
 
-    this.draggedElement.style.position = 'absolute';
-    this.draggedElement.style.left = x + 'px';
-    this.draggedElement.style.top = y + 'px';
-    this.draggedElement.style.zIndex = '1000';
+    const rect = canvas.getBoundingClientRect();
+    const px = (event.clientX - rect.left - this.elementDragOffsetX - this.canvasPanX) / this.canvasZoom;
+    const py = (event.clientY - rect.top - this.elementDragOffsetY - this.canvasPanY) / this.canvasZoom;
+    const newXPos = Math.max(0, px) / this.GRID_PX_X;
+    const newYPos = Math.max(0, py) / this.GRID_PX_Y;
+
+    const start = this.groupDragStart;
+    const selected = this.selectedIndices();
+    if (start && selected.size > 1 && start.has(this.draggedElementIndex)) {
+      // G2: group move — apply the leader's delta to every selected element.
+      const leaderStart = start.get(this.draggedElementIndex)!;
+      const dx = newXPos - leaderStart.x;
+      const dy = newYPos - leaderStart.y;
+      start.forEach((pos, idx) => {
+        const el = gridEls[idx];
+        if (!el) return;
+        this.setElementPos(el, Math.max(0, pos.x + dx), Math.max(0, pos.y + dy));
+        this.emitElementMove(el);
+      });
+    } else {
+      this.setElementPos(leader, newXPos, newYPos);
+      this.emitElementMove(leader);
+    }
+    this.dataService.updateCurrentUser();
+    this.cdr.detectChanges();
   }
 
   onDocumentTouchMove(event: TouchEvent): void {
@@ -1551,53 +1659,80 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
     this.longPressTargetIndex = -1;
 
+    // G2: conclude a marquee selection (shift+drag on empty canvas).
+    if (this.isMarqueeSelecting) {
+      const box = this.marquee();
+      this.isMarqueeSelecting = false;
+      this.marquee.set(null);
+      if (box && (box.w > 2 || box.h > 2)) this.applyMarqueeSelection(box);
+      this.cdr.detectChanges();
+      return;
+    }
+
+    // End empty-canvas panning.
+    if (this.isPanning) {
+      this.isPanning = false;
+      this.cdr.detectChanges();
+      return;
+    }
+
     if (!this.isDraggingEnabled) {
       return;
     }
 
     if (this.draggedElement === null || !this.project) {
       this.isDraggingEnabled = false;
+      this.groupDragStart = null;
       return;
     }
 
-    const container = document.querySelector('.elements-grid') as HTMLElement;
-    if (!container) {
-      this.isDraggingEnabled = false;
-      return;
-    }
-
-    const containerRect = container.getBoundingClientRect();
-    const elementRect = this.draggedElement.getBoundingClientRect();
-
-    // Calculate position with offset
-    let x = event.clientX - containerRect.left - this.elementDragOffsetX;
-    let y = event.clientY - containerRect.top - this.elementDragOffsetY;
-
-    // Get container dimensions (accounting for padding)
-    const containerPadding = 20; // From CSS padding
-    const maxX = container.clientWidth - elementRect.width - containerPadding;
-    const maxY = container.clientHeight - elementRect.height - containerPadding;
-
-    // Constrain within bounds
-    x = Math.max(0, Math.min(x, maxX));
-    y = Math.max(0, Math.min(y, maxY));
-
-    // Save the position to the element
-    const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
-    if (element) {
-      if ((element as any).set_xpos) {
-        (element as any).set_xpos(x);
-        (element as any).set_ypos(y);
-      } else {
-        (element as any).x_pos = x;
-        (element as any).y_pos = y;
+    // Legacy pixel-based grid container (kept for backwards compatibility).
+    const legacyGrid = document.querySelector('.elements-grid') as HTMLElement;
+    if (legacyGrid) {
+      const containerRect = legacyGrid.getBoundingClientRect();
+      const elementRect = this.draggedElement.getBoundingClientRect();
+      let x = event.clientX - containerRect.left - this.elementDragOffsetX;
+      let y = event.clientY - containerRect.top - this.elementDragOffsetY;
+      const containerPadding = 20;
+      const maxX = legacyGrid.clientWidth - elementRect.width - containerPadding;
+      const maxY = legacyGrid.clientHeight - elementRect.height - containerPadding;
+      x = Math.max(0, Math.min(x, maxX));
+      y = Math.max(0, Math.min(y, maxY));
+      const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
+      if (element) {
+        if ((element as any).set_xpos) {
+          (element as any).set_xpos(x);
+          (element as any).set_ypos(y);
+        } else {
+          (element as any).x_pos = x;
+          (element as any).y_pos = y;
+        }
+        this.emitElementMove(element, false);
+        const projectType = (this.project as any).projectType;
+        if (projectType) await this.dataService.saveProject(this.project, projectType);
       }
-      // Phase 6b: final (un-throttled) move broadcast.
-      this.emitElementMove(element, false);
-      // Save to backend
-      const projectType = (this.project as any).projectType;
-      if (projectType) {
-        await this.dataService.saveProject(this.project, projectType);
+    } else {
+      // Canvas (grid-unit) drop: snap each moved element and save once.
+      const gridIdx = this.draggedElementGridIndex >= 0 ? this.draggedElementGridIndex : this.selectedGridIndex;
+      const gridEls = this.project.grid[gridIdx]?.Screen_elements;
+      if (gridEls) {
+        const start = this.groupDragStart;
+        const selected = this.selectedIndices();
+        const movedIndices: number[] =
+          (start && selected.size > 1 && start.has(this.draggedElementIndex))
+            ? Array.from(start.keys())
+            : [this.draggedElementIndex];
+
+        for (const idx of movedIndices) {
+          const el = gridEls[idx];
+          if (!el) continue;
+          if (this.snapEnabled()) this.snapElementToGrid(el);
+          // Phase 6b: final (un-throttled) move broadcast per moved element.
+          this.emitElementMove(el, false);
+        }
+        this.dataService.updateCurrentUser();
+        const projectType = (this.project as any).projectType;
+        if (projectType) await this.dataService.saveProject(this.project, projectType);
       }
     }
 
@@ -1606,6 +1741,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.draggedElement = null;
     this.draggedElementIndex = -1;
     this.isDraggingEnabled = false;
+    this.groupDragStart = null;
     this.justFinishedDragging = true;
 
     // Reset flag after a short delay to allow click event
@@ -1722,12 +1858,47 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if ((event.target as HTMLElement).closest('.canvas-element')) {
       return; // Don't pan if clicking on element
     }
+
+    // G2: Shift+drag on empty canvas draws a selection marquee instead of panning.
+    if (event.shiftKey) {
+      const container = document.querySelector('.canvas-container') as HTMLElement;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        // Convert to canvas-content space (undo pan/zoom) so it matches element coords.
+        const x = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
+        const y = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+        this.isMarqueeSelecting = true;
+        this.marqueeStartX = x;
+        this.marqueeStartY = y;
+        this.marquee.set({ x, y, w: 0, h: 0 });
+        this.cdr.detectChanges();
+        return;
+      }
+    }
+
     this.isPanning = true;
     this.panStartX = event.clientX - this.canvasPanX;
     this.panStartY = event.clientY - this.canvasPanY;
   }
 
   onCanvasMouseMove(event: MouseEvent): void {
+    // G2: update the selection marquee rectangle while shift-dragging empty canvas.
+    if (this.isMarqueeSelecting) {
+      const container = document.querySelector('.canvas-container') as HTMLElement;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const cx = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
+        const cy = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+        const x = Math.min(this.marqueeStartX, cx);
+        const y = Math.min(this.marqueeStartY, cy);
+        const w = Math.abs(cx - this.marqueeStartX);
+        const h = Math.abs(cy - this.marqueeStartY);
+        this.marquee.set({ x, y, w, h });
+        this.cdr.detectChanges();
+      }
+      return;
+    }
+
     if (this.isPanning) {
       this.canvasPanX = event.clientX - this.panStartX;
       this.canvasPanY = event.clientY - this.panStartY;
@@ -1768,37 +1939,93 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
       // Update the data model
       if (this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
-        const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
+        const gridEls = this.project.grid[this.draggedElementGridIndex].Screen_elements;
+        const element = gridEls[this.draggedElementIndex];
         if (element) {
-          if ((element as any).set_xpos) {
-            (element as any).set_xpos(Math.max(0, x));
-            (element as any).set_ypos(Math.max(0, y));
+          // Leader element's new grid-unit position (pixels ÷ per-unit factor).
+          const newXPos = Math.max(0, x) / this.GRID_PX_X;
+          const newYPos = Math.max(0, y) / this.GRID_PX_Y;
+
+          // G2: group move — when multiple elements are selected, translate every
+          // selected element by the SAME delta the leader moved (grid-unit space).
+          const start = this.groupDragStart;
+          const selected = this.selectedIndices();
+          if (start && selected.size > 1 && start.has(this.draggedElementIndex)) {
+            const leaderStart = start.get(this.draggedElementIndex)!;
+            const dx = newXPos - leaderStart.x;
+            const dy = newYPos - leaderStart.y;
+            start.forEach((pos, idx) => {
+              const el = gridEls[idx];
+              if (!el) return;
+              const nx = Math.max(0, pos.x + dx);
+              const ny = Math.max(0, pos.y + dy);
+              this.setElementPos(el, nx, ny);
+              // Phase 6b: throttled granular move broadcast for each moved element.
+              this.emitElementMove(el);
+            });
+            this.dataService.updateCurrentUser();
           } else {
-            (element as any).x_pos = Math.max(0, x);
-            (element as any).y_pos = Math.max(0, y);
+            this.setElementPos(element, newXPos, newYPos);
+            this.dataService.updateCurrentUser();
+            // Phase 6b: throttled granular move broadcast.
+            this.emitElementMove(element);
           }
-          this.dataService.updateCurrentUser();
-          // Phase 6b: throttled granular move broadcast.
-          this.emitElementMove(element);
         }
       }
     }
   }
 
+  /** G2: set an element's grid-unit position (x_pos/y_pos), via setters when present. */
+  private setElementPos(element: Screen_Element, xPos: number, yPos: number): void {
+    if ((element as any).set_xpos) {
+      (element as any).set_xpos(xPos);
+      (element as any).set_ypos(yPos);
+    } else {
+      (element as any).x_pos = xPos;
+      (element as any).y_pos = yPos;
+    }
+  }
+
   async onCanvasMouseUp(event: MouseEvent): Promise<void> {
+    // G2: finish a marquee selection — select all elements intersecting the box.
+    if (this.isMarqueeSelecting) {
+      const box = this.marquee();
+      this.isMarqueeSelecting = false;
+      this.marquee.set(null);
+      if (box) this.applyMarqueeSelection(box);
+      this.cdr.detectChanges();
+      return;
+    }
+
     if (this.isDraggingEnabled && this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
-      // Save position when drag ends
-      const element = this.project.grid[this.draggedElementGridIndex].Screen_elements[this.draggedElementIndex];
+      const gridEls = this.project.grid[this.draggedElementGridIndex].Screen_elements;
+      const element = gridEls[this.draggedElementIndex];
       if (element) {
-        // Phase 6b: final (un-throttled) move broadcast.
-        this.emitElementMove(element, false);
+        // G2: on drop, snap every moved element to the nearest 0.5 grid unit.
+        const start = this.groupDragStart;
+        const selected = this.selectedIndices();
+        const movedIndices: number[] = (start && selected.size > 1 && start.has(this.draggedElementIndex))
+          ? Array.from(start.keys())
+          : [this.draggedElementIndex];
+
+        for (const idx of movedIndices) {
+          const el = gridEls[idx];
+          if (!el) continue;
+          if (this.snapEnabled()) this.snapElementToGrid(el);
+          // Phase 6b: final (un-throttled) move broadcast for each moved element.
+          this.emitElementMove(el, false);
+        }
+        this.dataService.updateCurrentUser();
+
         const projectType = (this.project as any).projectType;
         if (!projectType) {
           console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
+          this.groupDragStart = null;
           return;
         }
         await this.dataService.saveProject(this.project, projectType);
       }
+      this.groupDragStart = null;
     }
 
     if (this.isResizing && this.resizingElement && this.project) {
@@ -1841,13 +2068,36 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // In link-pick mode, defer to the click-driven target picker (no select/drag).
+    if (this.linkSourceId) {
+      return;
+    }
+
     event.stopPropagation();
+
+    // G2: Shift+click toggles this element in the multi-selection (no drag).
+    if (event.shiftKey) {
+      this.toggleSelectIndex(elementIndex);
+      return;
+    }
+
+    // G2: A plain click on an element that is NOT part of the current
+    // multi-selection collapses the selection to just this element.
+    const sel = this.selectedIndices();
+    if (!sel.has(elementIndex)) {
+      this.selectedIndices.set(new Set([elementIndex]));
+    }
+    this.selectedElementIndex = elementIndex;
 
     const elementEl = event.currentTarget as HTMLElement;
     this.draggedElement = elementEl;
     this.draggedElementIndex = elementIndex;
     this.draggedElementGridIndex = gridIndex;
     this.isDraggingEnabled = true;
+
+    // G2: snapshot start positions for every selected element so a group move
+    // can apply the same delta to each.
+    this.groupDragStart = this.captureGroupStart(gridIndex);
 
     const rect = elementEl.getBoundingClientRect();
     const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
@@ -1856,6 +2106,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.elementDragOffsetX = event.clientX - rect.left;
       this.elementDragOffsetY = event.clientY - rect.top;
     }
+    this.cdr.detectChanges();
   }
 
   startResize(event: MouseEvent, element: Screen_Element, gridIndex: number, elementIndex: number, handle: string): void {
@@ -1979,7 +2230,19 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   onCanvasClick(event: MouseEvent): void {
     // Deselect element when clicking on empty canvas
     if (!(event.target as HTMLElement).closest('.canvas-element')) {
+      // Don't clear if this click concludes a shift+drag marquee.
+      if (event.shiftKey) return;
       this.selectedElementIndex = -1;
+      // G2: also clear the multi-selection set.
+      if (this.selectedIndices().size > 0) {
+        this.selectedIndices.set(new Set<number>());
+        this.cdr.detectChanges();
+      }
+    }
+    // G2: any canvas click closes the templates menu.
+    if (this.showTemplatesMenu()) {
+      this.showTemplatesMenu.set(false);
+      this.cdr.detectChanges();
     }
   }
 
@@ -1994,6 +2257,225 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (this.selectedElementIndex >= 0 && this.project) {
       this.deleteElement(this.selectedElementIndex);
     }
+  }
+
+  // =========================================================================
+  // G2: multi-select / group-move / grid-snap / templates helpers
+  // =========================================================================
+
+  /** True when the given element index is part of the multi-selection. */
+  isIndexSelected(index: number): boolean {
+    return this.selectedIndices().has(index);
+  }
+
+  /** Toggle a single element index in the multi-selection set. */
+  toggleSelectIndex(index: number): void {
+    const next = new Set(this.selectedIndices());
+    if (next.has(index)) {
+      next.delete(index);
+    } else {
+      next.add(index);
+    }
+    this.selectedIndices.set(next);
+    // Keep the legacy single-selection index in sync for existing UI (delete btn, etc.).
+    this.selectedElementIndex = next.size === 1 ? Array.from(next)[0] : (next.has(index) ? index : -1);
+    this.cdr.detectChanges();
+  }
+
+  /** Snapshot each selected element's current grid-unit position, keyed by index. */
+  private captureGroupStart(gridIndex: number): Map<number, { x: number; y: number }> {
+    const snap = new Map<number, { x: number; y: number }>();
+    if (!this.project || !this.project.grid[gridIndex]) return snap;
+    const els = this.project.grid[gridIndex].Screen_elements;
+    this.selectedIndices().forEach(idx => {
+      const el = els[idx] as any;
+      if (el) snap.set(idx, { x: el.x_pos ?? 0, y: el.y_pos ?? 0 });
+    });
+    // Ensure the leader is always represented even if selection was empty.
+    if (!snap.has(this.draggedElementIndex)) {
+      const el = els[this.draggedElementIndex] as any;
+      if (el) snap.set(this.draggedElementIndex, { x: el.x_pos ?? 0, y: el.y_pos ?? 0 });
+    }
+    return snap;
+  }
+
+  /** Snap an element's x_pos/y_pos to the nearest 0.5 grid unit. */
+  private snapElementToGrid(element: Screen_Element): void {
+    const el = element as any;
+    const x = el.x_pos ?? 0;
+    const y = el.y_pos ?? 0;
+    const snapped = (v: number) => Math.round(v / this.SNAP_UNIT) * this.SNAP_UNIT;
+    this.setElementPos(element, Math.max(0, snapped(x)), Math.max(0, snapped(y)));
+  }
+
+  /** Toolbar toggle for drop-time grid snapping. */
+  toggleSnap(): void {
+    this.snapEnabled.set(!this.snapEnabled());
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Select every element whose rendered box intersects the marquee rectangle
+   * (canvas-content coords). Widths come from getElementWidth; heights fall back
+   * to a sensible default when the element has no explicit scale.
+   */
+  private applyMarqueeSelection(box: { x: number; y: number; w: number; h: number }): void {
+    const els = this.getElements();
+    const next = new Set<number>();
+    els.forEach((el, i) => {
+      const ex = this.getElementX(el, i);
+      const ey = this.getElementY(el, i);
+      const ew = this.getElementWidth(el);
+      const yscale = (el as any).y_scale;
+      const eh = yscale && yscale > 10 ? yscale : 120;
+      const intersects =
+        ex < box.x + box.w && ex + ew > box.x &&
+        ey < box.y + box.h && ey + eh > box.y;
+      if (intersects) next.add(i);
+    });
+    this.selectedIndices.set(next);
+    this.selectedElementIndex = next.size === 1 ? Array.from(next)[0] : -1;
+  }
+
+  /** Ctrl/Cmd+A → select every element in the current grid. */
+  selectAllElements(): void {
+    const count = this.getElements().length;
+    const next = new Set<number>();
+    for (let i = 0; i < count; i++) next.add(i);
+    this.selectedIndices.set(next);
+    this.selectedElementIndex = count === 1 ? 0 : -1;
+    this.cdr.detectChanges();
+  }
+
+  /** Esc → clear the multi-selection (and any link/marquee/templates state). */
+  clearSelection(): void {
+    if (this.selectedIndices().size > 0) this.selectedIndices.set(new Set<number>());
+    this.selectedElementIndex = -1;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Delete every selected element. Reuses the existing per-element delete path
+   * (removeElementFromGrid + granular delete broadcast). Deletes high-index-first
+   * so earlier indices stay valid during removal.
+   */
+  async deleteSelectedElements(): Promise<void> {
+    if (!this.project || this.selectedGridIndex < 0) return;
+    const indices = Array.from(this.selectedIndices()).sort((a, b) => b - a);
+    if (indices.length === 0) return;
+
+    const grid = this.project.grid[this.selectedGridIndex];
+    if (!grid) return;
+
+    for (const idx of indices) {
+      const element = grid.Screen_elements[idx];
+      if (!element) continue;
+      try {
+        await this.dataService.removeElementFromGrid(this.projectIndex, this.selectedGridIndex, idx);
+        this.emitElementDelete(element);
+      } catch (e) {
+        console.error('[ProjectDetail] deleteSelectedElements error at index', idx, e);
+      }
+    }
+
+    this.selectedIndices.set(new Set<number>());
+    this.selectedElementIndex = -1;
+    this.loadProject();
+    this.cdr.detectChanges();
+  }
+
+  /** Global keydown handler for canvas shortcuts. SSR-safe (only wired in browser). */
+  private onDocumentKeyDown(event: KeyboardEvent): void {
+    // Ignore when typing in a field or any modal/overlay is open.
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+    if (this.showFullScreenTodo || this.showElementTypeSelector || this.showErrorModal ||
+        this.showConfirmModal || this.showAddTaskModal || this.showAddTextModal ||
+        this.showCreateGridModal || this.showImageNameModal || this.showVideoNameModal) return;
+    if (!this.project) return;
+
+    // Ctrl/Cmd+A → select all.
+    if ((event.ctrlKey || event.metaKey) && (event.key === 'a' || event.key === 'A')) {
+      event.preventDefault();
+      this.selectAllElements();
+      return;
+    }
+    // Esc → clear selection / cancel link/marquee.
+    if (event.key === 'Escape') {
+      if (this.linkSourceId) { this.cancelLinkMode(); return; }
+      if (this.showTemplatesMenu()) { this.showTemplatesMenu.set(false); this.cdr.detectChanges(); return; }
+      this.clearSelection();
+      return;
+    }
+    // Delete / Backspace → delete all selected elements.
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (this.selectedIndices().size > 0) {
+        event.preventDefault();
+        this.deleteSelectedElements();
+      }
+      return;
+    }
+  }
+
+  // ---- Templates: insert preset element groups via existing creation logic ----
+
+  toggleTemplatesMenu(event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.showTemplatesMenu.set(!this.showTemplatesMenu());
+    this.cdr.detectChanges();
+  }
+
+  /** "Kanban" preset: three ToDoLst columns (To Do / Doing / Done) side by side. */
+  async insertKanbanTemplate(): Promise<void> {
+    this.showTemplatesMenu.set(false);
+    if (!this.project || this.selectedGridIndex < 0) return;
+    const cols = ['To Do', 'Doing', 'Done'];
+    // Spread across grid units (0.5 apart in the ×250 space keeps them adjacent).
+    const created: Screen_Element[] = [];
+    for (let c = 0; c < cols.length; c++) {
+      const el = new ToDoLst(cols[c], c, 0);
+      el.x_scale = 280;
+      el.y_scale = 200;
+      await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, el);
+      created.push(el);
+    }
+    await this.persistTemplate(created);
+  }
+
+  /** "Note + Tasks" preset: one Text_document + one ToDoLst with 3 starter tasks. */
+  async insertNoteTasksTemplate(): Promise<void> {
+    this.showTemplatesMenu.set(false);
+    if (!this.project || this.selectedGridIndex < 0) return;
+
+    const note = new Text_document('Notes', 0, 0, 'Jot your notes here…');
+    note.x_scale = 300;
+    note.y_scale = 220;
+    await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, note);
+
+    const tasks = new ToDoLst('Tasks', 1, 0);
+    tasks.x_scale = 280;
+    tasks.y_scale = 220;
+    ['First task', 'Second task', 'Third task'].forEach((name, i) => {
+      tasks.add_task(new scheduled_task(name, i === 0 ? 1 : 2, new Date().toISOString()));
+    });
+    await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, tasks);
+
+    await this.persistTemplate([note, tasks]);
+  }
+
+  /** Shared save + collab-broadcast path for a freshly inserted template. */
+  private async persistTemplate(created: Screen_Element[]): Promise<void> {
+    if (!this.project) return;
+    const projectType = (this.project as any).projectType || this.project.project_type;
+    if (projectType) {
+      this.lastSaveTimestamp = Date.now();
+      await this.dataService.saveProject(this.project, projectType);
+    }
+    this.loadProject();
+    // Broadcast each new element to peers (Phase 6b granular create).
+    for (const el of created) this.emitElementCreate(el, this.selectedGridIndex);
+    this.cdr.detectChanges();
   }
 
   getTextPreview(element: Screen_Element): string {

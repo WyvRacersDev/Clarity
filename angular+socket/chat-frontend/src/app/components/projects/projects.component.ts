@@ -6,7 +6,12 @@ import { Router, RouterModule } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { SocketService } from '../../services/socket.service';
 import { User } from '../../../../../shared_models/models/user.model';
-import { Project } from '../../../../../shared_models/models/project.model';
+import { Project, Grid } from '../../../../../shared_models/models/project.model';
+import {
+  Text_document,
+  ToDoLst,
+  scheduled_task,
+} from '../../../../../shared_models/models/screen-elements.model';
 import { isLocalhostServer } from '../../config/server.config';
 
 @Component({
@@ -41,6 +46,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   isSaving = false;
   isDeleting = false;
   isLoading = false;
+  isCreatingSample = false;
   deletingProjectIndex: number | null = null;
   private loadingTimeout: any = null;
 
@@ -307,6 +313,117 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     }
   }
 
+
+  /**
+   * Build a ready-to-explore starter project in code (a single Grid with a
+   * "Welcome" Text_document and a "Getting Started" ToDoLst holding a few
+   * scheduled tasks at spread-out grid positions), then persist it via the
+   * EXISTING dataService.saveProject path — no new Socket.IO events — and
+   * navigate to it. Runs from the empty-state secondary CTA.
+   */
+  async createSampleProject(): Promise<void> {
+    if (this.isCreatingSample || this.isSaving) {
+      return;
+    }
+    if (!this.currentUser) {
+      this.showError('Please sign in before creating a sample project.');
+      return;
+    }
+
+    // Sample projects are hosted unless we're on a localhost server (where
+    // local projects are supported), matching createProject()'s rules.
+    const projectTypeValue: 'local' | 'hosted' = isLocalhostServer()
+      ? 'local'
+      : 'hosted';
+
+    // Pick a non-colliding name.
+    let sampleName = 'Sample Project';
+    const existingNames = new Set(this.currentUser.projects.map((p) => p.name));
+    if (existingNames.has(sampleName)) {
+      let n = 2;
+      while (existingNames.has(`Sample Project ${n}`)) {
+        n++;
+      }
+      sampleName = `Sample Project ${n}`;
+    }
+
+    this.isCreatingSample = true;
+    try {
+      const project = new Project(
+        sampleName,
+        this.currentUser.name,
+        projectTypeValue,
+      );
+
+      // Single starter grid/canvas.
+      const grid = new Grid('Main Canvas');
+
+      // Welcome note (Text_document) at the top-left of the canvas.
+      const welcome = new Text_document(
+        'Welcome',
+        80,
+        80,
+        'Welcome to Clarity! This is a shared canvas. Drag elements around, add ' +
+          'text, images, and to-do lists, and collaborate with your team in real time.',
+      );
+
+      // Getting Started to-do list (ToDoLst) placed to the right, with ~3
+      // scheduled tasks due over the next few days.
+      const gettingStarted = new ToDoLst('Getting Started', 520, 120);
+      const day = 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      gettingStarted.add_task(
+        new scheduled_task(
+          'Explore the canvas — pan, zoom, and select elements',
+          1,
+          new Date(now + day).toISOString(),
+        ),
+      );
+      gettingStarted.add_task(
+        new scheduled_task(
+          'Add your first element from the palette',
+          2,
+          new Date(now + 2 * day).toISOString(),
+        ),
+      );
+      gettingStarted.add_task(
+        new scheduled_task(
+          'Invite a teammate and collaborate live',
+          3,
+          new Date(now + 3 * day).toISOString(),
+        ),
+      );
+
+      grid.add_element(welcome);
+      grid.add_element(gettingStarted);
+      project.grid.push(grid);
+
+      // Persist through the same save path createProject() uses.
+      const saved = await this.dataService.saveProject(
+        project,
+        projectTypeValue,
+      );
+      if (!saved) {
+        this.showError('Failed to create the sample project. Please try again.');
+        return;
+      }
+
+      // Refresh the list so indices line up, then open the new project.
+      await this.loadProjectsFromServer();
+      const index = this.currentUser.projects.findIndex(
+        (p) => p.name === sampleName,
+      );
+      if (index !== -1) {
+        this.selectProject(index);
+      }
+    } catch (error) {
+      console.error('Error creating sample project:', error);
+      this.showError('Failed to create the sample project. Please try again.');
+    } finally {
+      this.isCreatingSample = false;
+      this.cdr.detectChanges();
+    }
+  }
 
   isLocalProjectsAvailable(): boolean {
     return isLocalhostServer();

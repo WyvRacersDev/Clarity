@@ -898,6 +898,84 @@
 .comments-composer .textarea { resize: none; }
 .comments-composer .submit-btn { align-self: flex-end; }
 
+/* ============================================================
+   G2 — multi-select, marquee, snap toggle, templates
+   ============================================================ */
+
+/* Selection marquee (shift+drag on empty canvas) */
+.selection-marquee {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+/* Multi-selected element accent (adds to per-type .selected outline) */
+.canvas-element.multi-selected {
+  box-shadow: 0 0 0 1.5px var(--accent), 0 8px 32px var(--accent-soft), var(--shadow-md);
+}
+.canvas-element[data-type="Text_document"].multi-selected {
+  box-shadow: 0 0 0 1.5px var(--accent-blue), 0 8px 32px var(--accent-blue-soft), var(--shadow-md);
+}
+.canvas-element[data-type="Image"].multi-selected {
+  box-shadow: 0 0 0 1.5px var(--accent-green), 0 8px 32px var(--accent-green-soft), var(--shadow-md);
+}
+.canvas-element[data-type="Video"].multi-selected {
+  box-shadow: 0 0 0 1.5px var(--accent-teal), 0 8px 32px var(--accent-teal-soft), var(--shadow-md);
+}
+
+/* Snap toggle reuses .toolbar-btn.active styling from the shared primitives. */
+
+/* Templates dropdown */
+.templates-wrap {
+  position: relative;
+}
+.templates-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 200px;
+  padding: var(--space-2);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: slideUp var(--dur) var(--ease);
+}
+.template-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.template-option:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.template-option-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.template-option-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {
   .canvas-toolbar {
@@ -922,5 +1000,7 @@
   .remote-cursor,
   .link-mode-banner,
   .comments-panel,
+  .templates-menu,
+  .template-option,
   .dependency-link { animation: none !important; transition: none !important; }
 }

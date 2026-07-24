@@ -57,10 +57,40 @@
         <div class="toolbar-divider"></div>
         <div class="toolbar-section">
           <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()">Grid</button>
+          <button class="toolbar-btn" [class.active]="snapEnabled()" (click)="toggleSnap()" title="Snap to grid on drop">Snap</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <!-- G2: Templates -->
+        <div class="toolbar-section templates-wrap">
+          <button class="toolbar-btn" [class.active]="showTemplatesMenu()" (click)="toggleTemplatesMenu($event)" title="Insert a template">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <rect x="1.5" y="1.5" width="5" height="5" rx="1"></rect>
+              <rect x="9.5" y="1.5" width="5" height="5" rx="1"></rect>
+              <rect x="1.5" y="9.5" width="5" height="5" rx="1"></rect>
+              <rect x="9.5" y="9.5" width="5" height="5" rx="1"></rect>
+            </svg>
+            Templates
+          </button>
+          @if (showTemplatesMenu()) {
+            <div class="templates-menu" (click)="$event.stopPropagation()">
+              <button class="template-option" (click)="insertKanbanTemplate()">
+                <span class="template-option-title">Kanban</span>
+                <span class="template-option-sub">To Do · Doing · Done</span>
+              </button>
+              <button class="template-option" (click)="insertNoteTasksTemplate()">
+                <span class="template-option-title">Note + Tasks</span>
+                <span class="template-option-sub">Notes doc + 3 starter tasks</span>
+              </button>
+            </div>
+          }
         </div>
         <div class="toolbar-divider"></div>
         <div class="toolbar-section">
-          <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">Delete</button>
+          @if (selectedIndices().size > 1) {
+            <button class="toolbar-btn danger" (click)="deleteSelectedElements()">Delete ({{ selectedIndices().size }})</button>
+          } @else {
+            <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">Delete</button>
+          }
         </div>
       </div>
 
@@ -104,7 +134,8 @@
             <div
               class="canvas-element"
               [attr.data-type]="getElementType(element)"
-              [class.selected]="selectedElementIndex === i"
+              [class.selected]="selectedElementIndex === i || isIndexSelected(i)"
+              [class.multi-selected]="isIndexSelected(i) && selectedIndices().size > 1"
               [class.link-source]="linkSourceId && linkSourceId === element.id"
               [class.link-target-candidate]="linkSourceId && linkSourceId !== element.id && canLinkElement(element)"
               [class.is-blocked]="isElementBlocked(element)"
@@ -170,6 +201,14 @@
               <div class="resize-handle sw" (mousedown)="startResize($event, element, 0, i, 'sw')"></div>
               <div class="resize-handle se" (mousedown)="startResize($event, element, 0, i, 'se')"></div>
             </div>
+          }
+          <!-- G2: selection marquee (canvas-content coords; shift+drag on empty canvas) -->
+          @if (marquee(); as m) {
+            <div class="selection-marquee"
+                 [style.left.px]="m.x"
+                 [style.top.px]="m.y"
+                 [style.width.px]="m.w"
+                 [style.height.px]="m.h"></div>
           }
           <!-- Phase 6b: remote collaborators' cursors (canvas-content coords) -->
           @for (cursor of getRemoteCursors(); track cursor.username) {

@@ -614,3 +614,13 @@
     opacity: 1;
   }
 }
+
+/* Empty-state dual CTA (create + sample) */
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
