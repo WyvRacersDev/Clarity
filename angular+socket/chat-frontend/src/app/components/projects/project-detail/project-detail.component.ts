@@ -523,15 +523,44 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Emit a granular create for a freshly-added element. If the element already
-   * has an id (server round-tripped), use it; otherwise still emit so peers can
-   * add it (the backend assigns/returns an authoritative id via element:created).
+   * Emit a granular create for a freshly-added element and CAPTURE the server's
+   * authoritative stable id onto the local element. Capturing the id is what
+   * lets the element's subsequent move/edit/delete ops sync — without it a
+   * brand-new element would silently drop those ops until a full reload.
+   *
+   * The backend also persists this one row and broadcasts `element:created` to
+   * peers. A whole-project save run AFTER this reuses the captured id (see
+   * `addElementCollab` / `persistTemplate`), so the row the granular create
+   * inserted is replaced in place rather than left as a duplicate.
    */
-  private emitElementCreate(element: Screen_Element, gridIndex: number): void {
+  private async emitElementCreate(element: Screen_Element, gridIndex: number): Promise<void> {
     if (!this.project || !this.project.grid[gridIndex]) return;
     const gridId = (this.project.grid[gridIndex] as any).id as string | undefined;
     if (!gridId) return; // no grid id -> rely on whole-project save
-    this.collabService.emitCreate(gridId, (element as any).toJSON ? (element as any).toJSON() : element);
+    const created = await this.collabService.emitCreate(
+      gridId,
+      (element as any).toJSON ? (element as any).toJSON() : element
+    );
+    if (created && (created as any).id) {
+      (element as any).id = (created as any).id;
+    }
+  }
+
+  /**
+   * Canonical "add a freshly-created element" path with correct collab
+   * semantics:
+   *   1. granular `element:create` FIRST — captures the authoritative id onto
+   *      the element and delivers it to peers live,
+   *   2. then the whole-project save (durable), which reuses that id and so
+   *      leaves a single row instead of a duplicate.
+   * Degrades to a plain add + whole-project save when no collab room is joined.
+   */
+  private async addElementCollab(element: Screen_Element, gridIndex: number): Promise<void> {
+    if (!this.project || !this.project.grid[gridIndex]) return;
+    await this.emitElementCreate(element, gridIndex);
+    await this.dataService.addElementToGrid(this.projectIndex, gridIndex, element);
+    this.loadProject();
+    this.cdr.detectChanges();
   }
 
   /**
@@ -780,14 +809,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       const element = new ToDoLst('Tasks', 20, 20);
       element.x_scale = 280;
       element.y_scale = 200;
-      const success = await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
-      if (!success) {
-        console.error('[ProjectDetail] createTodoElement: addElementToGrid returned false');
-      }
-      this.loadProject();
-      // Phase 6b: broadcast the granular create to peers.
-      this.emitElementCreate(element, this.selectedGridIndex);
-      this.cdr.detectChanges();
+      // Phase 6b (B1): granular create (captures id + notifies peers) then save.
+      await this.addElementCollab(element, this.selectedGridIndex);
     } catch (error) {
       console.error('[ProjectDetail] createTodoElement error:', error);
     }
@@ -891,11 +914,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
             imagepath: element.imagepath,
             toJSON: element.toJSON()
           });
-          await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+          // Phase 6b (B1): granular create (captures id + notifies peers) then save.
+          await this.addElementCollab(element, this.selectedGridIndex);
           this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
-          this.loadProject(); // Reload to see the changes
-          this.emitElementCreate(element, this.selectedGridIndex);
-          this.cdr.detectChanges();
         } else {
           console.error('Failed to upload image:', uploadResponse.message);
           alert('Failed to upload image. Please try again.');
@@ -937,11 +958,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
             VideoPath: element.VideoPath,
             toJSON: element.toJSON()
           });
-          await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+          // Phase 6b (B1): granular create (captures id + notifies peers) then save.
+          await this.addElementCollab(element, this.selectedGridIndex);
           this.socketService.emitElementUpdate(element, this.project!.name, this.project!.grid[this.selectedGridIndex].name);
-          this.loadProject(); // Reload to see the changes
-          this.emitElementCreate(element, this.selectedGridIndex);
-          this.cdr.detectChanges();
         } else {
           console.error('Failed to upload video:', uploadResponse.message);
           alert('Failed to upload video. Please try again.');
@@ -1052,11 +1071,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       200,
       documentContent
     );
-    await this.dataService.addElementToGrid(this.projectIndex, this.selectedGridIndex, element);
+    // Phase 6b (B1): granular create (captures id + notifies peers) then save.
+    await this.addElementCollab(element, this.selectedGridIndex);
     this.socketService.emitElementUpdate(element, this.project.name, this.project.grid[this.selectedGridIndex].name);
-    this.loadProject(); // Reload to see the changes
-    this.emitElementCreate(element, this.selectedGridIndex);
-    this.cdr.detectChanges();
   }
 
   async deleteElement(elementIndex: number): Promise<void> {
@@ -2468,13 +2485,16 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private async persistTemplate(created: Screen_Element[]): Promise<void> {
     if (!this.project) return;
     const projectType = (this.project as any).projectType || this.project.project_type;
+    // Phase 6b (B1): granular create each new element FIRST so we capture its
+    // authoritative id (and peers get it live); the whole-project save below
+    // then reuses those ids, collapsing the granular rows in place rather than
+    // leaving duplicates.
+    for (const el of created) await this.emitElementCreate(el, this.selectedGridIndex);
     if (projectType) {
       this.lastSaveTimestamp = Date.now();
       await this.dataService.saveProject(this.project, projectType);
     }
     this.loadProject();
-    // Broadcast each new element to peers (Phase 6b granular create).
-    for (const el of created) this.emitElementCreate(el, this.selectedGridIndex);
     this.cdr.detectChanges();
   }
 

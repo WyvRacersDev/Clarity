@@ -625,9 +625,24 @@ export class SocketService {
 
   // --- Emit local element ops -------------------------------------------------
 
-  emitElementCreate(projectName: string, projectType: 'local' | 'hosted', gridId: string, element: any): void {
-    if (!this.isSocketAvailable()) return;
-    this.socket!.emit('element:create', { projectName, projectType, gridId, element });
+  /**
+   * Create an element granularly. The server persists ONE row and acks
+   * `{ success, gridId, element }` where `element` carries the authoritative
+   * stable id — the caller needs that id so the element's later move/edit/delete
+   * ops can sync. Returns an Observable that emits the ack (or null during SSR).
+   */
+  emitElementCreate(projectName: string, projectType: 'local' | 'hosted', gridId: string, element: any): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.next(null);
+        observer.complete();
+        return;
+      }
+      this.socket!.emit('element:create', { projectName, projectType, gridId, element }, (ack: any) => {
+        observer.next(ack);
+        observer.complete();
+      });
+    });
   }
 
   emitElementMove(

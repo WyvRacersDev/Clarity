@@ -6,7 +6,7 @@ _A working list of things to change/improve, to tackle **one at a time**. Pick a
 **Effort:** S (hours) · M (a day) · L (multi-day)
 **Status:** `[x]` done · `[~]` partial — some shipped, the rest scoped/deferred (see the item's italic note) · `[ ]` open or deliberately deferred
 
-**Where things stand (2026-07-24):** **23 done** · **1 partial** (E4) · **3 open** — B1 & B3 deferred by your call, G5 now scoped (backend-only `clarity2` copy for a fresh frontend). Sections **C, D, F** are fully complete. All shipped work is verified (15 tests green, both builds clean) and pushed to `hamza-clarity`. **All work paused until after 2026-07-29.**
+**Where things stand (2026-07-30):** **24 done** · **1 partial** (E4) · **2 open** — B3 deferred by your call, G5 scoped (backend-only `clarity2` copy for a fresh frontend). **B1 done** (granular per-element realtime, incl. two create-path bug fixes + a 2-client integration test) — only **B3** (CRDT/Yjs) remains in section B. Sections **C, D, F** are fully complete. All shipped work is verified (**17 tests green**, both builds clean).
 
 ---
 
@@ -18,7 +18,7 @@ _A working list of things to change/improve, to tackle **one at a time**. Pick a
 
 ## B. Realtime upgrade (was Phase 6b)
 
-- [ ] **B1** 🟡 L · **Granular per-element realtime ops.** Replace whole-project broadcast with project rooms + `element.create/move/update/delete` persisted individually (last-write-wins per element). Kills lost-edit conflicts. _Needs live 2-tab browser testing._
+- [x] **B1** ✅ L · **Granular per-element realtime ops.** Project rooms (`${type}:${name}`) + `element:create/move/update/delete` each persisted individually to Postgres (repository ops `insertElement`/`updateElementTransform`/`updateElementContent`/`deleteElement`) and broadcast to the room **except the sender** (last-write-wins per element) — via `collab.gateway.ts` on the backend and `collab.service.ts` + the canvas (`project-detail`) on the frontend, which emits on every move/resize/create/delete/content-edit and applies remote ops. **Fixed two real create-path bugs found while verifying:** (1) the client discarded the create ack, so a freshly-created element never learned its server `id` and its later move/edit/delete ops silently no-op'd until a reload — now the authoritative id is captured onto the local element; (2) create fired *both* a whole-project save and a granular insert → a duplicate row — the granular create now runs first so the following whole-project save reuses the captured id (single row). **Verified:** new `collab.gateway.test.ts` drives a 2-client (2-tab) create/move/update/delete round-trip asserting peer broadcast + Postgres persistence + broadcast-except-sender. Full suite **17 tests green**; `ng build` + backend typecheck clean. _Presence & cursors are B2._
 - [x] **B2** ✅ M · **Presence & cursors.** Presence avatars + live remote cursors wired end-to-end (collab room `presence:update`/`cursor:moved`), now **polished**: per-user album-accent color (hashed from username), an "N here" pill, and colored cursor labels. _Broader collab conflict-handling stays with B1 (deferred)._
 - [ ] **B3** 🟢 L · **Collaborative text (CRDT/Yjs)** for `Text_document` co-editing. Only after B1.
 

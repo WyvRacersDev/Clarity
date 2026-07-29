@@ -98,9 +98,23 @@ export class CollabService {
   // --- Emit local ops --------------------------------------------------------
   // Each guards on a joined room so single-user / SSR flows are unaffected.
 
-  emitCreate(gridId: string | undefined, element: any): void {
-    if (!this.isJoined || !gridId) return;
-    this.socketService.emitElementCreate(this.activeProjectName!, this.activeProjectType!, gridId, element);
+  /**
+   * Create an element granularly and resolve with the server's authoritative
+   * element (carrying its stable `id`), or null when no room is joined / the
+   * server rejects it. Callers set that id on their local element so its later
+   * move/edit/delete ops sync (and a following whole-project save reuses it,
+   * leaving a single row rather than a duplicate).
+   */
+  async emitCreate(gridId: string | undefined, element: any): Promise<any | null> {
+    if (!this.isBrowser || !this.isJoined || !gridId) return null;
+    try {
+      const ack = await firstValueFrom(
+        this.socketService.emitElementCreate(this.activeProjectName!, this.activeProjectType!, gridId, element)
+      );
+      return ack?.success ? ack.element ?? null : null;
+    } catch {
+      return null;
+    }
   }
 
   emitMove(elementId: string | undefined, x_pos: number, y_pos: number, x_scale: number, y_scale: number): void {
