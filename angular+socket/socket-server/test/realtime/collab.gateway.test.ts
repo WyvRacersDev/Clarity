@@ -24,6 +24,8 @@ import { io as ioClient, type Socket as ClientSocket } from "socket.io-client";
 import { sql } from "@src/infrastructure/db.js";
 import { socketAuth } from "@src/middleware/socketAuth.js";
 import { register as registerCollabGateway } from "@src/realtime/collab.gateway.js";
+import { CollabService } from "@src/services/collab.service.js";
+import { PresenceRegistry } from "@src/realtime/presence.registry.js";
 import type { GatewayDeps, Identity } from "@src/realtime/types.js";
 import { ProjectHandler } from "@services/project.service.js";
 import { UserHandler } from "@services/user.service.js";
@@ -89,6 +91,8 @@ beforeAll(async () => {
       project_handler,
       user_handler,
       storage: {} as any, // not touched by the collab gateway
+      collab: new CollabService(),
+      presence: new PresenceRegistry(),
       identity,
     };
     registerCollabGateway(io, socket, deps);
