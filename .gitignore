@@ -9,7 +9,6 @@ tokens.json
 key.env
 
 # Scratch / stray files (not source)
-.design-preview/
 # Finder/editor duplicate-copy artifacts ("foo 2.ts", "foo 2/", "foo 2")
 **/* 2.*
 **/* 2
