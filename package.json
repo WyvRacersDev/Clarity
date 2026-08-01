@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "dayjs": "^1.11.18",
-    "googleapis": "^164.1.0"
-  }
-}

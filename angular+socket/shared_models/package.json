@@ -1,0 +1,7 @@
+{
+  "name": "@clarity/shared-models",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Single source of truth for domain models shared between the Socket.IO backend (socket-server, via the @models/* tsconfig path -> ../shared_models/models/*) and the Angular frontend (chat-frontend, via relative imports to ../shared_models/models/*). Consumed directly as TypeScript source; intentionally NOT built or published, so both apps always compile the same files. The shared_models/dist folder is stale legacy output and is not consumed by either app."
+}

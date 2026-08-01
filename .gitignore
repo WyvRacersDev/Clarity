@@ -7,8 +7,6 @@ tokens.json
 .env
 *.env
 key.env
-package.json
-package-lock.json
 
 # Scratch / stray files (not source)
 .design-preview/
