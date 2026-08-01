@@ -10,8 +10,9 @@ key.env
 
 # Scratch / stray files (not source)
 .design-preview/
-# Finder/editor duplicate-copy artifacts ("foo 2.ts")
+# Finder/editor duplicate-copy artifacts ("foo 2.ts", "foo 2/", "foo 2")
 **/* 2.*
+**/* 2
 
 # Runtime data — Postgres is the source of truth; these dirs are
 # recreated by the server at startup (mkdirSync) and hold local
