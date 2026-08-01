@@ -2,6 +2,7 @@ import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, firstValueFrom } from 'rxjs';
 import { SocketService } from './socket.service';
+import { getServerConfig } from '../config/server.config';
 
 /**
  * ChatService — thin Angular wrapper over the Socket.IO chat contract.
@@ -23,6 +24,20 @@ import { SocketService } from './socket.service';
  */
 export type ProjectType = 'local' | 'hosted';
 
+/** An uploaded file carried by a message (E2). */
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/** A message's reactions for one emoji (E1). */
+export interface ReactionSet {
+  emoji: string;
+  users: string[];
+}
+
 /** A message row (mirrors the backend SerializedMessage). */
 export interface ChatMessage {
   id: string;
@@ -32,6 +47,8 @@ export interface ChatMessage {
   author: string;
   body: string;
   replyToId: string | null;
+  attachments: ChatAttachment[];
+  reactions: ReactionSet[];
   edited_at: string | null;
   created_at: string; // ISO 8601
 }
@@ -70,13 +87,88 @@ export class ChatService {
 
   // --- Send / edit / delete --------------------------------------------------
 
-  /** Post a message to a conversation. Resolves the created message or throws. */
-  async send(target: ChatTarget, body: string, replyToId?: string): Promise<ChatMessage> {
+  /**
+   * Post a message to a conversation. Resolves the created message or throws.
+   * A message may carry body text, `attachments`, or both (E2).
+   */
+  async send(
+    target: ChatTarget,
+    body: string,
+    opts?: { replyToId?: string; attachments?: ChatAttachment[] }
+  ): Promise<ChatMessage> {
     if (!this.isBrowser) throw new Error('Chat unavailable (SSR)');
-    const payload = { ...this.targetPayload(target), body, ...(replyToId ? { replyToId } : {}) };
+    const payload = {
+      ...this.targetPayload(target),
+      body,
+      ...(opts?.replyToId ? { replyToId: opts.replyToId } : {}),
+      ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}),
+    };
     const ack = await firstValueFrom(this.socket.chatSend(payload));
     if (ack?.success) return ack.message as ChatMessage;
     throw new Error(ack?.message || 'Failed to send message');
+  }
+
+  /**
+   * Toggle an emoji reaction on a message (E1). Resolves the message's full
+   * reaction set so the caller can apply it immediately (the broadcast that
+   * follows updates every other participant).
+   */
+  async react(target: ChatTarget, id: string, emoji: string): Promise<ReactionSet[]> {
+    if (!this.isBrowser) return [];
+    const ack = await firstValueFrom(
+      this.socket.chatReact({ ...this.targetPayload(target), id, emoji })
+    );
+    if (ack?.success) return (ack.reactions as ReactionSet[]) ?? [];
+    throw new Error(ack?.message || 'Failed to react');
+  }
+
+  /**
+   * Upload a file to a project channel and return its attachment descriptor (E2).
+   * Reuses the project asset upload path, so it needs a project context — DM
+   * attachments are a follow-up (no per-DM asset bucket exists yet).
+   */
+  async uploadAttachment(
+    projectName: string,
+    projectType: ProjectType,
+    file: File
+  ): Promise<ChatAttachment> {
+    if (!this.isBrowser) throw new Error('Upload unavailable (SSR)');
+    const dataUrl = await this.readAsDataUrl(file);
+    const kind: 'image' | 'video' = file.type.startsWith('video/') ? 'video' : 'image';
+    const ack = await firstValueFrom(
+      this.socket.uploadFile(projectName, projectType, file.name, dataUrl, kind)
+    );
+    if (!ack?.success || !ack.filePath) {
+      throw new Error(ack?.message || 'Failed to upload file');
+    }
+    return {
+      url: `${getServerConfig()}/projects/${ack.filePath}`,
+      name: file.name,
+      mime: file.type || 'application/octet-stream',
+      size: file.size,
+    };
+  }
+
+  private readAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Could not read the file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * Start a call: the backend mints ONE shared link (Google Meet, or a Jitsi
+   * room when the initiator has no Google account) and posts it into the
+   * conversation for everyone. Resolves the shared link so the caller can open
+   * it; the "Join call" card syncs to every other tab via the message stream.
+   */
+  async startCall(target: ChatTarget): Promise<{ link: string; provider: string }> {
+    if (!this.isBrowser) throw new Error('Chat unavailable (SSR)');
+    const ack = await firstValueFrom(this.socket.chatStartCall(this.targetPayload(target)));
+    if (ack?.success) return { link: ack.link as string, provider: ack.provider as string };
+    throw new Error(ack?.message || 'Failed to start call');
   }
 
   /** Edit your own message. Resolves the updated message or throws. */
@@ -176,6 +268,16 @@ export class ChatService {
     return new Observable<string>(observer => {
       const sub = this.socket.onChatMessageDeleted().subscribe((data: any) => {
         if (data?.id) observer.next(data.id as string);
+      });
+      return () => sub.unsubscribe();
+    });
+  }
+
+  /** A message's reactions changed (`{ id, reactions }`). */
+  onMessageReacted(): Observable<{ id: string; reactions: ReactionSet[] }> {
+    return new Observable<{ id: string; reactions: ReactionSet[] }>(observer => {
+      const sub = this.socket.onChatMessageReacted().subscribe((data: any) => {
+        if (data?.id) observer.next({ id: data.id, reactions: data.reactions ?? [] });
       });
       return () => sub.unsubscribe();
     });

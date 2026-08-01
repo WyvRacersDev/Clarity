@@ -18,9 +18,11 @@ import type { Server, Socket } from "socket.io";
 import type { GatewayDeps } from "./types.js";
 import {
   chatSendSchema,
+  chatReactSchema,
   chatHistorySchema,
   chatEditSchema,
   chatDeleteSchema,
+  chatCallSchema,
   chatTypingSchema,
   chatReadSchema,
   chatUnreadSchema,
@@ -30,6 +32,7 @@ import {
 import { clientError } from "../lib/clientError.js";
 import { parseMentions } from "../lib/mentions.js";
 import { userRoom } from "../services/notification.service.js";
+import { createSharedCallLink } from "../services/meet.service.js";
 
 type Ack = (response: any) => void;
 
@@ -130,11 +133,12 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
       }
       const author = currentUsername();
       const replyToId = p.replyToId ?? null;
+      const attachments = p.attachments ?? [];
 
       const message =
         target.kind === "project"
-          ? await chat.sendProjectMessage(target.projectId, author, p.body, replyToId)
-          : await chat.sendDmMessage(target.dmKey, author, p.body, replyToId);
+          ? await chat.sendProjectMessage(target.projectId, author, p.body, replyToId, attachments)
+          : await chat.sendDmMessage(target.dmKey, author, p.body, replyToId, attachments);
 
       emitToTarget(target, "chat:message", { message });
       // The sender has, by definition, seen their own message.
@@ -161,6 +165,47 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
     } catch (error: any) {
       console.error("[Chat] chat:send error:", error);
       ack?.({ success: false, message: clientError("send the message") });
+    }
+  });
+
+  // ─── Start call (mint one shared link, post it into the conversation) ──────
+  socket.on("chat:call:start", async (data: unknown, ack?: Ack) => {
+    const parsed = chatCallSchema.safeParse(data);
+    if (!parsed.success) {
+      ack?.({ success: false, message: formatZodError(parsed.error) });
+      return;
+    }
+    const p = parsed.data;
+    if (!identity().username) {
+      ack?.({ success: false, message: "You must be signed in to start a call" });
+      return;
+    }
+    try {
+      const target = await resolveTarget(p);
+      if (!target.ok) {
+        ack?.({ success: false, message: target.message });
+        return;
+      }
+      const author = currentUsername();
+      const label =
+        target.kind === "project" ? target.projectName : `${target.from} & ${target.to}`;
+
+      // One link for the whole conversation — Google Meet if the initiator has a
+      // connected Google account, otherwise a shared Jitsi room (never throws).
+      const call = await createSharedCallLink(identity().email, label);
+      const body = `📹 ${author} started a call — join here: ${call.url}`;
+
+      const message =
+        target.kind === "project"
+          ? await chat.sendProjectMessage(target.projectId, author, body, null)
+          : await chat.sendDmMessage(target.dmKey, author, body, null);
+
+      emitToTarget(target, "chat:message", { message });
+      await chat.markRead(author, target.conversationKey).catch(() => {});
+      ack?.({ success: true, link: call.url, provider: call.provider });
+    } catch (error: any) {
+      console.error("[Chat] chat:call:start error:", error);
+      ack?.({ success: false, message: clientError("start the call") });
     }
   });
 
@@ -249,6 +294,43 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
     } catch (error: any) {
       console.error("[Chat] chat:delete error:", error);
       ack?.({ success: false, message: clientError("delete the message") });
+    }
+  });
+
+  // ─── React (toggle an emoji reaction) ─────────────────────────────────────
+  socket.on("chat:react", async (data: unknown, ack?: Ack) => {
+    const parsed = chatReactSchema.safeParse(data);
+    if (!parsed.success) {
+      ack?.({ success: false, message: formatZodError(parsed.error) });
+      return;
+    }
+    const p = parsed.data;
+    if (!identity().username) {
+      ack?.({ success: false, message: "You must be signed in to react" });
+      return;
+    }
+    try {
+      const target = await resolveTarget(p);
+      if (!target.ok) {
+        ack?.({ success: false, message: target.message });
+        return;
+      }
+      // Constrain the reaction to the authorized conversation so a message id
+      // from another conversation can't be reacted to via this target.
+      const constraint =
+        target.kind === "project"
+          ? { projectId: target.projectId }
+          : { dmKey: target.dmKey };
+      const reactions = await chat.toggleReaction(p.id, p.emoji, currentUsername(), constraint);
+      if (reactions === null) {
+        ack?.({ success: false, message: "Message not found" });
+        return;
+      }
+      emitToTarget(target, "chat:message:reacted", { id: p.id, reactions });
+      ack?.({ success: true, id: p.id, reactions });
+    } catch (error: any) {
+      console.error("[Chat] chat:react error:", error);
+      ack?.({ success: false, message: clientError("react to the message") });
     }
   });
 

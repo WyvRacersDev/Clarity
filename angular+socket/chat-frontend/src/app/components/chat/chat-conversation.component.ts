@@ -13,7 +13,13 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { ChatMessage, ChatService, ChatTarget } from '../../services/chat.service';
+import {
+  ChatAttachment,
+  ChatMessage,
+  ChatService,
+  ChatTarget,
+  ReactionSet,
+} from '../../services/chat.service';
 import { AuthService } from '../../services/auth.service';
 
 /**
@@ -25,12 +31,32 @@ import { AuthService } from '../../services/auth.service';
  * active target. The sender also appends from the send ack (deduped by id) so a
  * message shows immediately even when this socket isn't in the project room.
  *
- * `meetEnabled` shows a "Start call" affordance that opens Google Meet in a new
- * tab and preps the composer to share the link (Meet has no embeddable/API-less
- * shared-room link, so the initiator pastes the link Meet assigns them).
+ * Beyond text it supports (E1) emoji reactions, (E2) image/video attachments on
+ * project channels, and (E3) @mention autocomplete + highlighting — mentions in
+ * a project channel notify the mentioned collaborator via the backend.
+ *
+ * `meetEnabled` shows a "Start call" affordance (E5): the backend mints ONE
+ * shared link — a real Google Meet room when the initiator has a connected
+ * Google account, otherwise a shared Jitsi room — and posts it into the
+ * conversation, so everyone who clicks "Join call" lands in the same room.
  */
 const URL_RE = /(https?:\/\/[^\s]+)/g;
+/** A shared call link (Google Meet or Jitsi) — rendered as a "Join call" card. */
+const CALL_RE = /(https?:\/\/(?:meet\.google\.com|meet\.jit\.si)\/[^\s]+)/i;
+// Mirror the backend's mention grammar (lib/mentions.ts) so highlighting and the
+// server's notification parsing agree on what counts as a mention.
+const MENTION_RE = /(^|[^\w@])@([a-zA-Z0-9._-]+)/g;
+// A trailing, still-being-typed mention at the caret (end of the draft).
+const MENTION_TRIGGER_RE = /(?:^|\s)@([a-zA-Z0-9._-]*)$/;
 const TYPING_THROTTLE_MS = 1500;
+const QUICK_EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '🙏'];
+
+/** A rendered fragment of a message body: plain text, a link, or a mention. */
+interface BodyPart {
+  text: string;
+  href?: string;
+  mention?: string;
+}
 
 @Component({
   selector: 'app-chat-conversation',
@@ -38,6 +64,21 @@ const TYPING_THROTTLE_MS = 1500;
   imports: [CommonModule, FormsModule],
   template: `
     <div class="conv">
+      @if (meetEnabled) {
+        <div class="call-bar">
+          <span class="call-bar-hint">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                 stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            Video call
+          </span>
+          <button class="start-call-btn" (click)="startCall()" [disabled]="startingCall()"
+                  title="Start a shared call for everyone in this conversation">
+            {{ startingCall() ? 'Starting…' : 'Start call' }}
+          </button>
+        </div>
+      }
       <div class="messages" #scroll>
         @if (loading()) {
           <div class="conv-empty">Loading…</div>
@@ -66,15 +107,70 @@ const TYPING_THROTTLE_MS = 1500;
                     <button class="btn btn-secondary btn-sm" (click)="cancelEdit()">Cancel</button>
                   </div>
                 } @else {
-                  <div class="msg-text">
-                    @for (part of parts(m.body); track $index) {
-                      @if (part.href) {
-                        <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
-                      } @else {
-                        <span>{{ part.text }}</span>
-                      }
+                  @if (callLink(m.body); as link) {
+                    <div class="call-card">
+                      <span class="call-card-icon" aria-hidden="true">📹</span>
+                      <div class="call-card-main">
+                        <span class="call-card-title">
+                          {{ isMine(m) ? 'You started a call' : m.author + ' started a call' }}
+                        </span>
+                        <a class="call-card-join" [href]="link" target="_blank" rel="noopener noreferrer">
+                          Join call
+                        </a>
+                      </div>
+                    </div>
+                  } @else {
+                    @if (m.body) {
+                      <div class="msg-text">
+                        @for (part of parts(m.body); track $index) {
+                          @if (part.href) {
+                            <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+                          } @else if (part.mention) {
+                            <span class="mention" [class.mention-me]="part.mention === me">{{ part.text }}</span>
+                          } @else {
+                            <span>{{ part.text }}</span>
+                          }
+                        }
+                      </div>
                     }
+                    @if (m.attachments.length) {
+                      <div class="attachments">
+                        @for (a of m.attachments; track a.url) {
+                          @if (isImage(a)) {
+                            <a [href]="a.url" target="_blank" rel="noopener noreferrer">
+                              <img class="att-img" [src]="a.url" [alt]="a.name" loading="lazy" />
+                            </a>
+                          } @else if (isVideo(a)) {
+                            <video class="att-video" [src]="a.url" controls preload="metadata"></video>
+                          } @else {
+                            <a class="att-file" [href]="a.url" target="_blank" rel="noopener noreferrer">
+                              <span class="att-icon">📎</span><span class="att-name">{{ a.name }}</span>
+                            </a>
+                          }
+                        }
+                      </div>
+                    }
+                  }
+
+                  <div class="reactions">
+                    @for (r of m.reactions; track r.emoji) {
+                      <button class="reaction-pill" [class.mine]="mine(r)"
+                              (click)="toggleReaction(m, r.emoji)" [title]="r.users.join(', ')">
+                        <span class="re-emoji">{{ r.emoji }}</span><span class="re-count">{{ r.users.length }}</span>
+                      </button>
+                    }
+                    <div class="react-add-wrap">
+                      <button class="reaction-add" (click)="togglePicker(m)" aria-label="Add reaction">☺</button>
+                      @if (reactionPickerFor() === m.id) {
+                        <div class="emoji-picker">
+                          @for (e of quickEmoji; track e) {
+                            <button class="emoji-opt" (click)="pickReaction(m, e)">{{ e }}</button>
+                          }
+                        </div>
+                      }
+                    </div>
                   </div>
+
                   @if (isMine(m)) {
                     <div class="msg-actions">
                       <button class="link-btn" (click)="startEdit(m)">Edit</button>
@@ -94,27 +190,57 @@ const TYPING_THROTTLE_MS = 1500;
       @if (error()) {
         <div class="conv-error">{{ error() }}</div>
       }
-      @if (meetHint()) {
-        <div class="meet-hint">
-          Meet opened in a new tab — paste the link it gives you here and send, so
-          everyone joins the same call.
-        </div>
-      }
 
-      <div class="composer">
-        @if (meetEnabled) {
-          <button class="icon-btn" (click)="startCall()" title="Start a Google Meet call" aria-label="Start call">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 7l-7 5 7 5V7z"></path>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-            </svg>
-          </button>
+      <div class="composer-wrap">
+        @if (mentionOpen() && mentionCandidates().length) {
+          <div class="mention-menu">
+            @for (u of mentionCandidates(); track u) {
+              <button class="mention-item" (click)="pickMention(u)">
+                <span class="mention-dot" [style.background]="colorFor(u)"></span>{{ '@' + u }}
+              </button>
+            }
+          </div>
         }
-        <input #composer class="input composer-input" [(ngModel)]="draft"
-               (ngModelChange)="onDraftChange()" (keydown.enter)="send()"
-               [placeholder]="placeholder" aria-label="Message" />
-        <button class="btn btn-primary btn-sm" (click)="send()" [disabled]="!draft().trim()">Send</button>
+
+        @if (pendingAttachments().length || uploading()) {
+          <div class="pending">
+            @for (a of pendingAttachments(); track a.url) {
+              <span class="pending-chip">
+                <span class="att-icon">📎</span>{{ a.name }}
+                <button class="pending-x" (click)="removePending(a)" aria-label="Remove attachment">×</button>
+              </span>
+            }
+            @if (uploading()) { <span class="pending-hint">Uploading…</span> }
+          </div>
+        }
+
+        <div class="composer">
+          @if (meetEnabled) {
+            <button class="call-btn" (click)="startCall()" [disabled]="startingCall()"
+                    title="Start a shared call for everyone in this conversation" aria-label="Start call">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 7l-7 5 7 5V7z"></path>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+              </svg>
+              <span>Call</span>
+            </button>
+          }
+          @if (canAttach) {
+            <button class="icon-btn" (click)="fileInput.click()" title="Attach an image or video" aria-label="Attach">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+              </svg>
+            </button>
+            <input #fileInput type="file" accept="image/*,video/*" hidden
+                   (change)="onFilePicked($event)" />
+          }
+          <input #composer class="input composer-input" [(ngModel)]="draft"
+                 (ngModelChange)="onDraftChange()" (keydown.enter)="send()"
+                 (keydown.escape)="closeMention()" [placeholder]="placeholder" aria-label="Message" />
+          <button class="btn btn-primary btn-sm" (click)="send()" [disabled]="!canSend()">Send</button>
+        </div>
       </div>
     </div>
   `,
@@ -129,7 +255,7 @@ const TYPING_THROTTLE_MS = 1500;
     .msg.mine { flex-direction:row-reverse; }
     .msg-avatar { flex:0 0 auto; width:32px; height:32px; border-radius:var(--radius-full);
       display:grid; place-items:center; color:#fff; font-size:12px; font-weight:700; }
-    .msg-body { max-width:78%; display:flex; flex-direction:column; gap:2px; }
+    .msg-body { max-width:78%; display:flex; flex-direction:column; gap:4px; }
     .msg.mine .msg-body { align-items:flex-end; }
     .msg-meta { display:flex; gap:6px; align-items:baseline; font-size:11px; color:var(--text-muted); }
     .msg-author { font-weight:600; color:var(--text-secondary); }
@@ -138,6 +264,37 @@ const TYPING_THROTTLE_MS = 1500;
       border-radius:var(--radius-lg); font-size:var(--text-sm); line-height:1.45; word-break:break-word; white-space:pre-wrap; }
     .msg.mine .msg-text { background:var(--accent-primary); color:var(--accent-fg, #fff); }
     .msg-text a { color:inherit; text-decoration:underline; }
+    .mention { font-weight:600; color:var(--accent-primary); }
+    .msg.mine .mention { color:var(--accent-fg, #fff); text-decoration:underline; }
+    .mention-me { background:rgba(255,214,10,.22); border-radius:4px; padding:0 3px; }
+    .attachments { display:flex; flex-wrap:wrap; gap:6px; }
+    .att-img { max-width:220px; max-height:200px; border-radius:var(--radius-md); display:block; }
+    .att-video { max-width:260px; max-height:220px; border-radius:var(--radius-md); background:#000; }
+    .att-file { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:var(--radius-md);
+      background:var(--surface-2); border:1px solid var(--border); color:var(--text-secondary);
+      font-size:var(--text-sm); text-decoration:none; max-width:220px; }
+    .att-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .reactions { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+    .msg.mine .reactions { flex-direction:row-reverse; }
+    .reaction-pill { display:inline-flex; align-items:center; gap:4px; padding:1px 7px; border-radius:var(--radius-full);
+      border:1px solid var(--border); background:var(--surface-2); color:var(--text-secondary);
+      font-size:12px; line-height:1.6; cursor:pointer; }
+    .reaction-pill:hover { border-color:var(--accent-primary); }
+    .reaction-pill.mine { background:var(--accent-primary-soft, rgba(99,102,241,.15));
+      border-color:var(--accent-primary); color:var(--accent-primary); }
+    .re-count { font-weight:600; font-size:11px; }
+    .react-add-wrap { position:relative; }
+    .reaction-add { width:22px; height:22px; border-radius:var(--radius-full); border:1px solid var(--border);
+      background:var(--surface-2); color:var(--text-muted); cursor:pointer; font-size:13px; line-height:1;
+      opacity:0; transition:opacity .12s; }
+    .msg:hover .reaction-add { opacity:1; }
+    .reaction-add:hover { color:var(--accent-primary); border-color:var(--accent-primary); }
+    .emoji-picker { position:absolute; bottom:26px; left:0; z-index:20; display:flex; gap:2px; padding:4px;
+      background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius-md);
+      box-shadow:var(--shadow-md, 0 6px 20px rgba(0,0,0,.18)); }
+    .msg.mine .emoji-picker { left:auto; right:0; }
+    .emoji-opt { border:none; background:none; cursor:pointer; font-size:17px; padding:2px 4px; border-radius:6px; }
+    .emoji-opt:hover { background:var(--surface-2); }
     .msg-actions { display:flex; gap:8px; opacity:0; transition:opacity .12s; }
     .msg:hover .msg-actions { opacity:1; }
     .link-btn { background:none; border:none; padding:0; font-size:11px; color:var(--text-muted); cursor:pointer; }
@@ -146,10 +303,31 @@ const TYPING_THROTTLE_MS = 1500;
     .edit-row { display:flex; gap:6px; align-items:center; }
     .typing { padding:2px var(--space-4); font-size:11px; color:var(--text-muted); font-style:italic; }
     .conv-error { padding:6px var(--space-4); font-size:var(--text-sm); color:var(--accent-error, #e5484d); }
-    .meet-hint { padding:8px var(--space-4); font-size:12px; color:var(--text-secondary);
-      background:var(--surface-2); border-top:1px solid var(--border); }
-    .composer { display:flex; gap:8px; align-items:center; padding:var(--space-3) var(--space-4);
-      border-top:1px solid var(--border); background:var(--surface-1); }
+    .call-card { display:flex; align-items:center; gap:10px; padding:10px 12px;
+      border-radius:var(--radius-lg); border:1px solid var(--accent-primary);
+      background:var(--surface-2); }
+    .call-card-icon { font-size:18px; line-height:1; }
+    .call-card-main { display:flex; flex-direction:column; gap:2px; }
+    .call-card-title { font-size:var(--text-sm); font-weight:600; color:var(--text-primary); }
+    .call-card-join { align-self:flex-start; margin-top:2px; padding:4px 12px; border-radius:var(--radius-md);
+      background:var(--accent-primary); color:var(--accent-fg, #fff); font-size:12px; font-weight:600;
+      text-decoration:none; }
+    .call-card-join:hover { background:var(--accent-primary-hover, var(--accent-primary)); }
+    .composer-wrap { position:relative; border-top:1px solid var(--border); background:var(--surface-1); }
+    .mention-menu { position:absolute; bottom:100%; left:var(--space-4); right:var(--space-4); z-index:30;
+      max-height:180px; overflow-y:auto; margin-bottom:6px; padding:4px; background:var(--surface-1);
+      border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-md, 0 6px 20px rgba(0,0,0,.18)); }
+    .mention-item { display:flex; align-items:center; gap:8px; width:100%; padding:6px 10px; border:none; background:none;
+      color:var(--text-primary); font-size:var(--text-sm); text-align:left; cursor:pointer; border-radius:6px; }
+    .mention-item:hover { background:var(--surface-2); }
+    .mention-dot { width:16px; height:16px; border-radius:var(--radius-full); flex:0 0 auto; }
+    .pending { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px var(--space-4) 0; }
+    .pending-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:var(--radius-md);
+      background:var(--surface-2); border:1px solid var(--border); font-size:12px; color:var(--text-secondary); }
+    .pending-x { border:none; background:none; cursor:pointer; color:var(--text-muted); font-size:14px; line-height:1; }
+    .pending-x:hover { color:var(--accent-error, #e5484d); }
+    .pending-hint { font-size:12px; color:var(--text-muted); font-style:italic; }
+    .composer { display:flex; gap:8px; align-items:center; padding:var(--space-3) var(--space-4); }
     .composer-input { flex:1; }
     .input { background:var(--bg-input, var(--surface-2)); border:1px solid var(--border);
       border-radius:var(--radius-md); padding:8px 12px; font-size:var(--text-sm); color:var(--text-primary); }
@@ -157,6 +335,19 @@ const TYPING_THROTTLE_MS = 1500;
     .icon-btn { display:grid; place-items:center; width:34px; height:34px; border-radius:var(--radius-md);
       border:1px solid var(--border); background:var(--surface-2); color:var(--text-secondary); cursor:pointer; }
     .icon-btn:hover { color:var(--accent-primary); border-color:var(--accent-primary); }
+    .call-bar { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+      gap:var(--space-3); padding:8px var(--space-4); border-bottom:1px solid var(--border);
+      background:var(--surface-1); }
+    .call-bar-hint { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); }
+    .start-call-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
+      border-radius:var(--radius-md); border:none; cursor:pointer; font-size:var(--text-sm); font-weight:600;
+      background:var(--accent-primary); color:var(--accent-fg, #fff); }
+    .start-call-btn:hover { background:var(--accent-primary-hover, var(--accent-primary)); }
+    .start-call-btn:disabled, .call-btn:disabled { opacity:.6; cursor:default; }
+    .call-btn { display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 12px;
+      border-radius:var(--radius-md); border:1px solid var(--accent-primary); background:var(--surface-2);
+      color:var(--accent-primary); cursor:pointer; font-size:var(--text-sm); font-weight:600; white-space:nowrap; }
+    .call-btn:hover { background:var(--accent-primary); color:var(--accent-fg, #fff); }
   `],
 })
 export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
@@ -176,15 +367,33 @@ export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly typingFrom = signal<string | null>(null);
-  readonly meetHint = signal(false);
 
-  private me = '';
+  // E5 — shared call minting in flight.
+  readonly startingCall = signal(false);
+
+  // E1 — which message's quick-reaction picker is open.
+  readonly reactionPickerFor = signal<string | null>(null);
+  readonly quickEmoji = QUICK_EMOJI;
+
+  // E2 — attachments staged for the next send.
+  readonly pendingAttachments = signal<ChatAttachment[]>([]);
+  readonly uploading = signal(false);
+
+  // E3 — @mention autocomplete state.
+  readonly mentionOpen = signal(false);
+  private readonly mentionQuery = signal('');
+
+  me = '';
   private subs: Subscription[] = [];
   private lastTypingSent = 0;
-  private typingTimer: any = null;
 
   get placeholder(): string {
     return this.target?.scope === 'project' ? 'Message the team…' : 'Write a message…';
+  }
+
+  /** Attachments upload through the project asset path, so DMs can't attach yet. */
+  get canAttach(): boolean {
+    return this.target?.scope === 'project';
   }
 
   ngOnInit(): void {
@@ -202,6 +411,9 @@ export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
       }),
       this.chat.onMessageDeleted().subscribe((id) => {
         this.messages.update((list) => list.filter((x) => x.id !== id));
+      }),
+      this.chat.onMessageReacted().subscribe(({ id, reactions }) => {
+        this.applyReactions(id, reactions);
       }),
       this.chat.onTyping().subscribe((t) => {
         if (this.typingBelongs(t) && t.from !== this.me) {
@@ -225,7 +437,9 @@ export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
   private async reload(): Promise<void> {
     this.editingId.set(null);
     this.error.set(null);
-    this.meetHint.set(false);
+    this.reactionPickerFor.set(null);
+    this.pendingAttachments.set([]);
+    this.closeMention();
     this.loading.set(true);
     try {
       const history = await this.chat.history(this.target);
@@ -239,19 +453,28 @@ export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  /** Can we send? Either some text or at least one uploaded attachment. */
+  canSend(): boolean {
+    return (!!this.draft().trim() || this.pendingAttachments().length > 0) && !this.uploading();
+  }
+
   async send(): Promise<void> {
     const body = this.draft().trim();
-    if (!body) return;
+    const attachments = this.pendingAttachments();
+    if (!body && attachments.length === 0) return;
+    if (this.uploading()) return;
     this.draft.set('');
-    this.meetHint.set(false);
+    this.pendingAttachments.set([]);
+    this.closeMention();
     this.error.set(null);
     try {
-      const msg = await this.chat.send(this.target, body);
+      const msg = await this.chat.send(this.target, body, { attachments });
       this.upsert(msg);
       this.scrollToBottom();
     } catch (e: any) {
       this.error.set(e?.message || 'Failed to send');
       this.draft.set(body); // restore so the user doesn't lose their text
+      this.pendingAttachments.set(attachments);
     }
   }
 
@@ -291,16 +514,150 @@ export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
       this.lastTypingSent = now;
       this.chat.typing(this.target);
     }
+    this.updateMentionState();
   }
 
-  /** Open Google Meet in a new tab and prep the composer to share the link. */
-  startCall(): void {
-    if (typeof window !== 'undefined') {
-      window.open('https://meet.google.com/new', '_blank', 'noopener');
+  // --- Calls (E5) ------------------------------------------------------------
+
+  /**
+   * Start a call: ask the backend to mint one shared link, post it to the
+   * conversation (a "Join call" card appears for everyone), then open it here.
+   */
+  async startCall(): Promise<void> {
+    if (this.startingCall()) return;
+    this.startingCall.set(true);
+    this.error.set(null);
+    try {
+      const { link } = await this.chat.startCall(this.target);
+      if (typeof window !== 'undefined') window.open(link, '_blank', 'noopener');
+    } catch (e: any) {
+      this.error.set(e?.message || 'Failed to start call');
+    } finally {
+      this.startingCall.set(false);
     }
-    this.meetHint.set(true);
-    this.draft.set('📹 Join our call: ');
+  }
+
+  /** The shared call URL in a message body (Meet or Jitsi), or null if none. */
+  callLink(body: string): string | null {
+    const m = body.match(CALL_RE);
+    return m ? m[0] : null;
+  }
+
+  // --- Reactions (E1) --------------------------------------------------------
+
+  togglePicker(m: ChatMessage): void {
+    this.reactionPickerFor.update((cur) => (cur === m.id ? null : m.id));
+  }
+
+  pickReaction(m: ChatMessage, emoji: string): void {
+    this.reactionPickerFor.set(null);
+    this.toggleReaction(m, emoji);
+  }
+
+  async toggleReaction(m: ChatMessage, emoji: string): Promise<void> {
+    try {
+      const reactions = await this.chat.react(this.target, m.id, emoji);
+      this.applyReactions(m.id, reactions);
+    } catch (e: any) {
+      this.error.set(e?.message || 'Failed to react');
+    }
+  }
+
+  /** True when the current user is among a reaction's users. */
+  mine(r: ReactionSet): boolean {
+    return r.users.includes(this.me);
+  }
+
+  private applyReactions(id: string, reactions: ReactionSet[]): void {
+    this.messages.update((list) => {
+      const i = list.findIndex((x) => x.id === id);
+      if (i < 0) return list;
+      const next = list.slice();
+      next[i] = { ...next[i], reactions };
+      return next;
+    });
+  }
+
+  // --- Attachments (E2) ------------------------------------------------------
+
+  async onFilePicked(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // allow re-picking the same file
+    if (!file || this.target.scope !== 'project') return;
+    this.error.set(null);
+    this.uploading.set(true);
+    try {
+      const attachment = await this.chat.uploadAttachment(
+        this.target.projectName,
+        this.target.projectType,
+        file
+      );
+      this.pendingAttachments.update((list) => [...list, attachment]);
+      setTimeout(() => this.composerEl?.nativeElement.focus(), 0);
+    } catch (e: any) {
+      this.error.set(e?.message || 'Failed to upload file');
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  removePending(a: ChatAttachment): void {
+    this.pendingAttachments.update((list) => list.filter((x) => x.url !== a.url));
+  }
+
+  isImage(a: ChatAttachment): boolean {
+    return a.mime.startsWith('image/');
+  }
+
+  isVideo(a: ChatAttachment): boolean {
+    return a.mime.startsWith('video/');
+  }
+
+  // --- Mentions (E3) ---------------------------------------------------------
+
+  /** Detect a trailing `@query` at the caret and open/close the mention menu. */
+  private updateMentionState(): void {
+    const match = this.draft().match(MENTION_TRIGGER_RE);
+    if (match) {
+      this.mentionQuery.set((match[1] ?? '').toLowerCase());
+      this.mentionOpen.set(true);
+    } else {
+      this.closeMention();
+    }
+  }
+
+  /**
+   * Mention candidates: everyone who has posted in this conversation (plus the
+   * DM partner), minus me, filtered by the trailing query. Derived from loaded
+   * history so it needs no extra round-trip.
+   */
+  mentionCandidates(): string[] {
+    const q = this.mentionQuery();
+    const names = new Set<string>();
+    for (const m of this.messages()) {
+      if (m.author && m.author !== this.me) names.add(m.author);
+    }
+    if (this.target.scope === 'dm' && this.target.to) names.add(this.target.to);
+    return Array.from(names)
+      .filter((n) => n.toLowerCase().startsWith(q))
+      .slice(0, 6);
+  }
+
+  pickMention(username: string): void {
+    const next = this.draft().replace(MENTION_TRIGGER_RE, (whole) => {
+      // Preserve the leading whitespace the trigger may have matched.
+      const lead = whole.startsWith('@') ? '' : whole.charAt(0);
+      return `${lead}@${username} `;
+    });
+    this.draft.set(next);
+    this.closeMention();
     setTimeout(() => this.composerEl?.nativeElement.focus(), 0);
+  }
+
+  closeMention(): void {
+    this.mentionOpen.set(false);
+    this.mentionQuery.set('');
   }
 
   // --- Helpers ---------------------------------------------------------------
@@ -309,19 +666,36 @@ export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
     return m.author === this.me;
   }
 
-  /** Split a body into plain-text and URL parts for safe linkified rendering. */
-  parts(body: string): Array<{ text: string; href?: string }> {
-    const out: Array<{ text: string; href?: string }> = [];
+  /** Split a body into text / link / mention parts for safe rendering. */
+  parts(body: string): BodyPart[] {
+    const out: BodyPart[] = [];
     let last = 0;
     for (const match of body.matchAll(URL_RE)) {
       const url = match[0];
       const idx = match.index ?? 0;
-      if (idx > last) out.push({ text: body.slice(last, idx) });
+      if (idx > last) out.push(...this.splitMentions(body.slice(last, idx)));
       out.push({ text: url, href: url });
       last = idx + url.length;
     }
-    if (last < body.length) out.push({ text: body.slice(last) });
+    if (last < body.length) out.push(...this.splitMentions(body.slice(last)));
     return out.length ? out : [{ text: body }];
+  }
+
+  /** Break a plain-text run into text + mention parts. */
+  private splitMentions(text: string): BodyPart[] {
+    const out: BodyPart[] = [];
+    let last = 0;
+    for (const match of text.matchAll(MENTION_RE)) {
+      const lead = match[1] ?? '';
+      const name = match[2] ?? '';
+      const idx = match.index ?? 0;
+      const mentionStart = idx + lead.length;
+      if (mentionStart > last) out.push({ text: text.slice(last, mentionStart) });
+      out.push({ text: `@${name}`, mention: name });
+      last = mentionStart + 1 + name.length;
+    }
+    if (last < text.length) out.push({ text: text.slice(last) });
+    return out.length ? out : [{ text }];
   }
 
   initial(name: string): string {
@@ -360,7 +734,9 @@ export class ChatConversationComponent implements OnInit, OnChanges, OnDestroy {
       const i = list.findIndex((x) => x.id === m.id);
       if (i >= 0) {
         const next = list.slice();
-        next[i] = m;
+        // Preserve any reactions already applied locally if the incoming copy
+        // (e.g. a send ack) carries none yet.
+        next[i] = { ...m, reactions: m.reactions?.length ? m.reactions : next[i].reactions };
         return next;
       }
       return [...list, m].sort((a, b) => a.created_at.localeCompare(b.created_at));

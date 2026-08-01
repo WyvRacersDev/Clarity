@@ -25,7 +25,7 @@ import { ChatConversationComponent } from './chat-conversation.component';
         @if (target(); as t) {
           <div class="pane-head">{{ t.scope === 'dm' ? t.to : (t.projectName + ' · team') }}</div>
           <div class="pane-body">
-            <app-chat-conversation [target]="t" [meetEnabled]="t.scope === 'project'" />
+            <app-chat-conversation [target]="t" [meetEnabled]="true" />
           </div>
         } @else {
           <div class="pane-empty">

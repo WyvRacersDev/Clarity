@@ -37,7 +37,7 @@ import { ChatConversationComponent } from './chat-conversation.component';
 
         <div class="panel-body">
           @if (chatUi.activeTarget(); as target) {
-            <app-chat-conversation [target]="target" [meetEnabled]="target.scope === 'project'" />
+            <app-chat-conversation [target]="target" [meetEnabled]="true" />
           } @else {
             <app-chat-list (select)="open($event)" />
           }

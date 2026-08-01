@@ -4,6 +4,13 @@ import { io, Socket } from 'socket.io-client';
 import { Observable } from 'rxjs';
 import { Screen_Element } from '../../../../shared_models/models/screen-elements.model';
 import { getServerConfig } from '../config/server.config';
+import { validate } from '../schemas/validate';
+import {
+  INBOUND_SCHEMAS,
+  elementUpdateSchema,
+  taskUpdateSchema,
+  userActivitySchema,
+} from '../schemas/socket-schemas';
 
 @Injectable({
   providedIn: 'root'
@@ -136,7 +143,8 @@ export class SocketService {
         return;
       }
       this.socket!.on('elementUpdate', (data) => {
-        observer.next(data);
+        const result = validate(elementUpdateSchema, data, 'elementUpdate');
+        if (result.ok) observer.next(result.data);
       });
     });
   }
@@ -161,7 +169,8 @@ export class SocketService {
         return;
       }
       this.socket!.on('userActivity', (data) => {
-        observer.next(data);
+        const result = validate(userActivitySchema, data, 'userActivity');
+        if (result.ok) observer.next(result.data);
       });
     });
   }
@@ -180,7 +189,8 @@ export class SocketService {
         return;
       }
       this.socket!.on('taskUpdate', (data) => {
-        observer.next(data);
+        const result = validate(taskUpdateSchema, data, 'taskUpdate');
+        if (result.ok) observer.next(result.data);
       });
     });
   }
@@ -737,7 +747,20 @@ export class SocketService {
         observer.complete();
         return;
       }
-      const handler = (data: any) => observer.next(data);
+      // Runtime boundary: if this event has a registered schema, validate the
+      // (untrusted, peer-originated) payload and drop it on mismatch instead of
+      // forwarding malformed data into component state. Unregistered events pass
+      // through unchanged.
+      const schema = INBOUND_SCHEMAS[eventName];
+      const handler = (data: any) => {
+        if (schema) {
+          const result = validate(schema, data, eventName);
+          if (!result.ok) return;
+          observer.next(result.data);
+          return;
+        }
+        observer.next(data);
+      };
       this.socket!.on(eventName, handler);
       return () => {
         if (this.isSocketAvailable()) {
@@ -929,6 +952,14 @@ export class SocketService {
   chatDelete(payload: any): Observable<any> {
     return this.ackEmit('chat:delete', payload, 'Delete message');
   }
+  /** Toggle an emoji reaction on a message. Resolves `{ success, id, reactions }`. */
+  chatReact(payload: any): Observable<any> {
+    return this.ackEmit('chat:react', payload, 'React to message');
+  }
+  /** Mint a shared call link + post it to the conversation. Resolves `{ success, link, provider }`. */
+  chatStartCall(payload: any): Observable<any> {
+    return this.ackEmit('chat:call:start', payload, 'Start call');
+  }
   /** Mark a conversation read up to now. Resolves `{ success }`. */
   chatRead(payload: any): Observable<any> {
     return this.ackEmit('chat:read', payload, 'Mark read');
@@ -953,6 +984,8 @@ export class SocketService {
   onChatMessageUpdated(): Observable<any> { return this.onEvent('chat:message:updated'); }
   /** `{ id }` — a message was deleted. */
   onChatMessageDeleted(): Observable<any> { return this.onEvent('chat:message:deleted'); }
+  /** `{ id, reactions }` — a message's reactions changed. */
+  onChatMessageReacted(): Observable<any> { return this.onEvent('chat:message:reacted'); }
   /** `{ scope, from, conversationKey }` — someone is typing. */
   onChatTyping(): Observable<any> { return this.onEvent('chat:typing'); }
 

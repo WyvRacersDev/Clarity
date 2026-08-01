@@ -303,12 +303,38 @@ const chatTargetShape = {
   to: z.string().optional(),
 };
 
-/** chat:send — post a message to a project channel or a DM. */
+/** One uploaded file attached to a message (E2). */
+export const chatAttachmentSchema = z.object({
+  url: z.string().min(1),
+  name: z.string().min(1),
+  mime: z.string().min(1),
+  size: z.number().int().nonnegative(),
+});
+
+/**
+ * chat:send — post a message to a project channel or a DM. A message must carry
+ * either non-empty body text or at least one attachment (E2), so an image can be
+ * sent with no caption while empty sends are still rejected.
+ */
 export const chatSendSchema = z
   .object({
     ...chatTargetShape,
-    body: z.string().min(1),
+    body: z.string().max(10000).default(""),
     replyToId: z.string().optional(),
+    attachments: z.array(chatAttachmentSchema).max(10).optional(),
+  })
+  .passthrough()
+  .refine((d) => d.body.trim().length > 0 || (d.attachments?.length ?? 0) > 0, {
+    message: "Message must have text or an attachment",
+    path: ["body"],
+  });
+
+/** chat:react — toggle an emoji reaction on a message (E1). */
+export const chatReactSchema = z
+  .object({
+    ...chatTargetShape,
+    id: z.string(),
+    emoji: z.string().min(1).max(32),
   })
   .passthrough();
 
@@ -334,6 +360,9 @@ export const chatEditSchema = z
 export const chatDeleteSchema = z
   .object({ ...chatTargetShape, id: z.string() })
   .passthrough();
+
+/** chat:call:start — mint a shared call link and post it into the conversation. */
+export const chatCallSchema = z.object({ ...chatTargetShape }).passthrough();
 
 /** chat:typing — high-frequency, fire-and-forget typing indicator. */
 export const chatTypingSchema = z.object({ ...chatTargetShape }).passthrough();
