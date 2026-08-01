@@ -1,0 +1,81 @@
+<section class="kanban">
+  <header class="kanban-head">
+    <div class="kanban-title">
+      <h1>Board</h1>
+      <span class="kanban-count">{{ totalTasks() }} tasks</span>
+      @if (saving) {
+        <span class="kanban-saving">Saving…</span>
+      }
+    </div>
+
+    <div class="kanban-filter">
+      <label class="field-label" for="kanban-project">Project</label>
+      <select
+        id="kanban-project"
+        class="select"
+        [value]="activeProject"
+        (change)="setProject($any($event.target).value)"
+      >
+        <option value="all">All projects</option>
+        @for (name of projectNames; track name) {
+          <option [value]="name">{{ name }}</option>
+        }
+      </select>
+    </div>
+  </header>
+
+  @if (isLoading) {
+    <div class="kanban-empty panel">Loading your board…</div>
+  } @else if (totalTasks() === 0) {
+    <div class="kanban-empty panel">
+      <p>No tasks yet.</p>
+      <span>Add tasks to a ToDo list on any project canvas — they'll appear here.</span>
+    </div>
+  } @else {
+    <div class="kanban-columns" cdkDropListGroup>
+      @for (col of columns; track trackColumn($index, col)) {
+        <div class="kanban-col">
+          <div class="kanban-col-head" [attr.data-status]="col.key">
+            <span class="kanban-col-title">{{ col.title }}</span>
+            <span class="kanban-col-count">{{ col.cards.length }}</span>
+          </div>
+
+          <div
+            class="kanban-col-body"
+            cdkDropList
+            [id]="dropListIdFor(col.key)"
+            [cdkDropListData]="col.cards"
+            (cdkDropListDropped)="drop($event, col.key)"
+          >
+            @for (card of col.cards; track trackCard($index, card)) {
+              <article class="kanban-card card" cdkDrag>
+                <div class="kanban-card-drag-placeholder" *cdkDragPlaceholder></div>
+                <div class="kanban-card-top">
+                  <span class="badge" [class]="priorityBadgeClass(card.task.priority)">
+                    {{ priorityLabel(card.task.priority) }}
+                  </span>
+                  @if (isOverdue(card)) {
+                    <span class="badge badge-danger kanban-overdue">Overdue</span>
+                  }
+                </div>
+                <p class="kanban-card-name">{{ card.task.taskname }}</p>
+                <div class="kanban-card-meta">
+                  <span class="kanban-card-project">{{ card.list.projectName }}</span>
+                  @if (hasDue(card)) {
+                    <span class="kanban-card-due" [class.is-overdue]="isOverdue(card)">
+                      {{ dueLabel(card) }}
+                    </span>
+                  }
+                </div>
+              </article>
+            }
+
+            @if (col.cards.length === 0) {
+              <div class="kanban-col-empty">Drop tasks here</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</section>

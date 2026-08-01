@@ -1,0 +1,117 @@
+<section class="timeline">
+  <header class="timeline-head">
+    <div class="timeline-title">
+      <h1>Timeline</h1>
+      <span class="timeline-sub">Task lists by schedule, with dependencies</span>
+    </div>
+
+    <div class="timeline-filter">
+      <label class="field-label" for="timeline-project">Project</label>
+      <select
+        id="timeline-project"
+        class="select"
+        [value]="activeProject"
+        (change)="setProject($any($event.target).value)"
+      >
+        <option value="all">All projects</option>
+        @for (name of projectNames; track name) {
+          <option [value]="name">{{ name }}</option>
+        }
+      </select>
+    </div>
+  </header>
+
+  @if (unscheduledCount > 0) {
+    <p class="timeline-note">
+      {{ unscheduledCount }} list(s) hidden — they have no tasks with a due time to place on the timeline.
+    </p>
+  }
+
+  @if (isLoading) {
+    <div class="timeline-empty panel">Loading your timeline…</div>
+  } @else if (rows.length === 0) {
+    <div class="timeline-empty panel">
+      <p>Nothing to schedule yet.</p>
+      <span>Give tasks a due time on a ToDo list and they'll appear here as bars.</span>
+    </div>
+  } @else {
+    <div class="gantt card">
+      <!-- Legend -->
+      <div class="gantt-legend">
+        <span class="legend-item"><span class="legend-swatch bar"></span> Task list</span>
+        <span class="legend-item"><span class="legend-swatch link"></span> Depends on</span>
+        <span class="legend-item"><span class="legend-swatch link blocked"></span> Blocked (predecessor open)</span>
+      </div>
+
+      <div class="gantt-scroll">
+        <div class="gantt-content" [style.width.px]="labelWidth + chartWidth">
+          <!-- Ruler -->
+          <div class="gantt-ruler" [style.height.px]="rulerHeight">
+            <div class="gantt-ruler-label" [style.width.px]="labelWidth">Task list</div>
+            <div class="gantt-ruler-track" [style.width.px]="chartWidth">
+              @for (tick of ticks; track trackTick($index, tick)) {
+                <span class="gantt-tick" [class.major]="tick.major" [style.left.px]="tick.left">
+                  {{ tick.label }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <!-- Rows + bars + dependency overlay -->
+          <div class="gantt-rows" [style.height.px]="rowsHeight">
+            @for (row of rows; track trackRow($index, row); let i = $index) {
+              <div class="gantt-row" [style.height.px]="rowHeight" [style.top.px]="rowTop(i)">
+                <div class="gantt-row-label" [style.width.px]="labelWidth">
+                  <span class="gantt-row-name">{{ row.name }}</span>
+                  <span class="gantt-row-project">{{ row.projectName }} · {{ rangeLabel(row) }}</span>
+                </div>
+                <div class="gantt-row-track" [style.width.px]="chartWidth">
+                  <div
+                    class="gantt-bar"
+                    [class.is-complete]="row.complete"
+                    [style.left.px]="row.left"
+                    [style.width.px]="row.width"
+                    [title]="row.name + ' — ' + rangeLabel(row) + ' (' + row.done + '/' + row.total + ' done)'"
+                  >
+                    <span class="gantt-bar-fill" [style.width.%]="progressPct(row)"></span>
+                    <span class="gantt-bar-label">{{ row.done }}/{{ row.total }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+
+            @if (todayLeft !== null) {
+              <div class="gantt-today-line" [style.left.px]="labelWidth + todayLeft"></div>
+            }
+
+            <svg
+              class="gantt-links"
+              [style.left.px]="labelWidth"
+              [style.width.px]="chartWidth"
+              [style.height.px]="rowsHeight"
+              [attr.viewBox]="'0 0 ' + chartWidth + ' ' + rowsHeight"
+              aria-hidden="true"
+            >
+              <defs>
+                <marker id="tl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0 0 L10 5 L0 10 z" class="tl-arrowhead" />
+                </marker>
+                <marker id="tl-arrow-blocked" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0 0 L10 5 L0 10 z" class="tl-arrowhead blocked" />
+                </marker>
+              </defs>
+              @for (link of links; track trackLink($index, link)) {
+                <path
+                  class="gantt-link"
+                  [class.blocked]="link.blocked"
+                  [attr.d]="link.path"
+                  [attr.marker-end]="link.blocked ? 'url(#tl-arrow-blocked)' : 'url(#tl-arrow)'"
+                />
+              }
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</section>

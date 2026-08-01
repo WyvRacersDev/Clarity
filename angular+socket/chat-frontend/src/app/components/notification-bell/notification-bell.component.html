@@ -1,0 +1,75 @@
+<div class="notif-anchor">
+  <button
+    class="btn btn-icon notif-btn"
+    (click)="toggle($event)"
+    [attr.aria-expanded]="isOpen()"
+    aria-haspopup="dialog"
+    [attr.aria-label]="unread() > 0 ? unread() + ' unread notifications' : 'Notifications'"
+  >
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+      <path d="M13.73 21a2 2 0 01-3.46 0"></path>
+    </svg>
+    @if (unread() > 0) {
+      <span class="notif-badge" aria-hidden="true">{{ unread() > 99 ? '99+' : unread() }}</span>
+    }
+  </button>
+
+  @if (isOpen()) {
+    <div class="menu notif-panel" role="dialog" aria-label="Notifications">
+      <div class="notif-head">
+        <span class="notif-title">Notifications</span>
+        @if (unread() > 0) {
+          <button class="notif-markall" (click)="markAllRead($event)">Mark all read</button>
+        }
+      </div>
+
+      <div class="notif-list">
+        @if (loading()) {
+          <div class="notif-empty">Loading…</div>
+        } @else if (items().length === 0) {
+          <div class="notif-empty">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path>
+            </svg>
+            <span>You're all caught up</span>
+          </div>
+        } @else {
+          @for (n of items(); track n.id) {
+            <button class="notif-item" [class.unread]="!n.read" (click)="onItemClick(n)">
+              <span class="notif-icon" [attr.data-type]="n.type" aria-hidden="true">
+                @switch (iconFor(n.type)) {
+                  @case ('mention') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94"></path></svg>
+                  }
+                  @case ('comment') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>
+                  }
+                  @case ('project_shared') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path></svg>
+                  }
+                  @case ('ai_suggestion') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4c0 1.95-1.4 3.58-3.25 3.93"></path><path d="M12 2a4 4 0 00-4 4c0 1.95 1.4 3.58 3.25 3.93"></path><path d="M12 10v4"></path><circle cx="12" cy="18" r="2"></circle><path d="M6 18h12"></path></svg>
+                  }
+                  @case ('due_soon') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                  }
+                }
+              </span>
+              <span class="notif-body">
+                <span class="notif-item-title">{{ n.title }}</span>
+                @if (n.body) {
+                  <span class="notif-item-text">{{ n.body }}</span>
+                }
+                <span class="notif-item-meta">{{ timeAgo(n.created_at) }}</span>
+              </span>
+              @if (!n.read) {
+                <span class="notif-dot" aria-label="Unread"></span>
+              }
+            </button>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>

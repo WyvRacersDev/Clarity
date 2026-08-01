@@ -1,0 +1,193 @@
+<div class="ct-root">
+
+  <!-- MASTHEAD -->
+  <header class="ct-masthead">
+    <div class="ct-masthead-text">
+      <h1 class="display ct-title">Contacts</h1>
+      <p class="ct-dek">
+        @if (!loading() && contacts().length > 0) {
+          <span class="num">{{ contacts().length }}</span>
+          {{ contacts().length === 1 ? 'person' : 'people' }} you can invite and collaborate with.
+        } @else {
+          People you can invite and collaborate with.
+        }
+      </p>
+    </div>
+    <div class="ct-actions">
+      <button
+        class="btn btn-primary"
+        type="button"
+        [disabled]="importing() || !allowInvite() || loading()"
+        (click)="startImport()"
+      >
+        @if (importing()) {
+          <span class="spinner spinner-sm" aria-hidden="true"></span>
+          Importing
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+              stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Import from Google
+        }
+      </button>
+    </div>
+  </header>
+
+  <!-- STATUS BANNER -->
+  @if (banner(); as b) {
+    <div class="ct-banner" role="status"
+         [class.is-success]="b.kind === 'success'"
+         [class.is-error]="b.kind === 'error'"
+         [class.is-info]="b.kind === 'info'">
+      <span class="ct-banner-mark" aria-hidden="true">
+        @if (b.kind === 'success') {
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        } @else if (b.kind === 'error') {
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+        }
+      </span>
+      <p>{{ b.text }}</p>
+    </div>
+  }
+
+  <!-- GATING HINT -->
+  @if (!allowInvite() && !loading()) {
+    <div class="ct-hint" role="note">
+      <span class="ct-hint-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+          <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"
+            stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </span>
+      <p>
+        Contact import is off. Enable <strong>Allow Invites</strong> in
+        <a routerLink="/dashboard/settings">Settings</a> to import from Google.
+      </p>
+    </div>
+  }
+
+  <!-- SEARCH -->
+  <div class="ct-search">
+    <svg class="ct-search-ico" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.75" />
+      <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+    </svg>
+    <input
+      class="input ct-search-input"
+      type="search"
+      placeholder="Search contacts"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+      [disabled]="loading() || isEmpty()"
+      aria-label="Search contacts"
+    />
+  </div>
+
+  <!-- STATES -->
+  @if (error(); as err) {
+    <div class="ct-error card" role="alert">
+      <div class="ct-error-text">
+        <span class="ct-error-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+        </span>
+        <p>{{ err }}</p>
+      </div>
+      <button class="btn btn-secondary btn-sm" type="button" (click)="reload()">Retry</button>
+    </div>
+  } @else if (loading()) {
+    <div class="ct-list card" aria-busy="true" aria-label="Loading contacts">
+      @for (i of [1, 2, 3, 4, 5]; track i) {
+        <div class="ct-sk-row">
+          <div class="skeleton ct-sk-avatar"></div>
+          <div class="ct-sk-lines">
+            <div class="skeleton ct-sk-name"></div>
+            <div class="skeleton ct-sk-detail"></div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else if (isEmpty()) {
+    <div class="ct-list card">
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/>
+          </svg>
+        </div>
+        <h3>No contacts yet</h3>
+        <p>
+          @if (allowInvite()) {
+            Import your Google contacts to start inviting collaborators.
+          } @else {
+            Enable <strong>Allow Invites</strong> in Settings, then import from Google.
+          }
+        </p>
+        @if (allowInvite()) {
+          <button class="btn btn-primary btn-sm" type="button" [disabled]="importing()" (click)="startImport()">
+            Import from Google
+          </button>
+        } @else {
+          <a routerLink="/dashboard/settings" class="btn btn-secondary btn-sm">Open Settings</a>
+        }
+      </div>
+    </div>
+  } @else if (noMatches()) {
+    <div class="ct-list card">
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+          </svg>
+        </div>
+        <h3>No matches</h3>
+        <p>No contacts match &ldquo;{{ search() }}&rdquo;.</p>
+      </div>
+    </div>
+  } @else {
+    <div class="ct-list card" role="list">
+      <div class="ct-list-head mono-label">
+        {{ filtered().length }} of {{ contacts().length }} contacts
+      </div>
+      @for (c of filtered(); track trackContact($index, c); let last = $last) {
+        <div class="ct-row" role="listitem" [class.ct-row--ruled]="!last">
+          <span class="ct-avatar" aria-hidden="true">{{ initialsOf(c) }}</span>
+          <div class="ct-body">
+            <span class="ct-name">{{ c.name || 'Unknown' }}</span>
+            @if (detailOf(c)) {
+              <span class="ct-detail">
+                @if (isEmail(c)) {
+                  <svg class="ct-detail-ico" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.75" />
+                    <path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                } @else {
+                  <svg class="ct-detail-ico" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                    <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"
+                      stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                }
+                <span class="ct-detail-text mono">{{ detailOf(c) }}</span>
+              </span>
+            }
+          </div>
+          @if (isEmail(c)) {
+            <a
+              class="ct-mail"
+              [href]="'mailto:' + detailOf(c)"
+              [attr.aria-label]="'Email ' + c.name"
+              title="Send email"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.75" />
+                <path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </a>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
