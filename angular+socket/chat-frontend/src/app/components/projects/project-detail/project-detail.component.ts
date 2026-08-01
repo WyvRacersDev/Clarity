@@ -19,6 +19,8 @@ import { ShareDialogComponent } from '../share-dialog/share-dialog.component';
 import { ActivityFeedComponent } from '../activity-feed/activity-feed.component';
 import { IntegrationsService } from '../../../services/integrations.service';
 import { ChatUiService } from '../../../services/chat-ui.service';
+import { CanvasViewportService } from '../../../services/canvas-viewport.service';
+import { DragEngineService } from '../../../services/drag-engine.service';
 import { userColor } from '../../../utils/user-color.util';
 
 @Component({
@@ -26,7 +28,10 @@ import { userColor } from '../../../utils/user-color.util';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, TextDocEditorComponent, FullScreenTodoComponent, ShareDialogComponent, ActivityFeedComponent],
   templateUrl: './project-detail.component.html',
-  styleUrls: ['./project-detail.component.css']
+  styleUrls: ['./project-detail.component.css'],
+  // Per-instance canvas state so each project visit starts fresh:
+  // viewport = pan/zoom/grid; drag = long-press + drag/resize gesture session.
+  providers: [CanvasViewportService, DragEngineService]
 })
 export class ProjectDetailComponent implements OnInit, OnDestroy {
   // Make Math available in template
@@ -233,38 +238,17 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   editingElementNameIndex = -1;
   editingElementNameGridIndex = -1;
 
-  // Canvas dragging
-  draggedElement: HTMLElement | null = null;
-  draggedElementIndex: number = -1;
-  draggedElementGridIndex: number = -1;
-  elementDragOffsetX: number = 0;
-  elementDragOffsetY: number = 0;
-  isDraggingEnabled: boolean = false;
-  longPressTimer: any = null;
-  longPressTargetIndex: number = -1;
+  // Canvas long-press + drag/resize gesture session lives in `drag`
+  // (DragEngineService), injected below. Kept here: the click-suppression gate
+  // that swallows the click synthesized right after a drag ends.
   justFinishedDragging: boolean = false;
-  isResizing: boolean = false;
-  resizeHandle: string = '';
-  resizingElement: Screen_Element | null = null;
-  resizingElementIndex: number = -1;
-  resizingElementGridIndex: number = -1;
-  startResizeX: number = 0;
-  startResizeY: number = 0;
-  startWidth: number = 0;
-  startHeight: number = 0;
 
   // New element on canvas
   showElementTypeSelector = false;
   fileInput: HTMLInputElement | null = null;
 
-  // Canvas properties
-  canvasZoom: number = 1;
-  canvasPanX: number = 0;
-  canvasPanY: number = 0;
-  isPanning: boolean = false;
-  panStartX: number = 0;
-  panStartY: number = 0;
-  showGrid: boolean = true;
+  // Canvas viewport state (pan/zoom/grid + screen<->canvas coord math) lives in
+  // `viewport` (CanvasViewportService), injected below.
 
   // Loading states
   isSaving = false;
@@ -322,8 +306,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private readonly GRID_PX_Y = 200;
   /** Snap increment in grid units. */
   private readonly SNAP_UNIT = 0.5;
-  // Snapshot of {index -> {x_pos, y_pos}} captured at group-drag start.
-  private groupDragStart: Map<number, { x: number; y: number }> | null = null;
 
   constructor(
     private dataService: DataService,
@@ -336,6 +318,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     private destroyRef: DestroyRef,
     private integrations: IntegrationsService,
     private chatUi: ChatUiService,
+    public viewport: CanvasViewportService,
+    public drag: DragEngineService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) { }
 
@@ -749,8 +733,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
     const rect = container.getBoundingClientRect();
     // Convert to canvas-content space (undo pan/zoom) so peers align.
-    const x = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
-    const y = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+    const x = this.viewport.toCanvasX(event.clientX, rect.left);
+    const y = this.viewport.toCanvasY(event.clientY, rect.top);
 
     this.lastCursorEmit = now;
     this.collabService.emitCursor(x, y);
@@ -1415,7 +1399,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (this.editingElementNameIndex === elementIndex && this.editingElementNameGridIndex === this.selectedGridIndex) {
       return;
     }
-    if (this.isDraggingEnabled || this.justFinishedDragging) {
+    if (this.drag.isDraggingEnabled || this.justFinishedDragging) {
       this.justFinishedDragging = false;
       return;
     }
@@ -1633,21 +1617,21 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.selectedElementIndex = index;
 
     // Show visual feedback immediately that long-press is starting
-    this.longPressTargetIndex = index;
+    this.drag.longPressTargetIndex = index;
 
     // Start long-press timer for dragging (300ms)
-    this.longPressTimer = setTimeout(() => {
-      this.longPressTargetIndex = -1;
-      this.isDraggingEnabled = true;
+    this.drag.longPressTimer = setTimeout(() => {
+      this.drag.longPressTargetIndex = -1;
+      this.drag.isDraggingEnabled = true;
       const rect = card.getBoundingClientRect();
-      this.elementDragOffsetX = event.clientX - rect.left;
-      this.elementDragOffsetY = event.clientY - rect.top;
-      this.draggedElementIndex = index;
-      this.draggedElementGridIndex = this.selectedGridIndex;
-      this.draggedElement = card;
+      this.drag.elementDragOffsetX = event.clientX - rect.left;
+      this.drag.elementDragOffsetY = event.clientY - rect.top;
+      this.drag.draggedElementIndex = index;
+      this.drag.draggedElementGridIndex = this.selectedGridIndex;
+      this.drag.draggedElement = card;
 
       // G2: snapshot start positions for a group move.
-      this.groupDragStart = this.captureGroupStart(this.selectedGridIndex);
+      this.drag.groupDragStart = this.captureGroupStart(this.selectedGridIndex);
 
       card.style.cursor = 'grabbing';
     }, 300);
@@ -1665,16 +1649,16 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   const touch = event.touches[0];
 
-  this.longPressTargetIndex = elementIndex;
+  this.drag.longPressTargetIndex = elementIndex;
 
-  this.longPressTimer = setTimeout(() => {
-    this.longPressTargetIndex = -1;
-    this.isDraggingEnabled = true;
+  this.drag.longPressTimer = setTimeout(() => {
+    this.drag.longPressTargetIndex = -1;
+    this.drag.isDraggingEnabled = true;
     const rect = card.getBoundingClientRect();
-    this.elementDragOffsetX = touch.clientX - rect.left;
-    this.elementDragOffsetY = touch.clientY - rect.top;
-    this.draggedElementIndex = elementIndex;
-    this.draggedElement = card;
+    this.drag.elementDragOffsetX = touch.clientX - rect.left;
+    this.drag.elementDragOffsetY = touch.clientY - rect.top;
+    this.drag.draggedElementIndex = elementIndex;
+    this.drag.draggedElement = card;
     card.style.cursor = 'grabbing';
   }, 300);
 }
@@ -1689,8 +1673,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       const canvas = document.querySelector('.canvas-container') as HTMLElement;
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
-        const cx = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
-        const cy = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+        const cx = this.viewport.toCanvasX(event.clientX, rect.left);
+        const cy = this.viewport.toCanvasY(event.clientY, rect.top);
         this.marquee.set({
           x: Math.min(this.marqueeStartX, cx),
           y: Math.min(this.marqueeStartY, cy),
@@ -1703,55 +1687,54 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
 
     // Empty-canvas panning (isPanning set by onCanvasMouseDown).
-    if (this.isPanning) {
-      this.canvasPanX = event.clientX - this.panStartX;
-      this.canvasPanY = event.clientY - this.panStartY;
+    if (this.viewport.isPanning) {
+      this.viewport.updatePan(event.clientX, event.clientY);
       this.cdr.detectChanges();
       return;
     }
 
-    if (!this.isDraggingEnabled || this.draggedElement === null || !this.project) return;
+    if (!this.drag.isDraggingEnabled || this.drag.draggedElement === null || !this.project) return;
 
     // Prefer the legacy pixel-based grid container when present; otherwise drive
     // the canvas (grid-unit) model so long-press drag works on the canvas surface.
     const legacyGrid = document.querySelector('.elements-grid') as HTMLElement;
     if (legacyGrid) {
       const containerRect = legacyGrid.getBoundingClientRect();
-      const elementRect = this.draggedElement.getBoundingClientRect();
-      let x = event.clientX - containerRect.left - this.elementDragOffsetX;
-      let y = event.clientY - containerRect.top - this.elementDragOffsetY;
+      const elementRect = this.drag.draggedElement.getBoundingClientRect();
+      let x = event.clientX - containerRect.left - this.drag.elementDragOffsetX;
+      let y = event.clientY - containerRect.top - this.drag.elementDragOffsetY;
       const containerPadding = 20; // From CSS padding
       const maxX = legacyGrid.clientWidth - elementRect.width - containerPadding;
       const maxY = legacyGrid.clientHeight - elementRect.height - containerPadding;
       x = Math.max(0, Math.min(x, maxX));
       y = Math.max(0, Math.min(y, maxY));
-      this.draggedElement.style.position = 'absolute';
-      this.draggedElement.style.left = x + 'px';
-      this.draggedElement.style.top = y + 'px';
-      this.draggedElement.style.zIndex = '1000';
+      this.drag.draggedElement.style.position = 'absolute';
+      this.drag.draggedElement.style.left = x + 'px';
+      this.drag.draggedElement.style.top = y + 'px';
+      this.drag.draggedElement.style.zIndex = '1000';
       return;
     }
 
     // Canvas (grid-unit) drag path with group-move support.
     const canvas = document.querySelector('.canvas-container') as HTMLElement;
-    if (!canvas || this.draggedElementIndex < 0) return;
-    const gridIdx = this.draggedElementGridIndex >= 0 ? this.draggedElementGridIndex : this.selectedGridIndex;
+    if (!canvas || this.drag.draggedElementIndex < 0) return;
+    const gridIdx = this.drag.draggedElementGridIndex >= 0 ? this.drag.draggedElementGridIndex : this.selectedGridIndex;
     if (!this.project.grid[gridIdx]) return;
     const gridEls = this.project.grid[gridIdx].Screen_elements;
-    const leader = gridEls[this.draggedElementIndex];
+    const leader = gridEls[this.drag.draggedElementIndex];
     if (!leader) return;
 
     const rect = canvas.getBoundingClientRect();
-    const px = (event.clientX - rect.left - this.elementDragOffsetX - this.canvasPanX) / this.canvasZoom;
-    const py = (event.clientY - rect.top - this.elementDragOffsetY - this.canvasPanY) / this.canvasZoom;
+    const px = this.viewport.toCanvasX(event.clientX, rect.left, this.drag.elementDragOffsetX);
+    const py = this.viewport.toCanvasY(event.clientY, rect.top, this.drag.elementDragOffsetY);
     const newXPos = Math.max(0, px) / this.GRID_PX_X;
     const newYPos = Math.max(0, py) / this.GRID_PX_Y;
 
-    const start = this.groupDragStart;
+    const start = this.drag.groupDragStart;
     const selected = this.selectedIndices();
-    if (start && selected.size > 1 && start.has(this.draggedElementIndex)) {
+    if (start && selected.size > 1 && start.has(this.drag.draggedElementIndex)) {
       // G2: group move — apply the leader's delta to every selected element.
-      const leaderStart = start.get(this.draggedElementIndex)!;
+      const leaderStart = start.get(this.drag.draggedElementIndex)!;
       const dx = newXPos - leaderStart.x;
       const dy = newYPos - leaderStart.y;
       start.forEach((pos, idx) => {
@@ -1769,25 +1752,24 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   onDocumentTouchMove(event: TouchEvent): void {
-  if (this.isPanning) {
+  if (this.viewport.isPanning) {
     event.preventDefault();
     const touch = event.touches[0];
-    this.canvasPanX = touch.clientX - this.panStartX;
-    this.canvasPanY = touch.clientY - this.panStartY;
+    this.viewport.updatePan(touch.clientX, touch.clientY);
     return;
   }
 
-  if (this.isDraggingEnabled && this.draggedElement !== null && this.project) {
+  if (this.drag.isDraggingEnabled && this.drag.draggedElement !== null && this.project) {
     event.preventDefault();
     const touch = event.touches[0];
     const container = document.querySelector('.elements-grid') as HTMLElement;
     if (!container) return;
 
     const containerRect = container.getBoundingClientRect();
-    const elementRect = this.draggedElement.getBoundingClientRect();
+    const elementRect = this.drag.draggedElement.getBoundingClientRect();
 
-    let x = touch.clientX - containerRect.left - this.elementDragOffsetX;
-    let y = touch.clientY - containerRect.top - this.elementDragOffsetY;
+    let x = touch.clientX - containerRect.left - this.drag.elementDragOffsetX;
+    let y = touch.clientY - containerRect.top - this.drag.elementDragOffsetY;
 
     const containerPadding = 20;
     const maxX = container.clientWidth - elementRect.width - containerPadding;
@@ -1796,20 +1778,15 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     x = Math.max(0, Math.min(x, maxX));
     y = Math.max(0, Math.min(y, maxY));
 
-    this.draggedElement.style.position = 'absolute';
-    this.draggedElement.style.left = x + 'px';
-    this.draggedElement.style.top = y + 'px';
-    this.draggedElement.style.zIndex = '1000';
+    this.drag.draggedElement.style.position = 'absolute';
+    this.drag.draggedElement.style.left = x + 'px';
+    this.drag.draggedElement.style.top = y + 'px';
+    this.drag.draggedElement.style.zIndex = '1000';
   }
 }
 
   async onDocumentMouseUp(event: MouseEvent): Promise<void> {
-    // Clear long-press timer
-    if (this.longPressTimer) {
-      clearTimeout(this.longPressTimer);
-      this.longPressTimer = null;
-    }
-    this.longPressTargetIndex = -1;
+    this.drag.cancelLongPress();
 
     // G2: conclude a marquee selection (shift+drag on empty canvas).
     if (this.isMarqueeSelecting) {
@@ -1822,19 +1799,19 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
 
     // End empty-canvas panning.
-    if (this.isPanning) {
-      this.isPanning = false;
+    if (this.viewport.isPanning) {
+      this.viewport.endPan();
       this.cdr.detectChanges();
       return;
     }
 
-    if (!this.isDraggingEnabled) {
+    if (!this.drag.isDraggingEnabled) {
       return;
     }
 
-    if (this.draggedElement === null || !this.project) {
-      this.isDraggingEnabled = false;
-      this.groupDragStart = null;
+    if (this.drag.draggedElement === null || !this.project) {
+      this.drag.isDraggingEnabled = false;
+      this.drag.groupDragStart = null;
       return;
     }
 
@@ -1842,15 +1819,15 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const legacyGrid = document.querySelector('.elements-grid') as HTMLElement;
     if (legacyGrid) {
       const containerRect = legacyGrid.getBoundingClientRect();
-      const elementRect = this.draggedElement.getBoundingClientRect();
-      let x = event.clientX - containerRect.left - this.elementDragOffsetX;
-      let y = event.clientY - containerRect.top - this.elementDragOffsetY;
+      const elementRect = this.drag.draggedElement.getBoundingClientRect();
+      let x = event.clientX - containerRect.left - this.drag.elementDragOffsetX;
+      let y = event.clientY - containerRect.top - this.drag.elementDragOffsetY;
       const containerPadding = 20;
       const maxX = legacyGrid.clientWidth - elementRect.width - containerPadding;
       const maxY = legacyGrid.clientHeight - elementRect.height - containerPadding;
       x = Math.max(0, Math.min(x, maxX));
       y = Math.max(0, Math.min(y, maxY));
-      const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
+      const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.drag.draggedElementIndex];
       if (element) {
         if ((element as any).set_xpos) {
           (element as any).set_xpos(x);
@@ -1865,15 +1842,15 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     } else {
       // Canvas (grid-unit) drop: snap each moved element and save once.
-      const gridIdx = this.draggedElementGridIndex >= 0 ? this.draggedElementGridIndex : this.selectedGridIndex;
+      const gridIdx = this.drag.draggedElementGridIndex >= 0 ? this.drag.draggedElementGridIndex : this.selectedGridIndex;
       const gridEls = this.project.grid[gridIdx]?.Screen_elements;
       if (gridEls) {
-        const start = this.groupDragStart;
+        const start = this.drag.groupDragStart;
         const selected = this.selectedIndices();
         const movedIndices: number[] =
-          (start && selected.size > 1 && start.has(this.draggedElementIndex))
+          (start && selected.size > 1 && start.has(this.drag.draggedElementIndex))
             ? Array.from(start.keys())
-            : [this.draggedElementIndex];
+            : [this.drag.draggedElementIndex];
 
         for (const idx of movedIndices) {
           const el = gridEls[idx];
@@ -1888,12 +1865,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.draggedElement.style.cursor = 'grab';
+    this.drag.draggedElement.style.cursor = 'grab';
 
-    this.draggedElement = null;
-    this.draggedElementIndex = -1;
-    this.isDraggingEnabled = false;
-    this.groupDragStart = null;
+    this.drag.draggedElement = null;
+    this.drag.draggedElementIndex = -1;
+    this.drag.isDraggingEnabled = false;
+    this.drag.groupDragStart = null;
     this.justFinishedDragging = true;
 
     // Reset flag after a short delay to allow click event
@@ -1903,38 +1880,34 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   async onDocumentTouchEnd(event: TouchEvent): Promise<void> {
-  if (this.longPressTimer) {
-    clearTimeout(this.longPressTimer);
-    this.longPressTimer = null;
-  }
-  this.longPressTargetIndex = -1;
+  this.drag.cancelLongPress();
 
-  if (this.isPanning) {
-    this.isPanning = false;
+  if (this.viewport.isPanning) {
+    this.viewport.endPan();
     return;
   }
 
-  if (!this.isDraggingEnabled) {
+  if (!this.drag.isDraggingEnabled) {
     return;
   }
 
-  if (this.draggedElement === null || !this.project) {
-    this.isDraggingEnabled = false;
+  if (this.drag.draggedElement === null || !this.project) {
+    this.drag.isDraggingEnabled = false;
     return;
   }
 
   const container = document.querySelector('.elements-grid') as HTMLElement;
   if (!container) {
-    this.isDraggingEnabled = false;
+    this.drag.isDraggingEnabled = false;
     return;
   }
 
   const touch = event.changedTouches[0];
   const containerRect = container.getBoundingClientRect();
-  const elementRect = this.draggedElement.getBoundingClientRect();
+  const elementRect = this.drag.draggedElement.getBoundingClientRect();
 
-  let x = touch.clientX - containerRect.left - this.elementDragOffsetX;
-  let y = touch.clientY - containerRect.top - this.elementDragOffsetY;
+  let x = touch.clientX - containerRect.left - this.drag.elementDragOffsetX;
+  let y = touch.clientY - containerRect.top - this.drag.elementDragOffsetY;
 
   const containerPadding = 20;
   const maxX = container.clientWidth - elementRect.width - containerPadding;
@@ -1943,7 +1916,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   x = Math.max(0, Math.min(x, maxX));
   y = Math.max(0, Math.min(y, maxY));
 
-  const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.draggedElementIndex];
+  const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.drag.draggedElementIndex];
   if (element) {
     if ((element as any).set_xpos) {
       (element as any).set_xpos(x);
@@ -1959,10 +1932,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
   }
 
-  this.draggedElement.style.cursor = 'grab';
-  this.draggedElement = null;
-  this.draggedElementIndex = -1;
-  this.isDraggingEnabled = false;
+  this.drag.draggedElement.style.cursor = 'grab';
+  this.drag.draggedElement = null;
+  this.drag.draggedElementIndex = -1;
+  this.drag.isDraggingEnabled = false;
   this.justFinishedDragging = true;
 
   setTimeout(() => {
@@ -1971,11 +1944,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 }
 
   onElementMouseLeave(): void {
-    // Only clear timer, don't stop dragging on leave
-    if (!this.isDraggingEnabled && this.longPressTimer) {
-      clearTimeout(this.longPressTimer);
-      this.longPressTimer = null;
-      this.longPressTargetIndex = -1;
+    // Only cancel a pending long-press; don't stop an in-progress drag on leave.
+    if (!this.drag.isDraggingEnabled) {
+      this.drag.cancelLongPress();
     }
   }
 
@@ -2017,8 +1988,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       if (container) {
         const rect = container.getBoundingClientRect();
         // Convert to canvas-content space (undo pan/zoom) so it matches element coords.
-        const x = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
-        const y = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+        const x = this.viewport.toCanvasX(event.clientX, rect.left);
+        const y = this.viewport.toCanvasY(event.clientY, rect.top);
         this.isMarqueeSelecting = true;
         this.marqueeStartX = x;
         this.marqueeStartY = y;
@@ -2028,9 +1999,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.isPanning = true;
-    this.panStartX = event.clientX - this.canvasPanX;
-    this.panStartY = event.clientY - this.canvasPanY;
+    this.viewport.beginPan(event.clientX, event.clientY);
   }
 
   onCanvasMouseMove(event: MouseEvent): void {
@@ -2039,8 +2008,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       const container = document.querySelector('.canvas-container') as HTMLElement;
       if (container) {
         const rect = container.getBoundingClientRect();
-        const cx = (event.clientX - rect.left - this.canvasPanX) / this.canvasZoom;
-        const cy = (event.clientY - rect.top - this.canvasPanY) / this.canvasZoom;
+        const cx = this.viewport.toCanvasX(event.clientX, rect.left);
+        const cy = this.viewport.toCanvasY(event.clientY, rect.top);
         const x = Math.min(this.marqueeStartX, cx);
         const y = Math.min(this.marqueeStartY, cy);
         const w = Math.abs(cx - this.marqueeStartX);
@@ -2051,48 +2020,39 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.isPanning) {
-      this.canvasPanX = event.clientX - this.panStartX;
-      this.canvasPanY = event.clientY - this.panStartY;
+    if (this.viewport.isPanning) {
+      this.viewport.updatePan(event.clientX, event.clientY);
       return;
     }
 
-    if (this.isResizing && this.resizingElement) {
-      const deltaX = event.clientX - this.startResizeX;
-      const deltaY = event.clientY - this.startResizeY;
+    if (this.drag.isResizing && this.drag.resizingElement) {
+      const { width: newWidth, height: newHeight } = this.drag.computeResizeSize(event.clientX, event.clientY);
 
-      let newWidth = this.startWidth + deltaX;
-      let newHeight = this.startHeight + deltaY;
-
-      // Minimum size constraints
-      newWidth = Math.max(100, newWidth);
-      newHeight = Math.max(50, newHeight);
-
-      if ((this.resizingElement as any).set_x_scale) {
-        (this.resizingElement as any).set_x_scale(newWidth);
-        (this.resizingElement as any).set_y_scale(newHeight);
+      if ((this.drag.resizingElement as any).set_x_scale) {
+        (this.drag.resizingElement as any).set_x_scale(newWidth);
+        (this.drag.resizingElement as any).set_y_scale(newHeight);
       } else {
-        (this.resizingElement as any).x_scale = newWidth;
-        (this.resizingElement as any).y_scale = newHeight;
+        (this.drag.resizingElement as any).x_scale = newWidth;
+        (this.drag.resizingElement as any).y_scale = newHeight;
       }
       this.dataService.updateCurrentUser();
       // Phase 6b: throttled granular resize broadcast.
-      this.emitElementMove(this.resizingElement);
+      this.emitElementMove(this.drag.resizingElement);
       return;
     }
 
-    if (this.isDraggingEnabled && this.draggedElement) {
+    if (this.drag.isDraggingEnabled && this.drag.draggedElement) {
       const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
       if (!canvasContainer) return;
 
       const rect = canvasContainer.getBoundingClientRect();
-      const x = (event.clientX - rect.left - this.elementDragOffsetX - this.canvasPanX) / this.canvasZoom;
-      const y = (event.clientY - rect.top - this.elementDragOffsetY - this.canvasPanY) / this.canvasZoom;
+      const x = this.viewport.toCanvasX(event.clientX, rect.left, this.drag.elementDragOffsetX);
+      const y = this.viewport.toCanvasY(event.clientY, rect.top, this.drag.elementDragOffsetY);
 
       // Update the data model
-      if (this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
-        const gridEls = this.project.grid[this.draggedElementGridIndex].Screen_elements;
-        const element = gridEls[this.draggedElementIndex];
+      if (this.drag.draggedElementGridIndex >= 0 && this.drag.draggedElementIndex >= 0 && this.project) {
+        const gridEls = this.project.grid[this.drag.draggedElementGridIndex].Screen_elements;
+        const element = gridEls[this.drag.draggedElementIndex];
         if (element) {
           // Leader element's new grid-unit position (pixels ÷ per-unit factor).
           const newXPos = Math.max(0, x) / this.GRID_PX_X;
@@ -2100,10 +2060,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
           // G2: group move — when multiple elements are selected, translate every
           // selected element by the SAME delta the leader moved (grid-unit space).
-          const start = this.groupDragStart;
+          const start = this.drag.groupDragStart;
           const selected = this.selectedIndices();
-          if (start && selected.size > 1 && start.has(this.draggedElementIndex)) {
-            const leaderStart = start.get(this.draggedElementIndex)!;
+          if (start && selected.size > 1 && start.has(this.drag.draggedElementIndex)) {
+            const leaderStart = start.get(this.drag.draggedElementIndex)!;
             const dx = newXPos - leaderStart.x;
             const dy = newYPos - leaderStart.y;
             start.forEach((pos, idx) => {
@@ -2149,16 +2109,16 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.isDraggingEnabled && this.draggedElementGridIndex >= 0 && this.draggedElementIndex >= 0 && this.project) {
-      const gridEls = this.project.grid[this.draggedElementGridIndex].Screen_elements;
-      const element = gridEls[this.draggedElementIndex];
+    if (this.drag.isDraggingEnabled && this.drag.draggedElementGridIndex >= 0 && this.drag.draggedElementIndex >= 0 && this.project) {
+      const gridEls = this.project.grid[this.drag.draggedElementGridIndex].Screen_elements;
+      const element = gridEls[this.drag.draggedElementIndex];
       if (element) {
         // G2: on drop, snap every moved element to the nearest 0.5 grid unit.
-        const start = this.groupDragStart;
+        const start = this.drag.groupDragStart;
         const selected = this.selectedIndices();
-        const movedIndices: number[] = (start && selected.size > 1 && start.has(this.draggedElementIndex))
+        const movedIndices: number[] = (start && selected.size > 1 && start.has(this.drag.draggedElementIndex))
           ? Array.from(start.keys())
-          : [this.draggedElementIndex];
+          : [this.drag.draggedElementIndex];
 
         for (const idx of movedIndices) {
           const el = gridEls[idx];
@@ -2172,17 +2132,17 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         const projectType = (this.project as any).projectType;
         if (!projectType) {
           console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
-          this.groupDragStart = null;
+          this.drag.groupDragStart = null;
           return;
         }
         await this.dataService.saveProject(this.project, projectType);
       }
-      this.groupDragStart = null;
+      this.drag.groupDragStart = null;
     }
 
-    if (this.isResizing && this.resizingElement && this.project) {
+    if (this.drag.isResizing && this.drag.resizingElement && this.project) {
       // Phase 6b: final (un-throttled) resize broadcast.
-      this.emitElementMove(this.resizingElement, false);
+      this.emitElementMove(this.drag.resizingElement, false);
       // Save size changes
       const projectType = (this.project as any).projectType;
       if (!projectType) {
@@ -2192,120 +2152,44 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       await this.dataService.saveProject(this.project, projectType);
     }
 
-    this.isPanning = false;
-    this.isResizing = false;
-    this.resizingElement = null;
-    this.isDraggingEnabled = false;
-    this.draggedElement = null;
+    this.viewport.endPan();
+    this.drag.isResizing = false;
+    this.drag.resizingElement = null;
+    this.drag.isDraggingEnabled = false;
+    this.drag.draggedElement = null;
   }
 
   onCanvasWheel(event: WheelEvent): void {
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
-      const delta = event.deltaY > 0 ? -0.1 : 0.1;
-      this.canvasZoom = Math.max(0.5, Math.min(2, this.canvasZoom + delta));
+      this.viewport.wheelZoom(event.deltaY);
     }
-  }
-
-  onCanvasElementMouseDown(event: MouseEvent, element: Screen_Element, gridIndex: number, elementIndex: number): void {
-    const target = event.target as HTMLElement;
-
-    // Don't drag if clicking on controls or resize handle
-    if (target.closest('.element-controls') || target.closest('.resize-handle')) {
-      return;
-    }
-
-    // Don't drag if double-clicking to edit
-    if (event.detail === 2) {
-      return;
-    }
-
-    // In link-pick mode, defer to the click-driven target picker (no select/drag).
-    if (this.linkSourceId) {
-      return;
-    }
-
-    event.stopPropagation();
-
-    // G2: Shift+click toggles this element in the multi-selection (no drag).
-    if (event.shiftKey) {
-      this.toggleSelectIndex(elementIndex);
-      return;
-    }
-
-    // G2: A plain click on an element that is NOT part of the current
-    // multi-selection collapses the selection to just this element.
-    const sel = this.selectedIndices();
-    if (!sel.has(elementIndex)) {
-      this.selectedIndices.set(new Set([elementIndex]));
-    }
-    this.selectedElementIndex = elementIndex;
-
-    const elementEl = event.currentTarget as HTMLElement;
-    this.draggedElement = elementEl;
-    this.draggedElementIndex = elementIndex;
-    this.draggedElementGridIndex = gridIndex;
-    this.isDraggingEnabled = true;
-
-    // G2: snapshot start positions for every selected element so a group move
-    // can apply the same delta to each.
-    this.groupDragStart = this.captureGroupStart(gridIndex);
-
-    const rect = elementEl.getBoundingClientRect();
-    const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
-    if (canvasContainer) {
-      const containerRect = canvasContainer.getBoundingClientRect();
-      this.elementDragOffsetX = event.clientX - rect.left;
-      this.elementDragOffsetY = event.clientY - rect.top;
-    }
-    this.cdr.detectChanges();
   }
 
   startResize(event: MouseEvent, element: Screen_Element, gridIndex: number, elementIndex: number, handle: string): void {
     event.stopPropagation();
-    this.isResizing = true;
-    this.resizeHandle = handle;
-    this.resizingElement = element;
-    this.resizingElementIndex = elementIndex;
-    this.resizingElementGridIndex = gridIndex;
-    this.startResizeX = event.clientX;
-    this.startResizeY = event.clientY;
-    this.startWidth = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
-    this.startHeight = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
+    const startWidth = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
+    const startHeight = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
+    this.drag.beginResize(element, elementIndex, gridIndex, handle, event.clientX, event.clientY, startWidth, startHeight);
   }
 
-  resetCanvasView(): void {
-    this.canvasZoom = 1;
-    this.canvasPanX = 0;
-    this.canvasPanY = 0;
-  }
-
-  // Canvas toolbar methods
-  canvasZoomIn(): void {
-    this.canvasZoom = Math.min(3, this.canvasZoom + 0.1);
-  }
-
-  canvasZoomOut(): void {
-    this.canvasZoom = Math.max(0.25, this.canvasZoom - 0.1);
-  }
-
-  canvasResetView(): void {
-    this.resetCanvasView();
-  }
-
+  // Zoom / reset / grid-toggle now live on `viewport` (CanvasViewportService);
+  // the toolbar binds to viewport.zoomIn/zoomOut/reset/toggleGrid directly.
+  // Fit-to-screen stays here because it reads project elements + DOM sizing,
+  // then hands the bounding box to the viewport to compute pan/zoom.
   canvasFitToScreen(): void {
     if (!this.project || this.project.grid.length === 0 || !this.project.grid[this.selectedGridIndex]) {
-      this.resetCanvasView();
+      this.viewport.reset();
       return;
     }
 
     const elements = this.project.grid[this.selectedGridIndex].Screen_elements;
     if (elements.length === 0) {
-      this.resetCanvasView();
+      this.viewport.reset();
       return;
     }
 
-    // Calculate bounding box
+    // Calculate the content bounding box (screen px) for the viewport to fit.
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const el of elements) {
       const x = (el as any).x_pos || 0;
@@ -2318,19 +2202,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       maxY = Math.max(maxY, y * 200 + h);
     }
 
-    const containerWidth = 800; // Approximate container width
-    const containerHeight = 600; // Approximate container height
-
-    const contentWidth = maxX - minX + 100;
-    const contentHeight = maxY - minY + 100;
-
-    this.canvasZoom = Math.min(containerWidth / contentWidth, containerHeight / contentHeight, 1);
-    this.canvasPanX = (containerWidth - contentWidth * this.canvasZoom) / 2 - minX * this.canvasZoom + 50;
-    this.canvasPanY = (containerHeight - contentHeight * this.canvasZoom) / 2 - minY * this.canvasZoom + 50;
-  }
-
-  toggleGrid(): void {
-    this.showGrid = !this.showGrid;
+    // Approximate container size (matches the previous inline constants).
+    this.viewport.fitToBounds(minX, minY, maxX, maxY, 800, 600);
   }
 
   getElementWidth(element: Screen_Element): number {
@@ -2472,9 +2345,9 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       if (el) snap.set(idx, { x: el.x_pos ?? 0, y: el.y_pos ?? 0 });
     });
     // Ensure the leader is always represented even if selection was empty.
-    if (!snap.has(this.draggedElementIndex)) {
-      const el = els[this.draggedElementIndex] as any;
-      if (el) snap.set(this.draggedElementIndex, { x: el.x_pos ?? 0, y: el.y_pos ?? 0 });
+    if (!snap.has(this.drag.draggedElementIndex)) {
+      const el = els[this.drag.draggedElementIndex] as any;
+      if (el) snap.set(this.drag.draggedElementIndex, { x: el.x_pos ?? 0, y: el.y_pos ?? 0 });
     }
     return snap;
   }
@@ -2682,9 +2555,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   if ((event.target as HTMLElement).closest('.canvas-container') && 
       !(event.target as HTMLElement).closest('.canvas-element')) {
     const touch = event.touches[0];
-    this.isPanning = true;
-    this.panStartX = touch.clientX - this.canvasPanX;
-    this.panStartY = touch.clientY - this.canvasPanY;
+    this.viewport.beginPan(touch.clientX, touch.clientY);
   }
 }
 
@@ -2918,10 +2789,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
     // A long-press drag timer can outlive the component if navigation happens
     // mid-press; clear it so it never fires against a destroyed instance.
-    if (this.longPressTimer) {
-      clearTimeout(this.longPressTimer);
-      this.longPressTimer = null;
-    }
+    this.drag.cancelLongPress();
   }
 
 

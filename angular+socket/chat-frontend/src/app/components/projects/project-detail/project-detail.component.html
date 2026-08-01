@@ -122,19 +122,19 @@
       <!-- Floating glass Toolbar -->
       <div class="canvas-toolbar glass">
         <div class="toolbar-section">
-          <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out" aria-label="Zoom out">
+          <button class="toolbar-btn icon-only" (click)="viewport.zoomOut()" title="Zoom Out" aria-label="Zoom out">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M5 12h14"></path></svg>
           </button>
-          <span class="zoom-level num">{{ (canvasZoom * 100).toFixed(0) }}%</span>
-          <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In" aria-label="Zoom in">
+          <span class="zoom-level num">{{ (viewport.zoom * 100).toFixed(0) }}%</span>
+          <button class="toolbar-btn icon-only" (click)="viewport.zoomIn()" title="Zoom In" aria-label="Zoom in">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
           </button>
           <button class="toolbar-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
-          <button class="toolbar-btn" (click)="canvasResetView()" title="Reset View">Reset</button>
+          <button class="toolbar-btn" (click)="viewport.reset()" title="Reset View">Reset</button>
         </div>
         <div class="toolbar-divider"></div>
         <div class="toolbar-section">
-          <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()" title="Toggle grid">
+          <button class="toolbar-btn" [class.active]="viewport.showGrid" (click)="viewport.toggleGrid()" title="Toggle grid">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false">
               <path d="M3 9h18M3 15h18M9 3v18M15 3v18"></path>
             </svg>
@@ -206,8 +206,8 @@
            (wheel)="onCanvasWheel($event)"
            (mousedown)="onCanvasMouseDown($event)"
            (click)="onCanvasClick($event)"
-           [class.no-grid]="!showGrid">
-        <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
+           [class.no-grid]="!viewport.showGrid">
+        <div class="canvas-area" [style.transform]="'translate(' + viewport.panX + 'px, ' + viewport.panY + 'px) scale(' + viewport.zoom + ')'">
           <!-- A2: dependency links overlay (behind the element cards) -->
           <svg class="dependency-layer" width="100%" height="100%" [attr.aria-hidden]="true" focusable="false">
             <defs>
@@ -378,10 +378,10 @@
                  [style.height.px]="4"></div>
           }
           <div class="minimap-viewport"
-               [style.left.px]="(-canvasPanX * 0.04 / canvasZoom)"
-               [style.top.px]="(-canvasPanY * 0.04 / canvasZoom)"
-               [style.width.px]="(40 / canvasZoom)"
-               [style.height.px]="(30 / canvasZoom)"></div>
+               [style.left.px]="(-viewport.panX * 0.04 / viewport.zoom)"
+               [style.top.px]="(-viewport.panY * 0.04 / viewport.zoom)"
+               [style.width.px]="(40 / viewport.zoom)"
+               [style.height.px]="(30 / viewport.zoom)"></div>
         </div>
       </div>
     </div>
