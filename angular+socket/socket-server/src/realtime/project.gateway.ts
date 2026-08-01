@@ -19,9 +19,12 @@ import {
   deleteProjectSchema,
   formatZodError,
 } from "../validation/schemas.js";
+import { clientError } from "../lib/clientError.js";
+import { projectExistsForOwner } from "../repositories/project.repository.js";
+import { can } from "../services/access.service.js";
 
 export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
-  const { project_handler, identity } = deps;
+  const { project_handler, collab, identity } = deps;
 
   // Receiving method (legacy no-op receiver, kept as-is).
   socket.on("screenElement", (raw) => {
@@ -54,6 +57,23 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
         data.project.owner_name = socket.data.user.username;
       }
 
+      // A16: on an explicit CREATE (`expectNew`), refuse to silently overwrite an
+      // existing project — return "already exists" feedback instead of upserting.
+      // Uses the effective (post-override) owner so the check matches the DB's
+      // (owner_id, name, project_type) uniqueness. Edits (no `expectNew`) are
+      // unaffected and keep upserting as before.
+      const owner = data.project?.owner_name;
+      if ((data as any).expectNew === true && owner && data.project?.name) {
+        const exists = await projectExistsForOwner(owner, data.project.name, projectType);
+        if (exists) {
+          socket.emit("projectSaved", {
+            success: false,
+            message: `A project named "${data.project.name}" already exists. Please choose a different name.`,
+          });
+          return;
+        }
+      }
+
       console.log(`[Server] 💾 Saving project: "${data.project?.name}", Type: "${projectType}", Owner: "${data.project?.owner_name}"`);
       const result = await project_handler.saveProject(data.project, projectType);
 
@@ -79,7 +99,7 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
       }
     } catch (error: any) {
       console.error("Error in saveProject handler:", error);
-      socket.emit("projectSaved", { success: false, message: `Error: ${error.message}` });
+      socket.emit("projectSaved", { success: false, message: clientError("save the project") });
     }
   });
 
@@ -100,34 +120,35 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
       // Prefer the verified token identity; fall back to legacy session (permissive).
       const currentUser = identity().username;
 
-      // Load the project
-      const result = await project_handler.loadProject(data.projectName, data.projectType);
-
       // Use the provided event name if available, otherwise use default
       const eventName = data.eventName || "projectLoaded";
 
+      // N1: authorize VIEW via the role model (owner/admin/editor/viewer or the
+      // project's link-share role). Replaces the old local=owner-only / hosted=open
+      // rule. `not_found` and `forbidden` both surface as a failure to the client.
+      const access = await collab.authorize(
+        data.projectName,
+        data.projectType,
+        currentUser,
+        "view"
+      );
+      if (!access.ok) {
+        socket.emit(eventName, { success: false, message: access.message });
+        return;
+      }
+
+      // Load the project
+      const result = await project_handler.loadProject(data.projectName, data.projectType);
+
       if (result.success && result.project) {
-        // Check access permissions
-        const isOwner = result.project.owner_name === currentUser;
-        const isHosted = data.projectType === "hosted";
-
-        if (data.projectType === "local" && !isOwner) {
-          // Local projects: only owner can access
-          socket.emit(eventName, {
-            success: false,
-            message: `Access denied: You can only view your own local projects`,
-          });
-          return;
-        }
-
-        // Hosted projects: anyone can view
-        // Local projects: owner can view/edit
+        const role = access.role;
         const serialized = project_handler.serializeProject(result.project);
         serialized.projectType = data.projectType;
-        serialized.isOwner = isOwner; // Add flag to indicate if current user is owner
-        serialized.canEdit = isOwner || isHosted; // Can edit if owner, or if hosted (for now, allow editing)
+        serialized.isOwner = role === "owner";
+        serialized.canEdit = can(role, "edit"); // viewers get read-only
+        serialized.role = role; // effective role (frontend gates the Share UI on it)
 
-        console.log(`[Server] Sending project: name="${serialized.name}", owner="${serialized.owner_name}", currentUser="${currentUser}", isOwner=${isOwner}`);
+        console.log(`[Server] Sending project: name="${serialized.name}", owner="${serialized.owner_name}", currentUser="${currentUser}", role=${role}`);
         socket.emit(eventName, {
           success: true,
           project: serialized,
@@ -139,7 +160,7 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
     } catch (error: any) {
       console.error("Error in loadProject handler:", error);
       const eventName = data.eventName || "projectLoaded";
-      socket.emit(eventName, { success: false, message: `Error: ${error.message}` });
+      socket.emit(eventName, { success: false, message: clientError("load the project") });
     }
   });
 
@@ -169,20 +190,26 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
         console.log(`[Server] Listing hosted projects for user: ${currentUser || "anonymous"}`);
         socket.emit(`projectsListed_${data.projectType}`, result);
       } else {
-        // For local projects, show only current user's projects
-        const result = await project_handler.listProjects("local");
-        // Filter by owner if user is identified
-        if (currentUser && result.success && result.projects) {
-          result.projects = result.projects.filter((p: any) => p.owner_name === currentUser);
+        // N1: local list = projects the user OWNS or is a COLLABORATOR on
+        // (each annotated with the user's role). Anonymous/permissive sockets
+        // with no identity fall back to the empty-safe owner filter.
+        if (currentUser) {
+          const result = await project_handler.listProjectsForUser("local", currentUser);
+          socket.emit(`projectsListed_${data.projectType}`, result);
+        } else {
+          const result = await project_handler.listProjects("local");
+          if (result.success && result.projects) {
+            result.projects = result.projects.filter((p: any) => p.owner_name === currentUser);
+          }
+          socket.emit(`projectsListed_${data.projectType}`, result);
         }
-        socket.emit(`projectsListed_${data.projectType}`, result);
       }
     } catch (error: any) {
       console.error("Error in listProjects handler:", error);
       socket.emit(`projectsListed_${data.projectType}`, {
         success: false,
         projects: [],
-        message: `Error: ${error.message}`,
+        message: clientError("list projects"),
       });
     }
   });
@@ -214,7 +241,7 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
       }
     } catch (error: any) {
       console.error("Error in deleteProject handler:", error);
-      socket.emit("projectDeleted", { success: false, message: `Error: ${error.message}` });
+      socket.emit("projectDeleted", { success: false, message: clientError("delete the project") });
     }
   });
 }

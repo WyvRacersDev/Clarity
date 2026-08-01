@@ -11,6 +11,22 @@ import type { Server, Socket } from "socket.io";
 import type { GatewayDeps } from "./types.js";
 import { uploadFileSchema, deleteFileSchema, formatZodError } from "../validation/schemas.js";
 import { MAX_UPLOAD_BYTES } from "../config/index.js";
+import { clientError } from "../lib/clientError.js";
+
+/**
+ * Resolve the ack event name for a file op (A10/A11). The client passes a unique
+ * `eventName` and listens on exactly that; if the server acks on a DIFFERENT
+ * event, the client's `.once(eventName)` never fires and the upload appears to
+ * hang until its own timeout. So EVERY response — validation failure, oversize,
+ * success, or thrown error — must go to this one event. When no `eventName` is
+ * supplied we fall back to the documented static event (`fileUploaded` /
+ * `fileDeleted`) rather than a random `..._<ts>_<rand>` name no client can hear.
+ */
+function ackEvent(rawEventName: unknown, fallback: string): string {
+  return typeof rawEventName === "string" && rawEventName.length > 0
+    ? rawEventName
+    : fallback;
+}
 
 export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
   const { storage } = deps;
@@ -29,9 +45,14 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
       fileType: "image" | "video";
       eventName?: string;
     }) => {
+      // Resolve the ack event up front so EVERY exit path (invalid payload,
+      // oversize, success, error) acks on the event the client is listening to
+      // (A10 — otherwise the client hangs until its own timeout).
+      const eventName = ackEvent((data as any)?.eventName, "fileUploaded");
+
       const parsed = uploadFileSchema.safeParse(data);
       if (!parsed.success) {
-        socket.emit("fileUploaded", { success: false, message: formatZodError(parsed.error) });
+        socket.emit(eventName, { success: false, message: formatZodError(parsed.error) });
         return;
       }
 
@@ -43,7 +64,7 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
       // to be buffered fully in memory as a single base64 frame.
       const payloadBytes = Buffer.byteLength(data.fileData ?? "", "utf8");
       if (payloadBytes > MAX_UPLOAD_BYTES) {
-        socket.emit("fileUploaded", {
+        socket.emit(eventName, {
           success: false,
           message: `File too large: ${payloadBytes} bytes exceeds the ${MAX_UPLOAD_BYTES} byte limit.`,
         });
@@ -59,9 +80,6 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
           data.fileType
         );
 
-        const eventName =
-          data.eventName ||
-          `fileUploaded_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         socket.emit(eventName, {
           success: true,
           filePath,
@@ -70,9 +88,9 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
         });
       } catch (error: any) {
         console.error("Error uploading file:", error);
-        socket.emit("fileUploaded", {
+        socket.emit(eventName, {
           success: false,
-          message: `Failed to upload file: ${error.message}`,
+          message: clientError("upload the file"),
         });
       }
     }
@@ -90,29 +108,26 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
       filePath: string;
       eventName?: string;
     }) => {
+      // Ack on the client's event for every exit path (see uploadFile above).
+      const eventName = ackEvent((data as any)?.eventName, "fileDeleted");
+
       const parsed = deleteFileSchema.safeParse(data);
       if (!parsed.success) {
-        socket.emit("fileDeleted", { success: false, message: formatZodError(parsed.error) });
+        socket.emit(eventName, { success: false, message: formatZodError(parsed.error) });
         return;
       }
       try {
         const result = await storage.deleteAsset(data.projectName, data.projectType, data.filePath);
 
-        const eventName =
-          data.eventName ||
-          `fileDeleted_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         socket.emit(eventName, {
           success: result.success,
           message: result.message,
         });
       } catch (error: any) {
         console.error(`[Server] ✗ Error deleting file:`, error);
-        const eventName =
-          data.eventName ||
-          `fileDeleted_${data.projectName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         socket.emit(eventName, {
           success: false,
-          message: `Failed to delete file: ${error.message}`,
+          message: clientError("delete the file"),
         });
       }
     }

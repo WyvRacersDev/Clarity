@@ -18,14 +18,10 @@ import {
   identifyUserSchema,
   formatZodError,
 } from "../validation/schemas.js";
+import { clientError } from "../lib/clientError.js";
 
-export function register(
-  _io: Server,
-  socket: Socket,
-  deps: GatewayDeps,
-  userSessions: Map<string, string>
-): void {
-  const { user_handler } = deps;
+export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
+  const { user_handler, identity, userSessions } = deps;
 
   // Register user when they identify themselves.
   // With JWT auth present this is effectively a no-op (identity already trusted).
@@ -78,7 +74,7 @@ export function register(
       });
     } catch (error: any) {
       console.error("Error in saveUser handler:", error);
-      socket.emit("userSaved", { success: false, message: `Error: ${error.message}` });
+      socket.emit("userSaved", { success: false, message: clientError("save the user") });
     }
   });
 
@@ -113,12 +109,20 @@ export function register(
     } catch (error: any) {
       console.error("Error in loadUser handler:", error);
       const eventName = data.eventName || "userLoaded";
-      socket.emit(eventName, { success: false, message: `Error: ${error.message}` });
+      socket.emit(eventName, { success: false, message: clientError("load the user") });
     }
   });
 
   /**
-   * List all users
+   * List users.
+   *
+   * A15: previously this returned the ENTIRE roster (every username, project
+   * count, and last-modified time) to any connected client — a privacy leak with
+   * no legitimate consumer (no frontend feature calls listUsers). The response is
+   * now SCOPED to the caller's own record: we resolve the effective identity
+   * (JWT-first, legacy-session fallback) and return only that user's entry, so no
+   * client can enumerate other accounts. Anonymous/unidentified sockets get an
+   * empty list. The `{ success, users, message }` contract shape is unchanged.
    */
   socket.on("listUsers", async (data: { requestId?: string }) => {
     const parsed = listUsersSchema.safeParse(data ?? {});
@@ -127,14 +131,24 @@ export function register(
       return;
     }
     try {
+      const self = identity().username;
+      if (!self) {
+        socket.emit("usersListed", { success: true, users: [], message: "No identity" });
+        return;
+      }
       const result = await user_handler.listUsers();
-      socket.emit("usersListed", result);
+      const own = (result.users ?? []).filter((u: any) => u?.name === self);
+      socket.emit("usersListed", {
+        success: result.success,
+        users: own,
+        message: result.success ? `Found ${own.length} user${own.length === 1 ? "" : "s"}` : result.message,
+      });
     } catch (error: any) {
       console.error("Error in listUsers handler:", error);
       socket.emit("usersListed", {
         success: false,
         users: [],
-        message: `Error: ${error.message}`,
+        message: clientError("list users"),
       });
     }
   });
@@ -155,7 +169,7 @@ export function register(
       socket.emit("userDeleted", result);
     } catch (error: any) {
       console.error("Error in deleteUser handler:", error);
-      socket.emit("userDeleted", { success: false, message: `Error: ${error.message}` });
+      socket.emit("userDeleted", { success: false, message: clientError("delete the user") });
     }
   });
 
@@ -181,7 +195,7 @@ export function register(
       socket.emit("userExistsResult", {
         success: false,
         exists: false,
-        message: `Error: ${error.message}`,
+        message: clientError("check whether the user exists"),
       });
     }
   });
