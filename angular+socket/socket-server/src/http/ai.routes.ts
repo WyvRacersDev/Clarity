@@ -13,13 +13,19 @@
 import { Router } from "express";
 import type { Chat_Agent } from "@services/agent.service.js";
 import { computeSuggestionsForUser } from "@services/notification.service.js";
+import { resolveIdentity, resolveUsername } from "../middleware/auth.middleware.js";
 
 export function createAiRouter(agent: Chat_Agent): Router {
   const aiRouter: Router = Router();
 
+  // Identity: honour AUTH_STRICT and prefer the verified JWT's username over the
+  // `?username` query param (the streaming route accepts the token via `?token=`
+  // because EventSource cannot set an Authorization header).
+  aiRouter.use(resolveIdentity);
+
   aiRouter.get("/ai-assistant/chat-agent", async (req, res) => {
     const input = String(req.query.input ?? "");
-    const username = String(req.query.username ?? "Demo User");
+    const username = resolveUsername(req) || "Demo User";
     console.log("AI Assistant chat input:", input);
     try {
       let result = await agent.chat(input, username);
@@ -68,7 +74,7 @@ export function createAiRouter(agent: Chat_Agent): Router {
    */
   aiRouter.get("/ai-assistant/chat-agent-stream", async (req, res) => {
     const input = String(req.query.input ?? "");
-    const username = String(req.query.username ?? "Demo User");
+    const username = resolveUsername(req) || "Demo User";
     console.log("AI Assistant stream input:", input);
 
     res.setHeader("Content-Type", "text/event-stream");
@@ -111,7 +117,7 @@ export function createAiRouter(agent: Chat_Agent): Router {
    * empty result is `null`. Degrades to the heuristic when no valid key.
    */
   aiRouter.get("/ai-assistant/suggestions", async (req, res) => {
-    const username = String(req.query.username ?? "");
+    const username = resolveUsername(req);
     try {
       const suggestion = await computeSuggestionsForUser(agent, username);
       res.json({ suggestion });

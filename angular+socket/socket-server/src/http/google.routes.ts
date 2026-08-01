@@ -78,7 +78,9 @@ async function handleOAuthCallback(req: any, res: any) {
         sub,
         email,
       });
-      const token = issueJwt(user);
+      // Carry the Google profile photo into the JWT for avatar display.
+      const picture = userInfo.data.picture || undefined;
+      const token = issueJwt(user, picture);
       console.log("Google login for:", email, "→ user", user.id);
       return res.redirect(
         `${FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}`

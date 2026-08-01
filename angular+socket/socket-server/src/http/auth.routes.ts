@@ -33,15 +33,27 @@ authRouter.use(express.json());
 
 // Rate limiter for credential endpoints: caps brute-force / abuse per IP.
 // Window and max are env-configurable (defaults: 10 requests / 15 min per IP).
-const authRateLimiter = rateLimit({
-  windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
-  max: AUTH_RATE_LIMIT_MAX,
-  standardHeaders: true, // expose RateLimit-* headers
-  legacyHeaders: false,
-  message: { error: "Too many requests. Please try again later." },
-});
+//
+// A12: login and register get SEPARATE buckets. They previously shared one
+// limiter instance (one counter per IP across both routes), so a burst of
+// registrations — or a few failed login attempts mixed with them — could exhaust
+// the shared budget and lock a user out of *login* for the rest of the window.
+// Two independent `rateLimit` instances each keep their own per-IP counter, so
+// register traffic can never consume login's allowance (and vice versa).
+function makeAuthRateLimiter() {
+  return rateLimit({
+    windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+    max: AUTH_RATE_LIMIT_MAX,
+    standardHeaders: true, // expose RateLimit-* headers
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please try again later." },
+  });
+}
 
-authRouter.post("/register", authRateLimiter, async (req, res) => {
+const loginRateLimiter = makeAuthRateLimiter();
+const registerRateLimiter = makeAuthRateLimiter();
+
+authRouter.post("/register", registerRateLimiter, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({ error: formatZodError(parsed.error) });
@@ -59,7 +71,7 @@ authRouter.post("/register", authRateLimiter, async (req, res) => {
   }
 });
 
-authRouter.post("/login", authRateLimiter, async (req, res) => {
+authRouter.post("/login", loginRateLimiter, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({ error: formatZodError(parsed.error) });

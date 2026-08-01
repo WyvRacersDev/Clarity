@@ -33,6 +33,11 @@ export const saveProjectSchema = z
     // so projectType here is optional. `project` must be an object.
     project: looseObject,
     projectType: projectTypeSchema.optional(),
+    // A16: when true, the save is a CREATE — the handler rejects it (rather than
+    // silently upserting/overwriting) if a project with the same owner+name+type
+    // already exists. Absent/false preserves the legacy upsert-on-save behavior
+    // that every edit relies on.
+    expectNew: z.boolean().optional(),
   })
   .passthrough();
 
@@ -70,13 +75,39 @@ export const joinProjectRoomSchema = z
 
 export const leaveProjectRoomSchema = joinProjectRoomSchema;
 
+/**
+ * The four element kinds the persistence layer actually understands. Anything
+ * else was previously coerced silently to Text_document (A9), so we reject an
+ * explicit unknown `type` here instead. `type` stays optional because the
+ * repository can still infer it from the element's shape when it's absent.
+ */
+const elementTypeSchema = z.enum(["Text_document", "Image", "Video", "ToDoLst"]);
+
+/**
+ * A9: validate the fields that were being silently coerced on `element:create`
+ * — an unknown `type` (e.g. "Hologram") became Text_document, and a non-numeric
+ * coordinate (e.g. x_pos:"left") became 0 — both while still returning
+ * success:true. We now reject those up front. Every other field is passed
+ * through untouched (`.passthrough()`), so the full serialized element shape the
+ * handler reads is preserved.
+ */
+const elementInputSchema = z
+  .object({
+    type: elementTypeSchema.optional(),
+    x_pos: z.number().optional(),
+    y_pos: z.number().optional(),
+    x_scale: z.number().optional(),
+    y_scale: z.number().optional(),
+  })
+  .passthrough();
+
 /** element:create — insert one element into a grid, then broadcast. */
 export const elementCreateSchema = z
   .object({
     projectName: z.string(),
     projectType: projectTypeSchema,
     gridId: z.string().optional(), // falls back to the project's first grid
-    element: looseObject,
+    element: elementInputSchema,
   })
   .passthrough();
 
@@ -122,6 +153,48 @@ export const cursorMoveSchema = z
   })
   .passthrough();
 
+// === Collaborative text (B3 — Yjs) ===
+
+/**
+ * ydoc:sync — a client opening a Text_document editor asks the server for the
+ * authoritative doc state. `stateVector` (base64, optional) lets the server
+ * reply with only the diff the client is missing.
+ */
+export const ydocSyncSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    elementId: z.string(),
+    stateVector: z.string().optional(),
+  })
+  .passthrough();
+
+/**
+ * ydoc:update — a base64-encoded Yjs update. Applied to the authoritative
+ * server doc, broadcast to the room (except sender), and debounce-persisted.
+ */
+export const ydocUpdateSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    elementId: z.string(),
+    update: z.string().min(1),
+  })
+  .passthrough();
+
+/**
+ * ydoc:awareness — a base64-encoded Yjs awareness update (remote cursors /
+ * selections). Relayed to the room (except sender); NOT persisted.
+ */
+export const ydocAwarenessSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    elementId: z.string(),
+    update: z.string().min(1),
+  })
+  .passthrough();
+
 // === Task comments (A3) ===
 
 /**
@@ -148,6 +221,133 @@ export const taskCommentListSchema = z
     taskId: z.string(),
   })
   .passthrough();
+
+// === Sharing / access control (N1) ===
+
+/** Collaborator roles an owner/admin can assign (owner is implicit, not set). */
+const collaboratorRoleSchema = z.enum(["viewer", "editor", "admin"]);
+
+/** Identify a project for a sharing operation. */
+const shareTargetSchema = z.object({
+  projectName: z.string(),
+  projectType: projectTypeSchema,
+});
+
+/** sharing:get — read members + pending invites + link config for a project. */
+export const sharingGetSchema = shareTargetSchema.passthrough();
+
+/** sharing:invite — invite an email at a role (existing user → member; else pending). */
+export const sharingInviteSchema = shareTargetSchema
+  .extend({
+    email: z.string().min(3),
+    role: collaboratorRoleSchema.optional(), // defaults to 'editor' server-side
+  })
+  .passthrough();
+
+/** sharing:updateRole — change a collaborator's role. */
+export const sharingUpdateRoleSchema = shareTargetSchema
+  .extend({
+    userId: z.string(),
+    role: collaboratorRoleSchema,
+  })
+  .passthrough();
+
+/** sharing:removeMember — revoke a collaborator's access. */
+export const sharingRemoveMemberSchema = shareTargetSchema
+  .extend({ userId: z.string() })
+  .passthrough();
+
+/** sharing:revokeInvite — cancel a pending email invitation. */
+export const sharingRevokeInviteSchema = shareTargetSchema
+  .extend({ email: z.string().min(3) })
+  .passthrough();
+
+/** sharing:setLink — set "anyone with the link" access (none/viewer/editor). */
+export const sharingSetLinkSchema = shareTargetSchema
+  .extend({ role: z.enum(["none", "viewer", "editor"]) })
+  .passthrough();
+
+// === Notifications / activity feed (N2) ===
+
+/** notification:list — page the caller's inbox (optional cap). */
+export const notificationListSchema = z
+  .object({ limit: z.number().int().positive().max(100).optional() })
+  .passthrough();
+
+/** notification:markRead — mark one of the caller's notifications read. */
+export const notificationMarkReadSchema = z
+  .object({ id: z.string() })
+  .passthrough();
+
+/** notification:feed — a project's activity feed (view access required). */
+export const notificationFeedSchema = shareTargetSchema
+  .extend({ limit: z.number().int().positive().max(100).optional() })
+  .passthrough();
+
+// === Chat (project channels + 1:1 DMs) ===
+
+/** A conversation is either a project channel or a 1:1 DM. */
+const chatScopeSchema = z.enum(["project", "dm"]);
+
+/**
+ * Shared conversation-addressing fields. A 'project' scope carries
+ * projectName+projectType (the room); a 'dm' scope carries `to` (the partner's
+ * username). Kept loose here — the gateway/ChatService turn a missing/mismatched
+ * field into a clean ack error, so we never reject a payload the success path
+ * would have routed.
+ */
+const chatTargetShape = {
+  scope: chatScopeSchema,
+  projectName: z.string().optional(),
+  projectType: projectTypeSchema.optional(),
+  to: z.string().optional(),
+};
+
+/** chat:send — post a message to a project channel or a DM. */
+export const chatSendSchema = z
+  .object({
+    ...chatTargetShape,
+    body: z.string().min(1),
+    replyToId: z.string().optional(),
+  })
+  .passthrough();
+
+/** chat:history — page a conversation, oldest-first, older than `before`. */
+export const chatHistorySchema = z
+  .object({
+    ...chatTargetShape,
+    before: z.string().optional(), // ISO timestamp cursor
+    limit: z.number().int().positive().max(100).optional(),
+  })
+  .passthrough();
+
+/** chat:edit — change your own message's body. */
+export const chatEditSchema = z
+  .object({
+    ...chatTargetShape,
+    id: z.string(),
+    body: z.string().min(1),
+  })
+  .passthrough();
+
+/** chat:delete — remove your own message. */
+export const chatDeleteSchema = z
+  .object({ ...chatTargetShape, id: z.string() })
+  .passthrough();
+
+/** chat:typing — high-frequency, fire-and-forget typing indicator. */
+export const chatTypingSchema = z.object({ ...chatTargetShape }).passthrough();
+
+/** chat:read — mark a conversation read up to now. */
+export const chatReadSchema = z.object({ ...chatTargetShape }).passthrough();
+
+/** chat:unread — unread count for one project channel. */
+export const chatUnreadSchema = z
+  .object({ projectName: z.string(), projectType: projectTypeSchema })
+  .passthrough();
+
+/** chat:conversations — list the caller's DM conversations (no payload). */
+export const chatConversationsSchema = z.object({}).passthrough();
 
 // === User events ===
 

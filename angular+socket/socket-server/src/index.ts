@@ -42,6 +42,10 @@ import { googleRouter } from "./http/google.routes.js";
 import { analyticsRouter } from "./http/analytics.routes.js";
 import { createAiRouter } from "./http/ai.routes.js";
 import { miscRouter } from "./http/misc.routes.js";
+import { searchRouter } from "./http/search.routes.js";
+import { createIntegrationsRouter } from "./http/integrations.routes.js";
+import { createIcsRouter } from "./http/ics.routes.js";
+import { createExportRouter } from "./http/export.routes.js";
 
 // Socket.IO gateways
 import type { GatewayDeps, Identity } from "./realtime/types.js";
@@ -50,6 +54,16 @@ import { register as registerUserGateway } from "./realtime/user.gateway.js";
 import { register as registerFileGateway } from "./realtime/file.gateway.js";
 import { register as registerContactsGateway } from "./realtime/contacts.gateway.js";
 import { register as registerCollabGateway } from "./realtime/collab.gateway.js";
+import { register as registerChatGateway } from "./realtime/chat.gateway.js";
+import { register as registerSharingGateway } from "./realtime/sharing.gateway.js";
+import { register as registerNotificationGateway } from "./realtime/notification.gateway.js";
+import { CollabService } from "@services/collab.service.js";
+import { ChatService } from "@services/chat.service.js";
+import { SharingService } from "@services/sharing.service.js";
+import { ContactsService } from "@services/contacts.service.js";
+import { NotificationCenterService } from "@services/notification-center.service.js";
+import { IntegrationsService } from "@services/integrations.service.js";
+import { PresenceRegistry } from "./realtime/presence.registry.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -118,6 +132,19 @@ const project_handler = new ProjectHandler();
 const user_handler = new UserHandler();
 const agent = new Chat_Agent(process.env.GEMINI_API_KEY!);
 const storage = new DiskStorageService(project_handler);
+const collab = new CollabService();
+const chat = new ChatService();
+const sharing = new SharingService();
+const contacts = new ContactsService(user_handler);
+const notifications = new NotificationCenterService();
+const integrations = new IntegrationsService();
+const presence = new PresenceRegistry();
+
+// N10: mirror every persisted notification to the recipient's outbound webhook /
+// Slack, if they configured one. Decoupled via a plain function (DIP).
+notifications.setSideChannel((recipient, notification) =>
+  integrations.deliverWebhookForUser(recipient, notification)
+);
 
 // === Auth routes (email/password + Google login) ===
 app.use("/auth", authRouter);
@@ -150,7 +177,11 @@ app.use(
 // === Root-mounted HTTP routers (Google/OAuth/Gmail, analytics, AI, misc) ===
 app.use(googleRouter);
 app.use(analyticsRouter);
+app.use(searchRouter);
 app.use(createAiRouter(agent));
+app.use(createIntegrationsRouter(integrations)); // N10: per-user integration config
+app.use(createIcsRouter(integrations));          // N10: unauthenticated ICS feed
+app.use(createExportRouter());                   // N10: project export (JSON/Markdown)
 app.use(miscRouter);
 
 // === Socket.IO handshake auth (permissive by default; strict via AUTH_STRICT) ===
@@ -158,7 +189,9 @@ io.use(socketAuth);
 
 // Pass io + agent so the cron ALSO pushes proactive `ai:suggestion` events
 // (C2) to per-user rooms, in addition to the existing task-due emails.
-startNotificationService({ io, agent });
+// `notifications` lets the cron also persist durable `ai_suggestion` / `due_soon`
+// inbox entries (N2) alongside the live push / email.
+startNotificationService({ io, agent, notifications });
 
 // === Socket Event Handlers ===
 
@@ -199,14 +232,17 @@ io.on("connection", (socket: Socket) => {
     joinUserRoom(socket.data.user?.username ?? data?.username);
   });
 
-  const deps: GatewayDeps = { project_handler, user_handler, storage, identity };
+  const deps: GatewayDeps = { project_handler, user_handler, storage, collab, chat, sharing, contacts, notifications, presence, userSessions, identity };
 
   // Register each gateway (grouped by concern).
   registerProjectGateway(io, socket, deps);
-  registerUserGateway(io, socket, deps, userSessions);
+  registerUserGateway(io, socket, deps);
   registerFileGateway(io, socket, deps);
   registerContactsGateway(io, socket, deps);
   registerCollabGateway(io, socket, deps); // Phase 6b: granular realtime + presence
+  registerChatGateway(io, socket, deps); // Chat: project channels + 1:1 DMs
+  registerSharingGateway(io, socket, deps); // N1: access control & sharing
+  registerNotificationGateway(io, socket, deps); // N2: notification center + activity feed
 });
 
 server.listen(SERVER_PORT, SERVER_HOST, () => {
