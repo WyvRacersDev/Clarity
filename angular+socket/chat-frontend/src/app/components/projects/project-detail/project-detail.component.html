@@ -1,13 +1,13 @@
 <!-- Loading Overlay -->
 @if (isSaving || isLoading) {
-  <div class="loading-overlay">
+  <div class="loading-overlay glass">
     <div class="loading-spinner">
-      <div class="spinner"></div>
+      <div class="spinner spinner-lg"></div>
       @if (isSaving) {
-        <p>Saving project...</p>
+        <p>Saving project…</p>
       }
       @if (isLoading) {
-        <p>Loading project...</p>
+        <p>Loading project…</p>
       }
     </div>
   </div>
@@ -18,9 +18,16 @@
     <!-- Header -->
     <div class="canvas-header">
       <div class="header-left">
-        <a routerLink="/dashboard/projects" class="back-btn">← Back</a>
-        <h1>{{ project.name }}</h1>
-        <span class="element-count">{{ getElements().length }} elements</span>
+        <a routerLink="/dashboard/projects" class="btn btn-secondary btn-sm back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path>
+          </svg>
+          Back
+        </a>
+        <div class="header-title">
+          <h1>{{ project.name }}</h1>
+          <span class="element-count chip">{{ getElements().length }} elements</span>
+        </div>
       </div>
       <div class="header-actions">
         <!-- Phase 6b / B2: presence avatars (album-palette per user) -->
@@ -36,34 +43,115 @@
             <span class="presence-pill">{{ presenceUsers.length }} here</span>
           </div>
         }
-        <button class="add-btn" (click)="openAddElementModal()">
-          <span class="btn-icon">+</span>
+        @if (!canEditProject) {
+          <span class="chip readonly-chip" title="You have view-only access">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          View only
+        </span>
+        }
+        <button class="btn btn-secondary" (click)="openActivityFeed()" title="Project activity">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          Activity
+        </button>
+        <button class="btn btn-secondary" (click)="openTeamChat()" title="Team chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          Chat
+        </button>
+        @if (canManageProject) {
+          <button class="btn btn-secondary" (click)="openShareDialog()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path>
+            </svg>
+            Share
+          </button>
+        }
+        <!-- N10: Export (JSON / Markdown / print-to-PDF) -->
+        <div class="export-anchor" style="position: relative;">
+          <button class="btn btn-secondary" (click)="toggleExportMenu($event)"
+                  [attr.aria-expanded]="showExportMenu" aria-haspopup="menu" title="Export project">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export
+          </button>
+          @if (showExportMenu) {
+            <div class="menu export-menu" role="menu" (click)="$event.stopPropagation()"
+                 style="position:absolute; right:0; top:calc(100% + 6px); min-width:184px; z-index:var(--z-panel,60);">
+              <button class="menu-item" role="menuitem" (click)="exportJson()">Download JSON</button>
+              <button class="menu-item" role="menuitem" (click)="exportMarkdown()">Download Markdown</button>
+              <button class="menu-item" role="menuitem" (click)="printProject()">Print / Save as PDF</button>
+            </div>
+          }
+        </div>
+        <button class="btn btn-primary" (click)="openAddElementModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 5v14"></path><path d="M5 12h14"></path>
+          </svg>
           Add Element
         </button>
       </div>
     </div>
 
+    <!-- N1: Share dialog -->
+    @if (showShareDialog) {
+      <app-share-dialog
+        [projectName]="project.name"
+        [projectType]="$any(project).projectType || 'local'"
+        [canManage]="canManageProject"
+        [ownerName]="projectOwnerName"
+        [currentUsername]="currentUser?.name || ''"
+        (closed)="closeShareDialog()">
+      </app-share-dialog>
+    }
+
+    <!-- N2: Activity feed -->
+    @if (showActivityFeed) {
+      <app-activity-feed
+        [projectName]="project.name"
+        [projectType]="$any(project).projectType || 'local'"
+        (closed)="closeActivityFeed()">
+      </app-activity-feed>
+    }
+
     <!-- Canvas Workspace -->
     <div class="canvas-workspace">
-      <!-- Toolbar -->
-      <div class="canvas-toolbar">
+      <!-- Floating glass Toolbar -->
+      <div class="canvas-toolbar glass">
         <div class="toolbar-section">
-          <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out">−</button>
-          <span class="zoom-level">{{ (canvasZoom * 100).toFixed(0) }}%</span>
-          <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In">+</button>
+          <button class="toolbar-btn icon-only" (click)="canvasZoomOut()" title="Zoom Out" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M5 12h14"></path></svg>
+          </button>
+          <span class="zoom-level num">{{ (canvasZoom * 100).toFixed(0) }}%</span>
+          <button class="toolbar-btn icon-only" (click)="canvasZoomIn()" title="Zoom In" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          </button>
           <button class="toolbar-btn" (click)="canvasFitToScreen()" title="Fit to Screen">Fit</button>
           <button class="toolbar-btn" (click)="canvasResetView()" title="Reset View">Reset</button>
         </div>
         <div class="toolbar-divider"></div>
         <div class="toolbar-section">
-          <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()">Grid</button>
-          <button class="toolbar-btn" [class.active]="snapEnabled()" (click)="toggleSnap()" title="Snap to grid on drop">Snap</button>
+          <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()" title="Toggle grid">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false">
+              <path d="M3 9h18M3 15h18M9 3v18M15 3v18"></path>
+            </svg>
+            Grid
+          </button>
+          <button class="toolbar-btn" [class.active]="snapEnabled()" (click)="toggleSnap()" title="Snap to grid on drop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M4 4h6v6H4zM14 14h6v6h-6zM10 7h7a3 3 0 0 1 3 3v4"></path>
+            </svg>
+            Snap
+          </button>
         </div>
         <div class="toolbar-divider"></div>
         <!-- G2: Templates -->
         <div class="toolbar-section templates-wrap">
           <button class="toolbar-btn" [class.active]="showTemplatesMenu()" (click)="toggleTemplatesMenu($event)" title="Insert a template">
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false">
               <rect x="1.5" y="1.5" width="5" height="5" rx="1"></rect>
               <rect x="9.5" y="1.5" width="5" height="5" rx="1"></rect>
               <rect x="1.5" y="9.5" width="5" height="5" rx="1"></rect>
@@ -87,9 +175,15 @@
         <div class="toolbar-divider"></div>
         <div class="toolbar-section">
           @if (selectedIndices().size > 1) {
-            <button class="toolbar-btn danger" (click)="deleteSelectedElements()">Delete ({{ selectedIndices().size }})</button>
+            <button class="toolbar-btn danger" (click)="deleteSelectedElements()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
+              Delete ({{ selectedIndices().size }})
+            </button>
           } @else {
-            <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">Delete</button>
+            <button class="toolbar-btn danger" (click)="deleteSelected()" [disabled]="selectedElementIndex < 0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
+              Delete
+            </button>
           }
         </div>
       </div>
@@ -97,7 +191,10 @@
       <!-- A2: link-mode banner -->
       @if (linkSourceId) {
         <div class="link-mode-banner">
-          <span class="link-mode-icon">🔗</span>
+          <svg class="link-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path>
+            <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path>
+          </svg>
           <span>Click a todo list to make it a dependency</span>
           <button class="link-mode-cancel" (click)="cancelLinkMode()">Cancel</button>
         </div>
@@ -112,7 +209,7 @@
            [class.no-grid]="!showGrid">
         <div class="canvas-area" [style.transform]="'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')'">
           <!-- A2: dependency links overlay (behind the element cards) -->
-          <svg class="dependency-layer" width="100%" height="100%" [attr.aria-hidden]="true">
+          <svg class="dependency-layer" width="100%" height="100%" [attr.aria-hidden]="true" focusable="false">
             <defs>
               <marker id="dep-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
                 <path d="M0,0 L8,4 L0,8 Z" fill="var(--accent-blue)"></path>
@@ -148,7 +245,25 @@
             >
               <!-- Element Header -->
               <div class="element-header">
-                <span class="element-type-badge">{{ getElementType(element) }}</span>
+                <span class="element-type-badge" [attr.data-type]="getElementType(element)" aria-hidden="true">
+                  @switch (getElementType(element)) {
+                    @case ('ToDoLst') {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                    }
+                    @case ('Text_document') {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7V4h16v3"></path><path d="M9 20h6"></path><path d="M12 4v16"></path></svg>
+                    }
+                    @case ('Image') {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+                    }
+                    @case ('Video') {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="5" width="14" height="14" rx="2"></rect><path d="M22 8l-6 4 6 4V8z"></path></svg>
+                    }
+                    @default {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+                    }
+                  }
+                </span>
                 <span class="element-name">{{ element.name }}</span>
                 @if (isElementBlocked(element)) {
                   <span class="blocked-badge" title="Blocked by an incomplete dependency">Blocked</span>
@@ -158,9 +273,16 @@
                     class="element-link-btn"
                     [class.active]="linkSourceId === element.id"
                     [title]="linkSourceId === element.id ? 'Click another list to link, or click again to cancel' : 'Link a dependency'"
-                    (click)="startLinkMode(element, $event)">🔗</button>
+                    (click)="startLinkMode(element, $event)" aria-label="Link a dependency">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                      <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path>
+                      <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path>
+                    </svg>
+                  </button>
                 }
-                <button class="element-delete-btn" (click)="deleteElement(i); $event.stopPropagation()">×</button>
+                <button class="element-delete-btn" (click)="deleteElement(i); $event.stopPropagation()" aria-label="Delete element">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </button>
               </div>
 
               <!-- Element Content -->
@@ -169,8 +291,11 @@
                   <div class="todo-preview">
                     @for (task of getTodoTasks(element).slice(0, 4); track task) {
                       <div class="task-row">
-                        <input type="checkbox" [checked]="task.is_done" (change)="onTaskToggle(task); $event.stopPropagation()" />
-                        <span [class.done]="task.is_done">{{ task.taskname }}</span>
+                        <label class="task-check" (click)="$event.stopPropagation()">
+                          <input type="checkbox" [checked]="task.is_done" (change)="onTaskToggle(task); $event.stopPropagation()" [attr.aria-label]="'Mark ' + task.taskname + ' done'" />
+                          <span class="task-check-box"></span>
+                        </label>
+                        <span class="task-label" [class.done]="task.is_done">{{ task.taskname }}</span>
                       </div>
                     }
                     @if (getTodoTasks(element).length === 0) {
@@ -216,23 +341,37 @@
                  [style.left.px]="cursor.x"
                  [style.top.px]="cursor.y"
                  [style.--cursor-color]="getUserColor(cursor.username)">
-              <span class="remote-cursor-pointer" [style.color]="getUserColor(cursor.username)">▲</span>
+              <svg class="remote-cursor-pointer" viewBox="0 0 24 24" [style.color]="getUserColor(cursor.username)" fill="currentColor" aria-hidden="true" focusable="false">
+                <path d="M5 3l14 7-6 2-2 6-6-15z"></path>
+              </svg>
               <span class="remote-cursor-label" [style.background]="getUserColor(cursor.username)">{{ cursor.username }}</span>
             </div>
           }
           @if (getElements().length === 0) {
-            <div class="empty-canvas">
-              <div class="empty-icon">+</div>
-              <p>Add elements to your canvas</p>
-              <button class="add-btn" (click)="openAddElementModal()">Add Element</button>
+            <div class="empty-canvas empty-state">
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                  <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                  <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                  <path d="M17.5 14.5v6M14.5 17.5h6"></path>
+                </svg>
+              </div>
+              <h3>Your canvas is empty</h3>
+              <p>Add todo lists, notes, images, or videos to start building your workspace.</p>
+              <button class="btn btn-primary" (click)="openAddElementModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg>
+                Add Element
+              </button>
             </div>
           }
         </div>
 
         <!-- Mini Map -->
-        <div class="minimap">
+        <div class="minimap glass">
           @for (element of getElements(); track element; let i = $index) {
             <div class="minimap-dot"
+                 [attr.data-type]="getElementType(element)"
                  [style.left.px]="(getElementX(element, i) * 0.04)"
                  [style.top.px]="(getElementY(element, i) * 0.04)"
                  [style.width.px]="(getElementWidth(element) * 0.04)"
@@ -247,118 +386,68 @@
       </div>
     </div>
 
+    <!-- B3: Collaborative rich-text editor (Yjs) -->
+    @if (showTextEditor && textEditorElement) {
+      <app-text-doc-editor
+        [element]="textEditorElement"
+        [projectName]="project?.name || ''"
+        [projectType]="$any(project)?.projectType || 'local'"
+        [username]="currentUser?.name || 'You'"
+        (closed)="closeTextEditor()"
+      ></app-text-doc-editor>
+    }
+
     <!-- Full Screen Todo View -->
     @if (showFullScreenTodo && fullScreenTodoElement) {
-      <div class="fullscreen-todo-overlay" [class.with-comments]="selectedCommentTask">
-        <div class="fullscreen-todo-container">
-          <div class="fullscreen-header">
-            <h1>{{ fullScreenTodoElement.name }}</h1>
-            <button class="close-btn" (click)="closeFullScreenTodo()">×</button>
-          </div>
-          <div class="add-task-row">
-            <input [(ngModel)]="newTaskName" placeholder="Add a task..." class="task-input" (keyup.enter)="addTaskToFullScreenTodo()" />
-            <select [(ngModel)]="newTaskPriority">
-              <option [ngValue]="1">High</option>
-              <option [ngValue]="2">Medium</option>
-              <option [ngValue]="3">Low</option>
-            </select>
-            <button class="add-task-btn" (click)="addTaskToFullScreenTodo()" [disabled]="!newTaskName.trim()">Add</button>
-          </div>
-          <div class="tasks-list">
-            @for (task of getUpcomingTasks(); track task) {
-              <div class="task-item" [class.comment-active]="selectedCommentTask === task">
-                <input type="checkbox" [checked]="task.is_done" (change)="toggleTaskStatusInFullScreen(task)" />
-                <span class="task-item-name" [class.done]="task.is_done">{{ task.taskname }}</span>
-                <button class="comment-badge-btn" (click)="openTaskComments(task, $event)" title="Comments">
-                  💬
-                  @if (getCommentCount(task) > 0) {
-                    <span class="comment-count">{{ getCommentCount(task) }}</span>
-                  }
-                </button>
-                <button class="delete-task-btn" (click)="deleteTaskFromFullScreenTodo(task)">×</button>
-              </div>
-            }
-          </div>
-        </div>
-
-        <!-- A3: task comments panel -->
-        @if (selectedCommentTask) {
-          <div class="comments-panel">
-            <div class="comments-header">
-              <div class="comments-title">
-                <span class="comments-title-label">Comments</span>
-                <span class="comments-task-name">{{ selectedCommentTask.taskname }}</span>
-              </div>
-              <button class="close-btn" (click)="closeTaskComments()">×</button>
-            </div>
-
-            <div class="comments-body">
-              @if (!canComment) {
-                <p class="comments-hint">Comments sync once this task is saved to the server. Reopen the project to enable them.</p>
-              } @else if (isLoadingComments) {
-                <p class="comments-hint">Loading comments…</p>
-              } @else if (taskComments.length === 0) {
-                <p class="comments-hint">No comments yet. Start the conversation.</p>
-              } @else {
-                @for (comment of taskComments; track comment.id) {
-                  <div class="comment-item">
-                    <div class="comment-meta">
-                      <span class="comment-author" [style.color]="getUserColor(comment.author)">{{ comment.author }}</span>
-                      <span class="comment-time">{{ formatRelativeTime(comment.created_at) }}</span>
-                    </div>
-                    <div class="comment-text">{{ comment.body }}</div>
-                  </div>
-                }
-              }
-            </div>
-
-            @if (canComment) {
-              <div class="comments-composer field">
-                <textarea
-                  class="textarea"
-                  rows="2"
-                  placeholder="Write a comment…"
-                  [(ngModel)]="newCommentBody"
-                  (keydown.enter)="$event.preventDefault(); submitComment()"></textarea>
-                <button class="submit-btn" (click)="submitComment()" [disabled]="!newCommentBody.trim()">Send</button>
-              </div>
-            }
-          </div>
-        }
-      </div>
+      <app-fullscreen-todo
+        [list]="fullScreenTodoElement"
+        (save)="saveFullScreenTodo()"
+        (closed)="closeFullScreenTodo()">
+      </app-fullscreen-todo>
     }
   </div>
 }
 
 @if (!project) {
   <div class="loading">
-    <p>Loading project...</p>
+    <div class="spinner spinner-lg"></div>
+    <p>Loading project…</p>
   </div>
 }
 
 <!-- Element Type Selector Modal -->
 @if (showElementTypeSelector) {
-  <div class="modal-overlay" (click)="showElementTypeSelector = false">
-    <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+  <div class="scrim" (click)="showElementTypeSelector = false">
+    <div class="modal modal-md" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Add Element</h2>
-        <button class="close-btn" (click)="showElementTypeSelector = false">×</button>
+        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="showElementTypeSelector = false" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
       </div>
       <div class="modal-body type-selector">
         <button class="type-btn" (click)="selectElementType('ToDoLst')">
-          <span class="type-icon">✓</span>
+          <span class="type-icon" data-type="ToDoLst">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          </span>
           <span>Todo List</span>
         </button>
         <button class="type-btn" (click)="selectElementType('Text_document')">
-          <span class="type-icon">T</span>
+          <span class="type-icon" data-type="Text_document">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7V4h16v3"></path><path d="M9 20h6"></path><path d="M12 4v16"></path></svg>
+          </span>
           <span>Text Document</span>
         </button>
         <button class="type-btn" (click)="selectElementType('Image')">
-          <span class="type-icon">🖼</span>
+          <span class="type-icon" data-type="Image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+          </span>
           <span>Image</span>
         </button>
         <button class="type-btn" (click)="selectElementType('Video')">
-          <span class="type-icon">▶</span>
+          <span class="type-icon" data-type="Video">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="5" width="14" height="14" rx="2"></rect><path d="M22 8l-6 4 6 4V8z"></path></svg>
+          </span>
           <span>Video</span>
         </button>
       </div>
@@ -368,17 +457,22 @@
 
 <!-- Error Modal -->
 @if (showErrorModal) {
-  <div class="modal-overlay" (click)="closeErrorModal()">
-    <div class="modal-content error-modal" (click)="$event.stopPropagation()">
+  <div class="scrim" (click)="closeErrorModal()">
+    <div class="modal modal-sm error-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Error</h2>
-        <button class="close-btn" (click)="closeErrorModal()">×</button>
+        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="closeErrorModal()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
       </div>
       <div class="modal-body">
+        <span class="error-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>
+        </span>
         <p>{{ errorMessage }}</p>
       </div>
       <div class="modal-footer">
-        <button class="submit-btn" (click)="closeErrorModal()">OK</button>
+        <button class="btn btn-primary submit-btn" (click)="closeErrorModal()">OK</button>
       </div>
     </div>
   </div>

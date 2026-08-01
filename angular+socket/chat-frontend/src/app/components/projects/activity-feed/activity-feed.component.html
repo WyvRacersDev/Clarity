@@ -1,0 +1,56 @@
+<div class="scrim" (click)="close()">
+  <div class="modal modal-md activity-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Activity · “{{ projectName }}”</h2>
+      <div class="activity-head-actions">
+        <button class="btn btn-icon btn-ghost btn-sm" (click)="refresh()" aria-label="Refresh" [disabled]="loading()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path></svg>
+        </button>
+        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="close()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-body activity-body">
+      @if (error()) {
+        <p class="activity-error">{{ error() }}</p>
+      }
+
+      @if (loading() && items().length === 0) {
+        <p class="activity-muted">Loading…</p>
+      } @else if (items().length === 0) {
+        <div class="activity-empty">
+          <span>No activity yet.</span>
+          <span class="activity-empty-sub">Comments and people added to this project show up here.</span>
+        </div>
+      } @else {
+        <ul class="activity-list">
+          @for (a of items(); track $index) {
+            <li class="activity-row">
+              <span class="activity-icon" [attr.data-kind]="a.kind" aria-hidden="true">
+                @switch (a.kind) {
+                  @case ('comment') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg>
+                  }
+                  @case ('member_added') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6M22 11h-6"></path></svg>
+                  }
+                }
+              </span>
+              <span class="activity-content">
+                @if (a.kind === 'comment') {
+                  <span class="activity-text"><strong>{{ a.actor }}</strong> commented</span>
+                  <span class="activity-detail">{{ a.detail }}</span>
+                } @else {
+                  <span class="activity-text"><strong>{{ a.actor }}</strong> was added as {{ a.detail }}</span>
+                }
+                <span class="activity-meta">{{ timeAgo(a.created_at) }}</span>
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</div>

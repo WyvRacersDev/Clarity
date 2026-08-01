@@ -1,0 +1,215 @@
+.tde-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 1000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6, 24px);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  animation: tde-fade 0.15s ease;
+}
+
+@keyframes tde-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tde-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(860px, 100%);
+  height: min(80vh, 760px);
+  background: var(--surface-1);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: var(--shadow-lg, 0 20px 50px rgba(0, 0, 0, 0.4));
+  overflow: hidden;
+}
+
+.tde-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px) var(--space-5, 20px);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  background: var(--surface-2);
+}
+
+.tde-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+}
+
+.tde-badge {
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 999px);
+  color: var(--accent-blue);
+  background: var(--accent-blue-soft, rgba(110, 168, 254, 0.12));
+}
+
+.tde-name {
+  font-size: var(--text-lg, 17px);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tde-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
+}
+
+.tde-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm, 13px);
+  color: var(--text-secondary);
+}
+
+.tde-status.syncing { color: var(--text-muted); }
+
+.tde-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 0 3px var(--accent-green-soft, rgba(74, 222, 128, 0.2));
+}
+
+.tde-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tde-close:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--text-primary);
+}
+
+.tde-editor-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.tde-editor {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: none;
+  font-size: var(--text-base, 15px);
+}
+
+/* ── Theme Quill's own (globally-styled, dynamically-created) DOM ──────────────
+   Quill's snow theme is black-on-white by default; the app is dark by default
+   (and supports a real light theme), so re-skin Quill's internals with our
+   semantic tokens via ::ng-deep — the tokens flip with the active theme. */
+.tde-editor-wrap ::ng-deep .ql-toolbar.ql-snow {
+  border: none;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  background: var(--surface-2);
+}
+
+.tde-editor-wrap ::ng-deep .ql-container.ql-snow {
+  border: none;
+  font-family: var(--font-sans, inherit);
+}
+
+.tde-editor-wrap ::ng-deep .ql-editor {
+  color: var(--text-primary);
+}
+
+.tde-editor-wrap ::ng-deep .ql-editor.ql-blank::before {
+  color: var(--text-muted);
+  font-style: normal;
+}
+
+/* Toolbar icon strokes/fills + labels. */
+.tde-editor-wrap ::ng-deep .ql-snow .ql-stroke { stroke: var(--text-secondary); }
+.tde-editor-wrap ::ng-deep .ql-snow .ql-fill { fill: var(--text-secondary); }
+.tde-editor-wrap ::ng-deep .ql-snow .ql-picker { color: var(--text-secondary); }
+
+.tde-editor-wrap ::ng-deep .ql-snow button:hover .ql-stroke,
+.tde-editor-wrap ::ng-deep .ql-snow button.ql-active .ql-stroke,
+.tde-editor-wrap ::ng-deep .ql-snow .ql-picker-label:hover .ql-stroke {
+  stroke: var(--accent-primary);
+}
+.tde-editor-wrap ::ng-deep .ql-snow button:hover .ql-fill,
+.tde-editor-wrap ::ng-deep .ql-snow button.ql-active .ql-fill {
+  fill: var(--accent-primary);
+}
+.tde-editor-wrap ::ng-deep .ql-snow button:hover,
+.tde-editor-wrap ::ng-deep .ql-snow button.ql-active,
+.tde-editor-wrap ::ng-deep .ql-snow .ql-picker-label:hover {
+  color: var(--accent-primary);
+}
+
+/* Picker dropdowns (header sizes) on dark surfaces. */
+.tde-editor-wrap ::ng-deep .ql-snow .ql-picker-options {
+  background: var(--surface-1);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 8px);
+}
+.tde-editor-wrap ::ng-deep .ql-snow .ql-editor blockquote {
+  border-left-color: var(--border-strong, rgba(255, 255, 255, 0.2));
+  color: var(--text-secondary);
+}
+.tde-editor-wrap ::ng-deep .ql-snow .ql-editor pre.ql-syntax {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  border-radius: var(--radius-md, 8px);
+}
+
+.tde-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-3, 12px) var(--space-5, 20px);
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  background: var(--surface-2);
+}
+
+.tde-hint {
+  font-size: var(--text-xs, 12px);
+  color: var(--text-muted);
+}
+
+.tde-done {
+  padding: 8px 18px;
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  color: var(--text-inverse);
+  background: var(--accent-primary);
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.tde-done:hover { background: var(--accent-primary-hover); }

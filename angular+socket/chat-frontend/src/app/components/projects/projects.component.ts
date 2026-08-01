@@ -13,11 +13,12 @@ import {
   scheduled_task,
 } from '../../../../../shared_models/models/screen-elements.model';
 import { isLocalhostServer } from '../../config/server.config';
+import { ShareDialogComponent } from './share-dialog/share-dialog.component';
 
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [FormsModule, RouterModule, NgClass],
+  imports: [FormsModule, RouterModule, NgClass, ShareDialogComponent],
   templateUrl: './projects.component.html',
   styleUrls: ['./projects.component.css']
 })
@@ -41,6 +42,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   showConfirmModal = false;
   confirmMessage = '';
   projectToDelete: { index: number; project: Project } | null = null;
+
+  // Share dialog — reuses the same self-contained ShareDialogComponent that the
+  // project-detail screen uses, so a hosted project can be shared straight from
+  // the list without opening it first.
+  showShareDialog = false;
+  shareProject: Project | null = null;
 
   // Loading states
   isSaving = false;
@@ -68,6 +75,34 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.viewMode.set(mode);
   }
 
+  /** Count of local projects in the combined list (used to gate empty state). */
+  localCount(): number {
+    return this.currentUser?.projects?.filter((p) => this.isLocalProject(p)).length ?? 0;
+  }
+
+  /** Count of hosted/shared projects in the combined list. */
+  hostedCount(): number {
+    return this.currentUser?.projects?.filter((p) => !this.isLocalProject(p)).length ?? 0;
+  }
+
+  /** Up-to-two-letter initials for a hosted project's owner avatar. */
+  ownerInitials(project: Project): string {
+    const name = project.owner_name ?? '';
+    return (name || '?')
+      .split(/\s+/)
+      .map((part) => part[0] ?? '')
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  /** Close the create dialog only when the backdrop itself is clicked, and not mid-save. */
+  onCreateScrim(event: MouseEvent): void {
+    if (event.target === event.currentTarget && !this.isSaving) {
+      this.closeCreateModal();
+    }
+  }
+
   ngOnInit(): void {
     // Reset loading flags when component initializes
     this.hasLoadedProjects = false;
@@ -84,7 +119,27 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
     // Subscribe to user changes
     this.userSubscription = this.dataService.currentUser$.subscribe(async user => {
-      const previousUserName = this.currentUser?.name;
+      const previous = this.currentUser;
+      const previousUserName = previous?.name;
+
+      // A5: DataService re-emits the current user several times during bootstrap
+      // (loadUser → adoptBackendUser → createUserAsync), often as a FRESH object
+      // with an empty `projects` array. Without this guard, reassigning
+      // `this.currentUser` to that empty reference discards the projects we
+      // already loaded onto the old one — the cards blank out into the empty
+      // state even though the load succeeded. When the SAME user re-emits empty,
+      // carry the already-loaded projects over to the new reference.
+      if (
+        user &&
+        previous &&
+        user !== previous &&
+        user.name === previousUserName &&
+        (user.projects?.length ?? 0) === 0 &&
+        previous.projects.length > 0
+      ) {
+        user.projects.push(...previous.projects);
+      }
+
       this.currentUser = user;
 
       // Only load projects if:
@@ -101,12 +156,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.dataService.savingProject$.subscribe(loading => {
       this.isSaving = loading;
       console.log('Saving state changed:', loading);
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     });
 
     this.dataService.deletingProject$.subscribe(loading => {
       this.isDeleting = loading;
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     });
 
       this.hostedProjectUpdateSubscription = this.socketService.onHostedProjectUpdated().subscribe((data: any) => {
@@ -168,7 +223,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         this.isLoading = false;
         this.isLoadingProjects = false;
         this.hasLoadedProjects = true;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       }
       this.loadingTimeout = null;
     }, 15000);
@@ -201,7 +256,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         this.currentUser.projects.push(...allProjects);
         console.log(`[ProjectsComponent] Final user projects:`, this.currentUser.projects.map(p => ({ name: p.name, type: (p as any).projectType })));
         this.hasLoadedProjects = true;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       }
     } catch (error) {
       console.error('Error loading projects from server:', error);
@@ -215,7 +270,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       this.isLoadingProjects = false;
       this.isLoading = false;
       console.log('Loading projects completed');
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     }
   }
 
@@ -301,13 +356,18 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
       if (newProject && this.currentUser) {
 
-        const saved = await this.dataService.saveProject(newProject, projectTypeValue);
+        // A16: mark this save as a CREATE so the server rejects a duplicate name
+        // (from a stale client list or a race) instead of silently overwriting.
+        const saved = await this.dataService.saveProject(newProject, projectTypeValue, true);
         if (saved) {
           console.log('Project created and saved successfully');
 
           await this.loadProjectsFromServer();
         } else {
           console.error('Failed to save project to server');
+          // Roll back the optimistic local project and tell the user.
+          this.dataService.removeLocalProject(newProject);
+          this.showError(`Couldn't create "${projectName}". A project with that name may already exist, or the server is unreachable.`);
         }
       }
     }
@@ -421,7 +481,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       this.showError('Failed to create the sample project. Please try again.');
     } finally {
       this.isCreatingSample = false;
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     }
   }
 
@@ -466,6 +526,32 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   selectProject(index: number): void {
     this.router.navigate(['/dashboard/projects', index]);
+  }
+
+  /**
+   * Whether the current user may CHANGE sharing for a project (owner/admin).
+   * Mirrors project-detail's `canManageProject`, but falls back to an
+   * owner-name match when the list payload doesn't carry an explicit role — so
+   * a user can always share a hosted project they own from the list.
+   */
+  canManageProject(project: Project): boolean {
+    const role = (project as any).role;
+    if (role) return role === 'owner' || role === 'admin';
+    return !!this.currentUser && project.owner_name === this.currentUser.name;
+  }
+
+  /** Open the share dialog for a hosted project from its card. */
+  openShareDialog(index: number, event: Event): void {
+    event.stopPropagation();
+    if (this.currentUser && this.currentUser.projects[index]) {
+      this.shareProject = this.currentUser.projects[index];
+      this.showShareDialog = true;
+    }
+  }
+
+  closeShareDialog(): void {
+    this.showShareDialog = false;
+    this.shareProject = null;
   }
 
   async deleteProject(index: number, event: Event): Promise<void> {

@@ -1,0 +1,120 @@
+<div class="scrim" (click)="close()">
+  <div class="modal modal-md share-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Share “{{ projectName }}”</h2>
+      <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="close()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <div class="modal-body share-body">
+      @if (error) {
+        <p class="share-error">{{ error }}</p>
+      }
+
+      <!-- Invite (managers only) -->
+      @if (canManage) {
+        <form class="invite-row" (ngSubmit)="invite()">
+          <input
+            class="input invite-email"
+            type="email"
+            name="inviteEmail"
+            placeholder="Invite by email…"
+            [(ngModel)]="inviteEmail"
+            [disabled]="busy"
+            autocomplete="off" />
+          <select class="select invite-role" name="inviteRole" [(ngModel)]="inviteRole" [disabled]="busy">
+            @for (r of roles; track r) { <option [value]="r">{{ r | titlecase }}</option> }
+          </select>
+          <button class="btn btn-primary btn-sm" type="submit" [disabled]="busy || !inviteEmail.trim()">Invite</button>
+        </form>
+        <p class="invite-hint">People without an account are invited by email and join automatically when they sign up.</p>
+      }
+
+      @if (loading) {
+        <p class="share-muted">Loading…</p>
+      } @else {
+        <!-- People with access -->
+        <h3 class="share-section-title">People with access</h3>
+        <ul class="member-list">
+          <!-- Owner (pinned) -->
+          <li class="member-row">
+            <span class="avatar member-avatar">{{ initials(ownerName) }}</span>
+            <span class="member-info">
+              <span class="member-name">{{ ownerName }}<span class="you-tag" *ngIf="ownerName === currentUsername"> (you)</span></span>
+            </span>
+            <span class="badge role-badge owner">Owner</span>
+          </li>
+
+          <!-- Collaborators -->
+          @for (m of members; track m.userId) {
+            <li class="member-row">
+              <span class="avatar member-avatar">{{ initials(m.username) }}</span>
+              <span class="member-info">
+                <span class="member-name">{{ m.username }}<span class="you-tag" *ngIf="m.username === currentUsername"> (you)</span></span>
+                <span class="member-email">{{ m.email }}</span>
+              </span>
+              @if (canManage) {
+                <select class="select role-select" [value]="m.role" (change)="changeRole(m, $any($event.target).value)" [disabled]="busy">
+                  @for (r of roles; track r) { <option [value]="r">{{ r | titlecase }}</option> }
+                </select>
+                <button class="btn btn-icon btn-ghost btn-sm" (click)="removeMember(m)" [disabled]="busy" aria-label="Remove">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </button>
+              } @else {
+                <span class="badge role-badge">{{ m.role | titlecase }}</span>
+              }
+            </li>
+          }
+        </ul>
+
+        <!-- Pending invitations -->
+        @if (invitations.length) {
+          <h3 class="share-section-title">Pending invitations</h3>
+          <ul class="member-list">
+            @for (inv of invitations; track inv.id) {
+              <li class="member-row pending">
+                <span class="avatar member-avatar pending-avatar">✉</span>
+                <span class="member-info">
+                  <span class="member-name">{{ inv.email }}</span>
+                  <span class="member-email">Invited · {{ inv.role | titlecase }}</span>
+                </span>
+                @if (canManage) {
+                  <button class="btn btn-ghost btn-sm" (click)="revokeInvite(inv)" [disabled]="busy">Revoke</button>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        <!-- Link sharing -->
+        <h3 class="share-section-title">General access</h3>
+        <div class="link-row">
+          <span class="link-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l1.42-1.42a5 5 0 0 0-7.07-7.07l-1 1"></path><path d="M14 11a5 5 0 0 0-7.07 0L5.5 12.5a5 5 0 0 0 7.07 7.07l1-1"></path></svg>
+          </span>
+          <span class="member-info">
+            <span class="member-name">Anyone with the link</span>
+            <span class="member-email">{{ linkEnabled ? 'Can ' + link.role : 'No link access' }}</span>
+          </span>
+          @if (canManage) {
+            <select class="select role-select" [value]="link.role" (change)="setLinkRole($any($event.target).value)" [disabled]="busy">
+              <option value="none">Off</option>
+              <option value="viewer">Can view</option>
+              <option value="editor">Can edit</option>
+            </select>
+          } @else {
+            <span class="badge role-badge">{{ linkEnabled ? (link.role | titlecase) : 'Off' }}</span>
+          }
+        </div>
+
+        @if (linkEnabled) {
+          <div class="copy-row">
+            <input class="input link-url" type="text" [value]="shareUrl" readonly (focus)="$any($event.target).select()" />
+            <button class="btn btn-secondary btn-sm" (click)="copyLink()">{{ copied ? 'Copied!' : 'Copy link' }}</button>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

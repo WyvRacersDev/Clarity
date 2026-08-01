@@ -1,0 +1,99 @@
+/* N2 activity feed. Reuses the global .scrim/.modal/.btn primitives; only the
+   feed-specific rows need scoped styles. */
+
+.activity-modal {
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+.activity-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+}
+.activity-body {
+  overflow-y: auto;
+}
+
+.activity-error {
+  color: var(--danger, #e5484d);
+  background: var(--danger-soft, rgba(229, 72, 77, 0.1));
+  border: 1px solid var(--danger-subtle, rgba(229, 72, 77, 0.25));
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--text-sm, 0.875rem);
+  margin: 0 0 var(--space-3, 12px);
+}
+.activity-muted { color: var(--text-muted); margin: 0; }
+
+.activity-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  align-items: center;
+  text-align: center;
+  padding: var(--space-6, 28px) var(--space-4, 16px);
+  color: var(--text-muted, #6b7280);
+  font-size: var(--text-sm, 0.875rem);
+}
+.activity-empty-sub {
+  font-size: var(--text-xs, 0.78rem);
+  color: var(--text-faint, #9ca3af);
+}
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) 0;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.activity-row:last-child { border-bottom: none; }
+
+.activity-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--surface-alt, rgba(0, 0, 0, 0.05));
+  color: var(--text-muted, #6b7280);
+}
+.activity-icon svg { width: 15px; height: 15px; }
+.activity-icon[data-kind='member_added'] { color: #10b981; }
+.activity-icon[data-kind='comment'] { color: var(--accent, #635bff); }
+
+.activity-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.activity-text {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text, #111);
+  line-height: 1.3;
+}
+.activity-detail {
+  font-size: var(--text-xs, 0.8rem);
+  color: var(--text-muted, #6b7280);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.activity-meta {
+  font-size: 11px;
+  color: var(--text-faint, #9ca3af);
+  margin-top: 1px;
+}

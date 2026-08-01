@@ -1,0 +1,30 @@
+<div class="tde-backdrop" (click)="close()">
+  <div class="tde-panel" (click)="$event.stopPropagation()">
+    <header class="tde-header">
+      <div class="tde-title">
+        <span class="tde-badge">Text</span>
+        <span class="tde-name">{{ element?.name || 'Untitled document' }}</span>
+      </div>
+      <div class="tde-meta">
+        @if (syncing) {
+          <span class="tde-status syncing">Syncing…</span>
+        } @else {
+          <span class="tde-status live">
+            <span class="tde-dot"></span>
+            {{ peerCount === 1 ? 'Only you' : peerCount + ' editing' }} · live
+          </span>
+        }
+        <button class="tde-close" type="button" (click)="close()" aria-label="Close editor">×</button>
+      </div>
+    </header>
+
+    <div class="tde-editor-wrap">
+      <div #editor class="tde-editor"></div>
+    </div>
+
+    <footer class="tde-footer">
+      <span class="tde-hint">Changes save automatically and sync to everyone in this project.</span>
+      <button class="tde-done" type="button" (click)="close()">Done</button>
+    </footer>
+  </div>
+</div>

@@ -1,0 +1,138 @@
+<div class="fullscreen-todo-overlay" [class.with-comments]="selectedCommentTask">
+  <div class="fullscreen-todo-container">
+    <div class="fullscreen-header modal-header">
+      <h2>{{ list.name }}</h2>
+      <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="close()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <!-- Tags — group this list under one or more tags (drives analytics). -->
+    <div class="fullscreen-tags">
+      <span class="fullscreen-tags-label mono-label">Tags</span>
+      <div class="tag-chips">
+        @for (tag of getTags(); track tag) {
+          <span class="tag-chip">
+            {{ tag }}
+            <button class="tag-chip-remove" (click)="removeTag(tag)" [attr.aria-label]="'Remove tag ' + tag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+            </button>
+          </span>
+        }
+        @if (getTags().length === 0) {
+          <span class="tag-empty">No tags yet</span>
+        }
+      </div>
+      <div class="tag-add-row">
+        <input [(ngModel)]="editingTagInput" placeholder="Add a tag…" class="input tag-input" (keyup.enter)="addTag()" aria-label="Add a tag" />
+        <button class="btn btn-secondary btn-sm" (click)="addTag()" [disabled]="!editingTagInput.trim()">Add tag</button>
+      </div>
+    </div>
+    <div class="add-task-row">
+      <input [(ngModel)]="newTaskName" placeholder="Add a task…" class="input task-input" (keyup.enter)="addTask()" aria-label="Add a task" />
+      <select [(ngModel)]="newTaskPriority" class="select task-priority-select" aria-label="Task priority">
+        <option [ngValue]="1">High</option>
+        <option [ngValue]="2">Medium</option>
+        <option [ngValue]="3">Low</option>
+      </select>
+      <select [(ngModel)]="newTaskRepeat" class="select task-repeat-select" aria-label="Repeat">
+        <option value="none">Doesn't repeat</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+      </select>
+      <button class="btn btn-primary add-task-btn" (click)="addTask()" [disabled]="!newTaskName.trim()">Add</button>
+    </div>
+    <div class="tasks-list">
+      @for (task of getUpcomingTasks(); track task) {
+        <div class="task-item" [class.comment-active]="selectedCommentTask === task">
+          <label class="task-check">
+            <input type="checkbox" [checked]="task.is_done" (change)="toggleTaskStatus(task)" [attr.aria-label]="'Mark ' + task.taskname + ' done'" />
+            <span class="task-check-box"></span>
+          </label>
+          <span class="task-item-name task-label" [class.done]="task.is_done">{{ task.taskname }}</span>
+          @if (task.repeat && task.repeat !== 'none') {
+            <span class="task-repeat-badge" title="Repeats {{ task.repeat }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+              {{ task.repeat }}
+            </span>
+          }
+          <select class="select task-repeat-inline" [value]="task.repeat || 'none'" (change)="onRepeatChange(task, $event)" (click)="$event.stopPropagation()" aria-label="Repeat">
+            <option value="none">No repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+          <button class="comment-badge-btn" (click)="openTaskComments(task, $event)" title="Comments" aria-label="Comments">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            @if (getCommentCount(task) > 0) {
+              <span class="comment-count">{{ getCommentCount(task) }}</span>
+            }
+          </button>
+          <button class="delete-task-btn" (click)="deleteTask(task)" aria-label="Delete task">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      }
+      @if (getUpcomingTasks().length === 0) {
+        <div class="tasks-empty empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          </div>
+          <h3>All caught up</h3>
+          <p>No open tasks. Add one above to get started.</p>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- A3: task comments panel -->
+  @if (selectedCommentTask) {
+    <div class="comments-panel">
+      <div class="comments-header">
+        <div class="comments-title">
+          <span class="comments-title-label">Comments</span>
+          <span class="comments-task-name">{{ selectedCommentTask.taskname }}</span>
+        </div>
+        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="closeTaskComments()" aria-label="Close comments">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="comments-body">
+        @if (!canComment) {
+          <p class="comments-hint">Comments sync once this task is saved to the server. Reopen the project to enable them.</p>
+        } @else if (isLoadingComments) {
+          <div class="comments-loading">
+            <div class="spinner spinner-sm"></div>
+            <span>Loading comments…</span>
+          </div>
+        } @else if (taskComments.length === 0) {
+          <p class="comments-hint">No comments yet. Start the conversation.</p>
+        } @else {
+          @for (comment of taskComments; track comment.id) {
+            <div class="comment-item">
+              <div class="comment-meta">
+                <span class="comment-author" [style.color]="authorColor(comment.author)">{{ comment.author }}</span>
+                <span class="comment-time">{{ formatRelativeTime(comment.created_at) }}</span>
+              </div>
+              <div class="comment-text">{{ comment.body }}</div>
+            </div>
+          }
+        }
+      </div>
+
+      @if (canComment) {
+        <div class="comments-composer field">
+          <textarea
+            class="textarea"
+            rows="2"
+            placeholder="Write a comment…"
+            aria-label="Write a comment"
+            [(ngModel)]="newCommentBody"
+            (keydown.enter)="$event.preventDefault(); submitComment()"></textarea>
+          <button class="btn btn-primary btn-sm submit-btn" (click)="submitComment()" [disabled]="!newCommentBody.trim()">Send</button>
+        </div>
+      }
+    </div>
+  }
+</div>

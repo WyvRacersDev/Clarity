@@ -1,0 +1,129 @@
+/* N1 Share dialog. Reuses the app's global .scrim/.modal/.btn/.input/.select
+   primitives; only the sharing-specific rows need scoped styles. */
+
+.share-modal {
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.share-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.share-error {
+  color: var(--danger, #e5484d);
+  background: var(--danger-soft, rgba(229, 72, 77, 0.1));
+  border: 1px solid var(--danger-subtle, rgba(229, 72, 77, 0.25));
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--text-sm, 0.875rem);
+  margin: 0;
+}
+.share-muted { color: var(--text-muted); margin: 0; }
+
+.invite-row {
+  display: flex;
+  gap: var(--space-2, 8px);
+  align-items: center;
+}
+.invite-email { flex: 1; min-width: 0; }
+.invite-role { width: 110px; flex-shrink: 0; }
+.invite-hint {
+  color: var(--text-muted);
+  font-size: var(--text-xs, 0.75rem);
+  margin: 0 0 var(--space-2, 8px);
+}
+
+.share-section-title {
+  font-size: var(--text-xs, 0.75rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: var(--space-3, 12px) 0 var(--space-1, 4px);
+}
+
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) 0;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.member-row:last-child { border-bottom: none; }
+
+.member-avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 600;
+}
+.pending-avatar { opacity: 0.7; }
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.member-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-email {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.you-tag { color: var(--text-muted); font-weight: 400; }
+
+.role-select { width: 108px; flex-shrink: 0; }
+.role-badge { flex-shrink: 0; }
+.role-badge.owner {
+  background: var(--accent-soft, var(--accent-subtle));
+  color: var(--accent, var(--accent-primary));
+}
+
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) 0;
+}
+.link-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-subtle, var(--bg-secondary));
+  color: var(--text-muted);
+}
+.link-icon svg { width: 18px; height: 18px; }
+
+.copy-row {
+  display: flex;
+  gap: var(--space-2, 8px);
+  align-items: center;
+}
+.link-url { flex: 1; min-width: 0; font-size: var(--text-xs, 0.75rem); }

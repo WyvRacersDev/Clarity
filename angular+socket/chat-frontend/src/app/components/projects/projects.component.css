@@ -1,626 +1,315 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Projects — Aurora redesign
-   Uses ONLY tokens/classes from src/styles.css. No hardcoded hex.
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Clarity — Projects: a responsive card grid with spectrum-tinted covers.
+   Cover tint cycles the album spectrum per index for CATEGORY differentiation. */
 
-/* ── Page shell ─────────────────────────────────────────────────────────── */
-.projects-page {
-  padding: var(--space-8) var(--space-8) var(--space-12);
-  min-height: 100%;
-  max-width: 1280px;
+.pj-root {
+  max-width: 1180px;
   margin: 0 auto;
+  padding: var(--space-8) var(--space-8) var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
 }
 
-/* ── Header ─────────────────────────────────────────────────────────────── */
-.projects-header {
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+.pj-masthead {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-8);
+  gap: var(--space-6);
+  flex-wrap: wrap;
 }
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.projects-title {
-  font-size: var(--text-xl);
-  font-weight: 700;
+.pj-title {
+  font-size: var(--text-3xl);
+  line-height: 1.05;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
-  margin: 0;
 }
-
-.projects-count {
-  font-size: var(--text-xs);
-  font-weight: 700;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-/* ── View toggle ─────────────────────────────────────────────────────────── */
-.view-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 3px;
-}
-
-.view-toggle-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
-}
-.view-toggle-btn:hover:not(.is-active) {
-  background: var(--surface-3);
+.pj-dek {
+  margin-top: var(--space-3);
+  font-size: var(--text-md);
   color: var(--text-secondary);
 }
-.view-toggle-btn.is-active {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
+.pj-dek .num { color: var(--text-primary); font-weight: 500; }
+.pj-dot { color: var(--text-muted); margin: 0 var(--space-1); }
 
-/* ── Grid layout ─────────────────────────────────────────────────────────── */
-.projects-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+/* ── Section ──────────────────────────────────────────────────────────── */
+.pj-section {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-5);
-  animation: fadeIn var(--dur-slow) var(--ease);
 }
-
-/* ── List layout ─────────────────────────────────────────────────────────── */
-.projects-list-view {
+.pj-section-head {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  animation: fadeIn var(--dur-slow) var(--ease);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.pj-section-heading {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.pj-section-note { color: var(--text-muted); }
+
+/* ── Grid ─────────────────────────────────────────────────────────────── */
+.pj-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-5);
 }
 
-/* ── Skeleton card (loading) ─────────────────────────────────────────────── */
-.skeleton-card {
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.skeleton-card .card-body {
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* ── Project card (grid) ─────────────────────────────────────────────────── */
-.project-card {
+/* ── Project card ─────────────────────────────────────────────────────── */
+.pj-card {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   cursor: pointer;
-  position: relative;
-  animation: slideUp var(--dur-slow) var(--ease) both;
-  outline: none;
+  /* per-index spectrum tokens; default = cyan lead */
+  --pj-tint: var(--accent-soft);
+  --pj-ink: var(--accent);
 }
-
-.project-card:focus-visible {
+.pj-card:focus-visible {
+  outline: none;
+  border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
-/* Stagger card animations */
-.projects-grid :nth-child(1)   { animation-delay:   0ms; }
-.projects-grid :nth-child(2)   { animation-delay:  40ms; }
-.projects-grid :nth-child(3)   { animation-delay:  80ms; }
-.projects-grid :nth-child(4)   { animation-delay: 120ms; }
-.projects-grid :nth-child(5)   { animation-delay: 160ms; }
-.projects-grid :nth-child(6)   { animation-delay: 200ms; }
-.projects-grid :nth-child(n+7) { animation-delay: 240ms; }
+/* Spectrum cover tints — CATEGORY differentiation by card index. */
+.cover-accent-cyan  { --pj-tint: var(--accent-soft);       --pj-ink: var(--accent); }
+.cover-accent-blue  { --pj-tint: var(--accent-blue-soft);  --pj-ink: var(--accent-blue); }
+.cover-accent-teal  { --pj-tint: var(--accent-teal-soft);  --pj-ink: var(--accent-teal); }
+.cover-accent-green { --pj-tint: var(--accent-green-soft); --pj-ink: var(--accent-green); }
+.cover-accent-lime  { --pj-tint: var(--accent-lime-soft);  --pj-ink: var(--accent-lime); }
 
-/* Cover */
-.card-cover {
+.pj-cover {
   position: relative;
-  height: 128px;
-  overflow: hidden;
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  background: var(--pj-tint);
+  border-bottom: 1px solid var(--border);
 }
-
-/* ── Album-spectrum cover tints (cycle by card index) ────────────────────── */
-.cover-accent-cyan  { background: var(--accent-soft); }
-.cover-accent-blue  { background: var(--accent-blue-soft); }
-.cover-accent-teal  { background: var(--accent-teal-soft); }
-.cover-accent-green { background: var(--accent-green-soft); }
-.cover-accent-lime  { background: var(--accent-lime-soft); }
-
-/* Subtle dot pattern overlay on cover */
-.cover-pattern {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle, var(--border-strong) 1px, transparent 1px);
-  background-size: 18px 18px;
-  opacity: 0.5;
+.pj-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--pj-ink);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: -0.02em;
+  box-shadow: var(--shadow-xs);
 }
-
-/* Badge on cover */
-.cover-badge {
+.pj-type {
   position: absolute;
   top: var(--space-3);
   left: var(--space-3);
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  padding: 3px var(--space-2);
+  text-transform: capitalize;
 }
 
-.cover-badge svg {
-  width: 11px;
-  height: 11px;
-}
-
-/* Hover quick-actions (appear on card hover) */
-.card-actions {
+/* Quick actions — revealed on hover / focus-within. */
+.pj-actions {
   position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 2;
+  top: var(--space-2);
+  right: var(--space-2);
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(calc(-1 * var(--space-1)));
   transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
-
-.project-card:hover .card-actions {
+.pj-card:hover .pj-actions,
+.pj-card:focus-within .pj-actions {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
 }
-
-.card-action-btn {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
+.pj-del,
+.pj-share {
   width: 30px;
   height: 30px;
-  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-muted);
 }
-
-.card-action-delete:hover:not(:disabled) {
-  background: var(--danger-soft);
+.pj-del:hover:not(:disabled) {
   color: var(--danger);
-  border-color: transparent;
+  background: var(--danger-soft);
+}
+.pj-share:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
-/* Card body */
-.card-body {
-  padding: var(--space-5);
+/* ── Card body ────────────────────────────────────────────────────────── */
+.pj-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  flex: 1;
+  gap: var(--space-2);
+  padding: var(--space-4);
 }
-
-.project-name {
-  font-size: var(--text-base);
+.pj-name {
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0;
-  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: -0.01em;
 }
-
-.project-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.meta-item {
+.pj-owner {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.pj-owner-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-meta {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-weight: 500;
 }
+.pj-meta .num { color: var(--text-secondary); }
 
-.meta-item svg {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-}
-
-/* Progress bar */
-.project-progress {
-  margin-top: auto;
-}
-
-.progress-track {
-  width: 100%;
-  height: 4px;
-  background: var(--surface-3);
+/* Thin progress line — accent lead, glows on hover. */
+.pj-track {
+  margin-top: var(--space-1);
+  height: 3px;
   border-radius: var(--radius-full);
+  background: var(--surface-3);
   overflow: hidden;
 }
-
-.progress-fill {
+.pj-track i {
+  display: block;
   height: 100%;
-  background: var(--aurora);
   border-radius: var(--radius-full);
-  min-width: 4px;
+  background: var(--pj-ink);
   transition: width var(--dur-slow) var(--ease);
 }
+.pj-card:hover .pj-track i,
+.pj-card:focus-within .pj-track i {
+  box-shadow: 0 0 8px var(--accent-ring);
+}
 
-/* Card footer / open hint */
-.card-footer {
+/* ── Empty state ──────────────────────────────────────────────────────── */
+.pj-empty { padding: var(--space-12) var(--space-6); }
+.pj-empty-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-  margin-top: var(--space-1);
-}
-
-.open-hint {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-weight: 500;
-  transition: color var(--dur) var(--ease);
-}
-
-.open-arrow {
-  width: 14px;
-  height: 14px;
-  color: var(--text-muted);
-  transition: color var(--dur) var(--ease), transform var(--dur) var(--ease-spring);
-}
-
-.project-card:hover .open-hint,
-.project-card:hover .open-arrow {
-  color: var(--accent);
-}
-
-.project-card:hover .open-arrow {
-  transform: translateX(4px);
-}
-
-/* ── New project CTA card ─────────────────────────────────────────────────── */
-.new-project-card {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  min-height: 240px;
-  background: var(--surface-1);
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-family: inherit;
-  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur) var(--ease);
+  margin-top: var(--space-4);
 }
 
-.new-project-card:hover {
+/* ── Loading skeleton card ────────────────────────────────────────────── */
+.pj-card--sk { cursor: default; }
+.pj-sk-cover { height: 96px; border-radius: 0; }
+.pj-sk-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.pj-sk-title { width: 70%; height: 16px; }
+.pj-sk-line { width: 45%; height: 11px; }
+.pj-sk-bar { width: 100%; height: 3px; }
+
+/* ── Create dialog: type picker ───────────────────────────────────────── */
+.pj-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.pj-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.pj-type-opt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.pj-type-opt:hover:not(:disabled) { border-color: var(--border-strong); }
+.pj-type-opt:focus-visible {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.pj-type-opt.is-active {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent);
-  transform: translateY(-2px);
+}
+.pj-type-opt:disabled { opacity: 0.5; cursor: not-allowed; }
+.pj-type-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.pj-type-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
-.new-project-card:active {
-  transform: scale(0.98);
-}
-
-.new-project-card:focus-visible {
-  box-shadow: 0 0 0 3px var(--accent-ring);
-  outline: none;
-}
-
-.new-project-icon {
+/* ── Error / confirm modals ───────────────────────────────────────────── */
+.modal-sm { max-width: 420px; }
+.pj-modal-centered {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+}
+.pj-modal-glyph {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 48px;
   height: 48px;
   border-radius: var(--radius-full);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
-}
-
-.new-project-card:hover .new-project-icon {
-  background: var(--accent);
-  color: var(--text-inverse);
-  border-color: transparent;
-}
-
-.new-project-icon svg {
-  width: 22px;
-  height: 22px;
-}
-
-.new-project-label {
-  letter-spacing: -0.01em;
-}
-
-/* ── List row ─────────────────────────────────────────────────────────────── */
-.project-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
-  animation: slideUp var(--dur-slow) var(--ease) both;
-  outline: none;
-}
-
-.project-row:focus-visible {
-  box-shadow: 0 0 0 3px var(--accent-ring);
-}
-
-.project-row:hover {
-  background: var(--surface-2);
-  border-color: var(--border-strong);
-  transform: translateX(3px);
-}
-
-/* Colored left strip */
-.row-strip {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-}
-
-/* ── Album-spectrum row strips (cycle by card index) ─────────────────────── */
-.row-strip.row-accent-cyan  { background: var(--accent); }
-.row-strip.row-accent-blue  { background: var(--accent-blue); }
-.row-strip.row-accent-teal  { background: var(--accent-teal); }
-.row-strip.row-accent-green { background: var(--accent-green); }
-.row-strip.row-accent-lime  { background: var(--accent-lime); }
-
-/* Icon */
-.row-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-}
-
-.row-icon svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* ── Album-spectrum row icons (cycle by card index) ──────────────────────── */
-.row-icon.row-accent-cyan  { background: var(--accent-soft);       color: var(--accent); }
-.row-icon.row-accent-blue  { background: var(--accent-blue-soft);  color: var(--accent-blue); }
-.row-icon.row-accent-teal  { background: var(--accent-teal-soft);  color: var(--accent-teal); }
-.row-icon.row-accent-green { background: var(--accent-green-soft); color: var(--accent-green); }
-.row-icon.row-accent-lime  { background: var(--accent-lime-soft);  color: var(--accent-lime); }
-
-/* Info */
-.row-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.row-name {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.row-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-/* Progress in list row */
-.row-progress {
-  width: 120px;
-  flex-shrink: 0;
-}
-
-/* Row actions */
-.row-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  opacity: 0;
-  transition: opacity var(--dur) var(--ease);
-}
-
-.project-row:hover .row-actions {
-  opacity: 1;
-}
-
-.row-action-delete {
-  color: var(--text-muted);
-  width: 30px;
-  height: 30px;
-}
-
-.row-action-delete:hover:not(:disabled) {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.row-arrow {
-  width: 14px;
-  height: 14px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  transition: color var(--dur) var(--ease), transform var(--dur) var(--ease-spring);
-}
-
-.project-row:hover .row-arrow {
   color: var(--accent);
-  transform: translateX(3px);
-}
-
-/* ── Modal overrides (additive — uses global .scrim/.modal) ─────────────── */
-.modal-sm {
-  max-width: 400px;
-}
-
-.modal-title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.modal-title {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.modal-icon-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-}
-
-.modal-icon-wrap svg {
-  width: 18px;
-  height: 18px;
-}
-
-.modal-icon-create {
   background: var(--accent-soft);
-  color: var(--accent);
 }
-
-.modal-icon-danger {
-  background: var(--danger-soft);
-  color: var(--danger);
+.pj-modal-glyph svg { width: 24px; height: 24px; }
+.pj-modal-glyph--danger { color: var(--danger); background: var(--danger-soft); }
+.pj-modal-message {
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  line-height: 1.55;
 }
-
-.modal-body-centered {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.modal-message {
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin: 0;
-}
-
-.modal-subtext {
+.pj-modal-subtext {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  line-height: 1.6;
-  margin: 0;
+  line-height: 1.55;
 }
+.pj-modal-footer-center { justify-content: center; }
 
-.modal-footer-center {
-  justify-content: center;
-}
-
-.required {
-  color: var(--danger);
-  margin-left: 2px;
-}
-
-/* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .projects-page {
-    padding: var(--space-6) var(--space-5) var(--space-10);
-  }
-
-  .projects-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: var(--space-4);
-  }
-
-  .row-progress {
-    display: none;
-  }
-}
-
+/* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .projects-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-4);
-  }
-
-  .header-right {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .projects-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .projects-page {
-    padding: var(--space-5) var(--space-4) var(--space-8);
-  }
-
-  /* Always show row actions on mobile (no hover state) */
-  .row-actions {
-    opacity: 1;
-  }
+  .pj-root { padding: var(--space-6) var(--space-4) var(--space-12); }
+  .pj-title { font-size: var(--text-2xl); }
+  .pj-masthead .btn { width: 100%; }
+  .pj-section-head { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 }
 
-/* Empty-state dual CTA (create + sample) */
-.empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
+@media (prefers-reduced-motion: reduce) {
+  .pj-actions,
+  .pj-track i { transition: none; }
 }

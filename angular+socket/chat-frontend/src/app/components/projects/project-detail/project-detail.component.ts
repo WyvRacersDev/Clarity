@@ -1,4 +1,5 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, Inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, Inject, DestroyRef, HostListener, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -6,17 +7,24 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { DataService } from '../../../services/data.service';
 import { SocketService } from '../../../services/socket.service';
-import { CollabService, PresenceUser, TaskComment } from '../../../services/collab.service';
+import { CollabService, PresenceUser } from '../../../services/collab.service';
 import { getServerConfig } from '../../../config/server.config';
 import { User } from '../../../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../../../shared_models/models/project.model';
 import { Screen_Element, ToDoLst, Text_document, Image, Video, scheduled_task, objects_builder } from '../../../../../../shared_models/models/screen-elements.model';
 import { Subscription } from 'rxjs';
+import { TextDocEditorComponent } from './text-doc-editor/text-doc-editor.component';
+import { FullScreenTodoComponent } from './fullscreen-todo/fullscreen-todo.component';
+import { ShareDialogComponent } from '../share-dialog/share-dialog.component';
+import { ActivityFeedComponent } from '../activity-feed/activity-feed.component';
+import { IntegrationsService } from '../../../services/integrations.service';
+import { ChatUiService } from '../../../services/chat-ui.service';
+import { userColor } from '../../../utils/user-color.util';
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, TextDocEditorComponent, FullScreenTodoComponent, ShareDialogComponent, ActivityFeedComponent],
   templateUrl: './project-detail.component.html',
   styleUrls: ['./project-detail.component.css']
 })
@@ -35,6 +43,140 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   selectedGridIndex: number = 0;
   showCreateGridModal = false;
   newGridName = '';
+
+  // N1: sharing / access control.
+  showShareDialog = false;
+
+  /** The current user's effective role on the loaded project ('owner'|'admin'|'editor'|'viewer'|null). */
+  get projectRole(): string | null {
+    return (this.project as any)?.role ?? null;
+  }
+  /** Owner/admin may open + change the Share dialog. */
+  get canManageProject(): boolean {
+    const r = this.projectRole;
+    return r === 'owner' || r === 'admin';
+  }
+  /** Viewers are read-only (server also enforces this). */
+  get canEditProject(): boolean {
+    const p: any = this.project;
+    if (!p) return false;
+    // Fall back to editable when the flag is absent (older payloads / local edits).
+    return p.canEdit !== false;
+  }
+  /** Project owner's display name for the Share dialog's pinned owner row. */
+  get projectOwnerName(): string {
+    const p: any = this.project;
+    return p?.owner_name ?? p?.owner_username ?? '';
+  }
+
+  openShareDialog(): void { this.showShareDialog = true; }
+  closeShareDialog(): void { this.showShareDialog = false; }
+
+  // N2: per-project activity feed.
+  showActivityFeed = false;
+  openActivityFeed(): void { this.showActivityFeed = true; }
+  closeActivityFeed(): void { this.showActivityFeed = false; }
+
+  // N10: project export (JSON / Markdown download + browser print-to-PDF).
+  showExportMenu = false;
+  toggleExportMenu(event?: Event): void {
+    event?.stopPropagation();
+    this.showExportMenu = !this.showExportMenu;
+  }
+  private get projectTypeParam(): 'local' | 'hosted' {
+    return ((this.project as any)?.projectType as 'local' | 'hosted') || 'local';
+  }
+  exportJson(): void {
+    this.showExportMenu = false;
+    if (this.project) this.integrations.exportProject(this.project.name, this.projectTypeParam, 'json');
+  }
+  exportMarkdown(): void {
+    this.showExportMenu = false;
+    if (this.project) this.integrations.exportProject(this.project.name, this.projectTypeParam, 'md');
+  }
+  /** Open a clean, print-styled view of the project and trigger the browser's
+   *  print dialog (the user picks "Save as PDF"). Built client-side from the
+   *  already-loaded project — no server round-trip. */
+  printProject(): void {
+    this.showExportMenu = false;
+    if (!this.project || !isPlatformBrowser(this.platformId)) return;
+    const html = this.buildPrintHtml(this.project);
+    const win = window.open('', '_blank', 'width=820,height=1000');
+    if (!win) return;
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    // Let the new document lay out before invoking print.
+    setTimeout(() => win.print(), 300);
+  }
+
+  private escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private buildPrintHtml(project: any): string {
+    const esc = (v: unknown) => this.escapeHtml(v);
+    const prio = (p: number) => (p <= 1 ? 'High' : p === 2 ? 'Medium' : 'Low');
+    const sections: string[] = [];
+
+    for (const grid of (project.grid || [])) {
+      const parts: string[] = [`<h2>${esc(grid.name || 'Grid')}</h2>`];
+      for (const el of (grid.Screen_elements || [])) {
+        const type = el?.type ?? el?.constructor?.name ?? 'Element';
+        parts.push(`<h3>${esc(el?.name || 'Untitled')} <span class="tag">${esc(type)}</span></h3>`);
+        if (type === 'ToDoLst') {
+          const tasks: any[] = el.scheduled_tasks || [];
+          if (!tasks.length) { parts.push('<p class="muted">No tasks.</p>'); continue; }
+          parts.push('<ul class="tasks">');
+          for (const t of tasks) {
+            const box = t.is_done ? '☑' : '☐';
+            const meta: string[] = [];
+            if (t.time) meta.push(new Date(t.time).toLocaleString());
+            if (typeof t.priority === 'number') meta.push(prio(t.priority));
+            const metaStr = meta.length ? ` <span class="muted">(${esc(meta.join(' · '))})</span>` : '';
+            parts.push(`<li class="${t.is_done ? 'done' : ''}">${box} ${esc(t.taskname)}${metaStr}</li>`);
+          }
+          parts.push('</ul>');
+        } else if (type === 'Text_document') {
+          parts.push(`<p>${esc(el.Text_field).replace(/\n/g, '<br>') || '<span class="muted">Empty document.</span>'}</p>`);
+        } else if (type === 'Image' && el.imagepath) {
+          parts.push(`<p class="muted">Image: ${esc(el.imagepath)}</p>`);
+        } else if (type === 'Video' && el.VideoPath) {
+          parts.push(`<p class="muted">Video: ${esc(el.VideoPath)}</p>`);
+        }
+      }
+      sections.push(parts.join('\n'));
+    }
+
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(project.name)}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;max-width:720px;margin:40px auto;padding:0 24px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:18px;margin:28px 0 8px;border-bottom:1px solid #e5e5e5;padding-bottom:4px}
+  h3{font-size:15px;margin:16px 0 6px}
+  .tag{font-size:11px;color:#888;font-weight:400;border:1px solid #ddd;border-radius:4px;padding:1px 6px;margin-left:6px}
+  .sub{color:#777;margin:0 0 8px}
+  ul.tasks{list-style:none;padding:0;margin:6px 0}
+  ul.tasks li{padding:2px 0}
+  ul.tasks li.done{color:#999;text-decoration:line-through}
+  .muted{color:#999}
+  @media print{body{margin:0}}
+</style></head><body>
+  <h1>${esc(project.name)}</h1>
+  <p class="sub">Owner: ${esc(project.owner_name || project.owner_username || '')} · ${esc(this.projectTypeParam)} · Exported ${new Date().toLocaleString()}</p>
+  ${sections.join('\n') || '<p class="muted">This project has no content yet.</p>'}
+</body></html>`;
+  }
+
+  /** N10: close the export menu on any outside click. */
+  @HostListener('document:click')
+  closeExportMenuOnOutsideClick(): void {
+    if (this.showExportMenu) this.showExportMenu = false;
+  }
   
   // Error/Alert modal
   showErrorModal = false;
@@ -50,7 +192,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   showAddTaskModal = false;
   newTaskName = '';
   newTaskPriority: number | null = null; // Changed to null to require selection
-  newTaskTime = '';
   taskColumnIndex = -1;
   taskElementIndex = -1;
   private lastSaveTimestamp = 0; // Track when we last saved to prevent reload loop
@@ -60,6 +201,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   isEditingText = false;
   editingTextIndex = -1;
   editingTextContent = '';
+
+  // B3: collaborative rich-text editor overlay (Yjs). Opened on double-click of
+  // a Text_document; the overlay owns the Y.Doc + Quill binding + live sync.
+  showTextEditor = false;
+  textEditorElement: Text_document | null = null;
   
   // Image/Video name prompts
   showImageNameModal = false;
@@ -131,6 +277,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private hostedProjectDeleteSubscription: any;
   private elementUpdateSubscription: any;
 
+  // Document-level listeners registered in ngOnInit. Kept here (with their exact
+  // handler references) so ngOnDestroy can remove them — otherwise every visit to
+  // a project stacked another permanent set of listeners, each holding a dead
+  // component alive and still firing its drag/mouse/keyboard handlers.
+  private documentListeners: Array<{ type: string; handler: EventListener; opts?: AddEventListenerOptions }> = [];
+
   // ---- Phase 6b: granular realtime collaboration state ----
   // Presence: usernames currently in the room.
   presenceUsers: PresenceUser[] = [];
@@ -148,16 +300,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   // ---- A2: dependency links on the canvas ----
   /** When set, we're in "pick a target ToDoLst" mode; value is the source element id. */
   linkSourceId: string | null = null;
-
-  // ---- A3: task comments panel (in the fullscreen todo overlay) ----
-  /** The task whose comments panel is open, or null. */
-  selectedCommentTask: scheduled_task | null = null;
-  /** Comments for the selected task, oldest-first. */
-  taskComments: TaskComment[] = [];
-  newCommentBody = '';
-  isLoadingComments = false;
-  /** Per-task comment counts, keyed by task id. */
-  private commentCounts: Map<string, number> = new Map();
 
   // =========================================================================
   // G2: multi-select, group move, grid snapping, templates (signal-based)
@@ -191,22 +333,25 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     private router: Router,
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
+    private destroyRef: DestroyRef,
+    private integrations: IntegrationsService,
+    private chatUi: ChatUiService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) { }
 
   ngOnInit(): void {
-    this.route.params.subscribe(params => {
+    this.route.params.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       this.projectIndex = +params['id'];
       this.loadProject();
     });
 
-    this.dataService.currentUser$.subscribe((user: User | null) => {
+    this.dataService.currentUser$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((user: User | null) => {
       this.currentUser = user;
       this.loadProject();
     });
 
     // Subscribe to loading states
-    this.dataService.savingProject$.subscribe(loading => {
+    this.dataService.savingProject$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(loading => {
       this.isSaving = loading;
       console.log('Project detail - Saving state changed:', loading);
       
@@ -231,7 +376,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.cdr.detectChanges();
     });
 
-    this.dataService.loadingProject$.subscribe(loading => {
+    this.dataService.loadingProject$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(loading => {
       this.isLoading = loading;
       
       // Clear any existing timeout
@@ -299,20 +444,25 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Global mouse move and up listeners for drag (only in browser)
+    // Global drag/pan/keyboard listeners (only in browser). Registered through a
+    // helper that records each handler so ngOnDestroy can remove it — see
+    // `documentListeners`.
     if (isPlatformBrowser(this.platformId)) {
-      document.addEventListener('mousemove', (e) => this.onDocumentMouseMove(e));
-      document.addEventListener('mouseup', (e) => this.onDocumentMouseUp(e));
-      document.addEventListener('mousedown', (e) => this.onDocumentMouseDown(e));
-      
-      //TOUCH CONTROLS KIS NEI ADD KERNE THAY?????
-      document.addEventListener('touchmove', (e) => this.onDocumentTouchMove(e), { passive: false });
-      document.addEventListener('touchend', (e) => this.onDocumentTouchEnd(e));
-      document.addEventListener('touchstart', (e) => this.onDocumentTouchStart(e));
-
+      this.addDocumentListener('mousemove', (e) => this.onDocumentMouseMove(e as MouseEvent));
+      this.addDocumentListener('mouseup', (e) => this.onDocumentMouseUp(e as MouseEvent));
+      this.addDocumentListener('mousedown', (e) => this.onDocumentMouseDown(e as MouseEvent));
+      this.addDocumentListener('touchmove', (e) => this.onDocumentTouchMove(e as TouchEvent), { passive: false });
+      this.addDocumentListener('touchend', (e) => this.onDocumentTouchEnd(e as TouchEvent));
+      this.addDocumentListener('touchstart', (e) => this.onDocumentTouchStart(e as TouchEvent));
       // G2: canvas keyboard shortcuts (select-all / clear / delete selection).
-      document.addEventListener('keydown', (e) => this.onDocumentKeyDown(e));
+      this.addDocumentListener('keydown', (e) => this.onDocumentKeyDown(e as KeyboardEvent));
     }
+  }
+
+  /** Register a document listener and remember it so ngOnDestroy can remove it. */
+  private addDocumentListener(type: string, handler: EventListener, opts?: AddEventListenerOptions): void {
+    document.addEventListener(type, handler, opts);
+    this.documentListeners.push({ type, handler, opts });
   }
 
   loadProject(): void {
@@ -328,7 +478,21 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
       // Phase 6b: join the granular collaboration room for this project (once).
       this.ensureCollabRoom();
+      // Publish this project's channel so the chat panel can offer team chat.
+      const projectType = (this.project as any).projectType || this.project.project_type;
+      this.chatUi.setProjectChannel({
+        projectName: this.project.name,
+        projectType,
+        label: `${this.project.name} · team`,
+      });
     }
+  }
+
+  /** Open the slide-in chat panel on this project's team channel. */
+  openTeamChat(): void {
+    if (!this.project) return;
+    const projectType = (this.project as any).projectType || this.project.project_type;
+    this.chatUi.openProject(this.project.name, projectType);
   }
 
   /**
@@ -389,9 +553,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           this.remoteCursors.set(c.username, { x: c.x, y: c.y });
           this.cdr.detectChanges();
         }
-      }),
-      // A3: live task comments — bump counts and append to the open panel.
-      this.collabService.onCommentAdded().subscribe(comment => this.applyRemoteComment(comment))
+      })
     );
   }
 
@@ -556,7 +718,15 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
    * Degrades to a plain add + whole-project save when no collab room is joined.
    */
   private async addElementCollab(element: Screen_Element, gridIndex: number): Promise<void> {
-    if (!this.project || !this.project.grid[gridIndex]) return;
+    if (!this.project) return;
+    // Defensive backstop: if the target grid doesn't exist (e.g. a gridless
+    // brand-new project reached via a template or empty-canvas CTA), create a
+    // default one and retarget it rather than silently dropping the element.
+    if (!this.project.grid[gridIndex]) {
+      await this.ensureDefaultGrid();
+      gridIndex = this.selectedGridIndex;
+    }
+    if (!this.project.grid[gridIndex]) return;
     await this.emitElementCreate(element, gridIndex);
     await this.dataService.addElementToGrid(this.projectIndex, gridIndex, element);
     this.loadProject();
@@ -771,17 +941,34 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
   }
 
-  openAddElementModal(): void {
-    console.log('[ProjectDetail] openAddElementModal called');
-    console.log('[ProjectDetail] project:', this.project);
-    console.log('[ProjectDetail] grid.length:', this.project?.grid?.length);
+  async openAddElementModal(): Promise<void> {
+    if (!this.project) return;
+    // Brand-new projects are created with an empty grid array (the Project
+    // constructor starts with `grid: []` and normal project creation never adds
+    // one). Without a grid, every add-element path silently no-ops — so an image
+    // (or any element) "won't go inside". Ensure a default canvas exists first.
+    if (this.project.grid.length === 0) {
+      await this.ensureDefaultGrid();
+    }
     if (!this.project || this.project.grid.length === 0) {
-      console.log('[ProjectDetail] Returning early - no project or no grids');
+      this.showError('Could not create a canvas for this project. Please try again.');
       return;
     }
-    console.log('[ProjectDetail] Setting showElementTypeSelector to true');
     this.showElementTypeSelector = true;
     this.cdr.detectChanges(); // Force change detection
+  }
+
+  /**
+   * Ensure the current project has at least one grid, creating a default
+   * "Main Canvas" if it has none, and point `selectedGridIndex` at it. Elements
+   * are always added to a grid, so this guards every add-element entry point
+   * against silently dropping the element on a gridless project.
+   */
+  private async ensureDefaultGrid(): Promise<void> {
+    if (!this.project || this.project.grid.length > 0) return;
+    await this.dataService.createGrid(this.projectIndex, 'Main Canvas');
+    this.selectedGridIndex = 0;
+    this.loadProject();
   }
 
   selectElementType(type: 'ToDoLst' | 'Image' | 'Video' | 'Text_document'): void {
@@ -817,6 +1004,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   triggerImageUpload(): void {
+    // A14: SSR guard — `document` doesn't exist on the server. Only reached from a
+    // user gesture in the browser, but guard defensively so the component never
+    // touches the DOM outside a browser platform.
+    if (!isPlatformBrowser(this.platformId)) return;
     // Reset file input to ensure accept attribute is correct
     if (this.fileInput) {
       this.fileInput.remove();
@@ -852,6 +1043,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   triggerVideoUpload(): void {
+    // A14: SSR guard — see triggerImageUpload. `document` is browser-only.
+    if (!isPlatformBrowser(this.platformId)) return;
     // Reset file input to ensure accept attribute is correct
     if (this.fileInput) {
       this.fileInput.remove();
@@ -902,9 +1095,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         );
 
         if (uploadResponse.success && uploadResponse.filePath) {
-          // Create element with server file path (server serves from /projects, so path is relative to that)
+          // A11: filePath now already includes the local/hosted segment, so it
+          // appends directly to the /projects static route.
           const serverUrl = getServerConfig();
-          const localPath = `${serverUrl}/projects/${projectType}/${uploadResponse.filePath}`;
+          const localPath = `${serverUrl}/projects/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Image uploaded, using path: ${localPath}`);
           const element = new Image(localPath, 400, 300, imageName);
           element.set_x_scale(300); // width
@@ -946,9 +1140,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
         );
 
         if (uploadResponse.success && uploadResponse.filePath) {
-          // Create element with server file path (server serves from /projects, so path is relative to that)
+          // A11: filePath now already includes the local/hosted segment, so it
+          // appends directly to the /projects static route.
           const serverUrl = getServerConfig();
-          const localPath = `${serverUrl}/projects/${projectType}/${uploadResponse.filePath}`;
+          const localPath = `${serverUrl}/projects/${uploadResponse.filePath}`;
           console.log(`[ProjectDetail] Video uploaded, using path: ${localPath}`);
           const element = new Video(localPath, 400, 300, videoName);
           element.set_x_scale(400); // width
@@ -974,12 +1169,39 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     reader.readAsDataURL(file);
   }
 
+  /**
+   * N7: when a repeating task is just completed, append its next occurrence to the
+   * owning ToDoLst so the cadence continues. Pure model logic lives on the task
+   * (build_next_occurrence); this only decides where to add the new row. No-op for
+   * one-off tasks or when the task was re-opened (not completed).
+   */
+  private spawnRecurrenceIfNeeded(task: scheduled_task, list: ToDoLst | null): void {
+    if (!list || !task.is_done) return;
+    const next = task.build_next_occurrence();
+    if (next) list.add_task(next);
+  }
+
+  /** Find the ToDoLst in the current project that contains the given task, if any. */
+  private findListContainingTask(task: scheduled_task): ToDoLst | null {
+    if (!this.project) return null;
+    for (const grid of this.project.grid) {
+      for (const element of grid.Screen_elements) {
+        if (this.getElementType(element) === 'ToDoLst') {
+          const list = element as ToDoLst;
+          if (list.scheduled_tasks.includes(task)) return list;
+        }
+      }
+    }
+    return null;
+  }
+
   async onTaskToggle(task: any): Promise<void> {
     if (task.get_status()) {
       task.mark_incomplete();
     } else {
       const username = this.currentUser?.name || 'Unknown User';
       task.mark_complete(username);
+      this.spawnRecurrenceIfNeeded(task, this.findListContainingTask(task));
     }
     this.dataService.updateCurrentUser();
     // Save the project to persist changes
@@ -1086,31 +1308,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   getElementType(element: Screen_Element): string {
-    const typedElement = element as any;
-    const explicitType = typedElement?.type;
-    if (typeof explicitType === 'string' && explicitType.length > 0) {
-      return explicitType;
-    }
-
-    const constructorName = typedElement?.constructor?.name;
-    if (constructorName && constructorName !== 'Object') {
-      return constructorName;
-    }
-
-    if (Array.isArray(typedElement?.scheduled_tasks)) {
-      return 'ToDoLst';
-    }
-    if (typedElement?.Text_field !== undefined || typedElement?.text_field !== undefined || typeof typedElement?.get_field === 'function') {
-      return 'Text_document';
-    }
-    if (typedElement?.imagepath !== undefined || typedElement?.imagePath !== undefined || typedElement?.ImageBase64 !== undefined) {
-      return 'Image';
-    }
-    if (typedElement?.VideoPath !== undefined || typedElement?.videoPath !== undefined || typedElement?.videoBase64 !== undefined) {
-      return 'Video';
-    }
-
-    return 'Screen_Element';
+    // Single canonical detector (shared model) — prefers the explicit `type`
+    // discriminator now set on every element (survives minification, unlike the
+    // old constructor.name check), falling back to shape detection.
+    return objects_builder.typeOf(element);
   }
 
   getTodoTasks(element: Screen_Element): any[] {
@@ -1235,36 +1436,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.fullScreenTodoElement = null;
     this.fullScreenTodoElementIndex = -1;
     this.fullScreenTodoGridIndex = -1;
-    this.closeTaskComments();
-  }
-
-  async addTaskToFullScreenTodo(): Promise<void> {
-    if (!this.fullScreenTodoElement || !this.newTaskName.trim()) return;
-
-    // Convert datetime-local format to ISO string
-    let taskTime = new Date().toISOString();
-    if (this.newTaskTime) {
-      // datetime-local format is YYYY-MM-DDTHH:mm, convert to ISO
-      const localDate = new Date(this.newTaskTime);
-      if (!isNaN(localDate.getTime())) {
-        taskTime = localDate.toISOString();
-      }
-    }
-
-    // Ensure priority is a number (it should be set by validation, but just in case)
-    const priority = typeof this.newTaskPriority === 'string' ? 
-      parseInt(this.newTaskPriority, 10) : (this.newTaskPriority || 2);
-
-    const task = new scheduled_task(this.newTaskName.trim(), priority, taskTime);
-    this.fullScreenTodoElement.add_task(task);
-    
-    // Track save timestamp for hosted projects
-    this.lastSaveTimestamp = Date.now();
-    
-    await this.saveFullScreenTodo();
-    this.newTaskName = '';
-    this.newTaskPriority = null;
-    this.newTaskTime = '';
   }
 
   getDateTimeLocalValue(isoString: string): string {
@@ -1280,37 +1451,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     } catch {
       return '';
-    }
-  }
-
-  async deleteTaskFromFullScreenTodo(task: scheduled_task): Promise<void> {
-    if (!this.fullScreenTodoElement) return;
-
-    const taskIndex = this.fullScreenTodoElement.scheduled_tasks.findIndex(t => t === task);
-    if (taskIndex !== -1) {
-      this.fullScreenTodoElement.delete_task(taskIndex);
-      await this.saveFullScreenTodo();
-    }
-  }
-
-  async toggleTaskStatusInFullScreen(task: scheduled_task): Promise<void> {
-    if (!this.fullScreenTodoElement) return;
-
-    task.toggle_done_status();
-    await this.saveFullScreenTodo();
-  }
-
-  async updateTaskPriorityInFullScreen(task: scheduled_task, priority: number): Promise<void> {
-    if (!this.fullScreenTodoElement) return;
-
-    task.edit_priority(priority);
-    await this.saveFullScreenTodo();
-  }
-
-  onPriorityChange(task: scheduled_task, event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    if (target) {
-      this.updateTaskPriorityInFullScreen(task, +target.value);
     }
   }
 
@@ -1331,11 +1471,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     }
     this.cdr.detectChanges();
-  }
-
-  getUpcomingTasks(): scheduled_task[] {
-    if (!this.fullScreenTodoElement) return [];
-    return this.fullScreenTodoElement.scheduled_tasks.filter(task => !task.is_done);
   }
 
   getCompletedTasks(): scheduled_task[] {
@@ -2267,6 +2402,34 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // Open todo list in full screen on double click
     if (this.getElementType(element) === 'ToDoLst') {
       this.openFullScreenTodo(index);
+    } else if (this.getElementType(element) === 'Text_document') {
+      // B3: open the collaborative rich-text editor.
+      this.openTextEditor(element as Text_document);
+    }
+  }
+
+  /** B3: open the collaborative Yjs editor for a Text_document element. */
+  openTextEditor(element: Text_document): void {
+    this.textEditorElement = element;
+    this.showTextEditor = true;
+    this.cdr.detectChanges();
+  }
+
+  /** Close the collaborative editor. The overlay has already mirrored its final
+   *  state onto the element; persist a whole-project snapshot for durability. */
+  async closeTextEditor(): Promise<void> {
+    this.showTextEditor = false;
+    this.textEditorElement = null;
+    this.cdr.detectChanges();
+    if (this.project) {
+      const projectType = (this.project as any).projectType;
+      if (projectType) {
+        try {
+          await this.dataService.saveProject(this.project, projectType);
+        } catch (e) {
+          console.warn('[ProjectDetail] closeTextEditor save failed:', e);
+        }
+      }
     }
   }
 
@@ -2551,59 +2714,13 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       }
     }
   }
-  async addTagToFullScreen() {
-    if (!this.fullScreenTodoElement) return;
-    const tag = this.editingTagInput.trim();
-    if (!tag) return;
-
-    if (!this.fullScreenTodoElement.tags.includes(tag)) {
-      this.fullScreenTodoElement.tags.push(tag);
-      console.log('Added tag:', tag, 'to element:', this.fullScreenTodoElement);
-      if (this.project) {
-        await this.dataService.saveProject(this.project, this.project.project_type);
-      }
-    }
-
-    this.editingTagInput = '';
-  }
-
-  async removeTagFromFullScreen(tag: string) {
-    const el = this.fullScreenTodoElement;
-    if (!el) return;
-    const i = el.tags.indexOf(tag);
-    if (i !== -1) {
-      el.tags.splice(i, 1);
-      console.log('Removed tag:', tag, 'from element:', el);
-      if (this.project) {
-        await this.dataService.saveProject(this.project, this.project.project_type);
-      }
-    }
-  }
-  getTags(element: any): string[] {
-    console.log('Getting tags for element:', element);
-  return element?.tags ?? [];
-}
-
   // =========================================================================
   // B2: presence + cursor color palette (hash username -> accent spectrum)
   // =========================================================================
 
-  private readonly accentSpectrum = [
-    'var(--accent)',
-    'var(--accent-blue)',
-    'var(--accent-teal)',
-    'var(--accent-green)',
-    'var(--accent-lime)'
-  ];
-
   /** Deterministically map a username to one of the album accent colors. */
   getUserColor(username: string): string {
-    if (!username) return this.accentSpectrum[0];
-    let hash = 0;
-    for (let i = 0; i < username.length; i++) {
-      hash = (hash * 31 + username.charCodeAt(i)) & 0x7fffffff;
-    }
-    return this.accentSpectrum[hash % this.accentSpectrum.length];
+    return userColor(username);
   }
 
   // =========================================================================
@@ -2763,113 +2880,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     return Array.isArray(d) ? d : [];
   }
 
-  // =========================================================================
-  // A3: task comments panel
-  // =========================================================================
-
-  /** Stable comment key for a task (the DB uuid attached on load, if present). */
-  private getTaskId(task: scheduled_task | null): string | null {
-    const id = (task as any)?.id;
-    return typeof id === 'string' && id.length > 0 ? id : null;
-  }
-
-  /** Comment count badge for a task (0 when unknown). */
-  getCommentCount(task: scheduled_task): number {
-    const id = this.getTaskId(task);
-    if (!id) return 0;
-    return this.commentCounts.get(id) ?? 0;
-  }
-
-  /** True when the selected task can actually load/post comments. */
-  get canComment(): boolean {
-    return !!this.getTaskId(this.selectedCommentTask);
-  }
-
-  /** Open the comments panel for a task and load its comments. */
-  async openTaskComments(task: scheduled_task, event?: MouseEvent): Promise<void> {
-    if (event) event.stopPropagation();
-    this.selectedCommentTask = task;
-    this.taskComments = [];
-    this.newCommentBody = '';
-    const id = this.getTaskId(task);
-    if (!id) {
-      // No DB id yet (whole-project load doesn't emit task ids) — panel opens
-      // with a hint instead of breaking.
-      this.cdr.detectChanges();
-      return;
-    }
-    this.isLoadingComments = true;
-    this.cdr.detectChanges();
-    try {
-      const comments = await this.collabService.listComments(id);
-      this.taskComments = comments;
-      this.commentCounts.set(id, comments.length);
-    } catch (e) {
-      console.warn('[ProjectDetail] listComments failed:', e);
-    } finally {
-      this.isLoadingComments = false;
-      this.cdr.detectChanges();
-    }
-  }
-
-  closeTaskComments(): void {
-    this.selectedCommentTask = null;
-    this.taskComments = [];
-    this.newCommentBody = '';
-    this.cdr.detectChanges();
-  }
-
-  /** Post a new comment to the selected task. */
-  async submitComment(): Promise<void> {
-    const id = this.getTaskId(this.selectedCommentTask);
-    const body = this.newCommentBody.trim();
-    if (!id || !body) return;
-    this.newCommentBody = '';
-    try {
-      // The broadcast (task:comment:added) delivers the comment to us too, so
-      // we let applyRemoteComment append it to avoid duplication.
-      await this.collabService.addComment(id, body);
-    } catch (e) {
-      console.warn('[ProjectDetail] addComment failed:', e);
-      this.newCommentBody = body; // restore on failure
-    }
-    this.cdr.detectChanges();
-  }
-
-  /** Apply a broadcast comment: bump the count and append if its panel is open. */
-  private applyRemoteComment(comment: TaskComment): void {
-    if (!comment?.taskId) return;
-    this.commentCounts.set(comment.taskId, (this.commentCounts.get(comment.taskId) ?? 0) + 1);
-    const openId = this.getTaskId(this.selectedCommentTask);
-    if (openId && openId === comment.taskId) {
-      if (!this.taskComments.some(c => c.id === comment.id)) {
-        this.taskComments = [...this.taskComments, comment];
-      }
-    }
-    this.cdr.detectChanges();
-  }
-
-  /** Relative "time ago" label for a comment timestamp. */
-  formatRelativeTime(iso: string): string {
-    if (!iso) return '';
-    const then = new Date(iso).getTime();
-    if (isNaN(then)) return '';
-    const diff = Date.now() - then;
-    const s = Math.floor(diff / 1000);
-    if (s < 60) return 'just now';
-    const m = Math.floor(s / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
-    const d = Math.floor(h / 24);
-    if (d < 7) return `${d}d ago`;
-    try {
-      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } catch {
-      return '';
-    }
-  }
-
   ngOnDestroy(): void {
     // Clean up subscriptions
     if (this.hostedProjectUpdateSubscription) {
@@ -2887,12 +2897,30 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.teardownCollabStreams();
     this.joinedRoomKey = null;
 
+    // Drop this project's chat channel from the shell panel.
+    this.chatUi.setProjectChannel(null);
+
+    // Remove every document-level listener we registered (drag/pan/keyboard).
+    // Without this, each project visit leaked a permanent set of handlers.
+    if (isPlatformBrowser(this.platformId)) {
+      for (const { type, handler, opts } of this.documentListeners) {
+        document.removeEventListener(type, handler, opts);
+      }
+    }
+    this.documentListeners = [];
+
     // Clear any pending timeouts
     if (this.savingTimeout) {
       clearTimeout(this.savingTimeout);
     }
     if (this.loadingTimeout) {
       clearTimeout(this.loadingTimeout);
+    }
+    // A long-press drag timer can outlive the component if navigation happens
+    // mid-press; clear it so it never fires against a destroyed instance.
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
     }
   }
 
