@@ -19,10 +19,21 @@ import {
   listComments as repoListComments,
 } from "../repositories/comment.repository.js";
 import {
+  createComment as repoCreateElementComment,
+  listCommentsForProject as repoListElementComments,
+  setCommentResolved as repoSetElementCommentResolved,
+  deleteComment as repoDeleteElementComment,
+} from "../repositories/elementComment.repository.js";
+import {
   applyUpdate as ydocApplyUpdate,
   encodeState as ydocEncodeState,
   encodeStateVector as ydocEncodeStateVector,
 } from "../realtime/ydoc-registry.js";
+import {
+  listSnapshots as repoListSnapshots,
+  snapshotCurrentState as repoSnapshotCurrentState,
+  restoreSnapshot as repoRestoreSnapshot,
+} from "../repositories/snapshot.repository.js";
 import {
   AccessService,
   type Capability,
@@ -99,6 +110,65 @@ export class CollabService {
 
   listComments(taskId: string) {
     return repoListComments(taskId);
+  }
+
+  // ─── Element comments (E6) — canvas comment pins ──────────────────────────
+
+  /** Create a comment pinned to an element within a project. */
+  createElementComment(
+    projectId: string,
+    elementId: string,
+    author: string,
+    body: string
+  ) {
+    return repoCreateElementComment(projectId, elementId, author, body);
+  }
+
+  /** Every element comment in a project (all pins), oldest-first. */
+  listElementComments(projectId: string) {
+    return repoListElementComments(projectId);
+  }
+
+  /** Resolve/re-open a comment, scoped to its project. Null if not found. */
+  setElementCommentResolved(
+    commentId: string,
+    projectId: string,
+    resolved: boolean,
+    username: string
+  ) {
+    return repoSetElementCommentResolved(commentId, projectId, resolved, username);
+  }
+
+  /** Delete a comment, scoped to its project. Null if not found. */
+  deleteElementComment(commentId: string, projectId: string) {
+    return repoDeleteElementComment(commentId, projectId);
+  }
+
+  // ─── Canvas version history (E8) ──────────────────────────────────────────
+
+  /** Save a named manual checkpoint of the project's current canvas state. */
+  createManualSnapshot(
+    projectName: string,
+    projectType: ProjectType,
+    username: string,
+    label: string | null
+  ) {
+    return repoSnapshotCurrentState(projectName, projectType, username, label, "manual");
+  }
+
+  /** A project's version timeline, newest-first (metadata only). */
+  listSnapshots(projectId: string) {
+    return repoListSnapshots(projectId);
+  }
+
+  /** Restore the project to a stored version (full-replace). Null if not found. */
+  restoreSnapshot(
+    snapshotId: string,
+    projectId: string,
+    projectName: string,
+    projectType: ProjectType
+  ) {
+    return repoRestoreSnapshot(snapshotId, projectId, projectName, projectType);
   }
 
   /** Yjs catch-up: the encoded update diff + current state vector for a doc. */

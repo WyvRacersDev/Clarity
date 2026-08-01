@@ -108,6 +108,10 @@ export const elementCreateSchema = z
     projectType: projectTypeSchema,
     gridId: z.string().optional(), // falls back to the project's first grid
     element: elementInputSchema,
+    // E10: client-generated idempotency key. A create replayed after a
+    // reconnect (or an app-level retry) carries the same opId, so the server
+    // can collapse it to the original insert instead of duplicating the row.
+    opId: z.string().max(128).optional(),
   })
   .passthrough();
 
@@ -219,6 +223,78 @@ export const taskCommentListSchema = z
     projectName: z.string(),
     projectType: projectTypeSchema,
     taskId: z.string(),
+  })
+  .passthrough();
+
+// === Element comments (E6 — canvas comment pins) ===
+
+/**
+ * comment:create — pin a comment to a canvas element, then ack + broadcast.
+ * `elementId` is verified to belong to the named project (requireElement guard).
+ * `body` must be non-empty; `author` is derived server-side from identity(),
+ * never trusted from the payload.
+ */
+export const commentCreateSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    elementId: z.string(),
+    body: z.string().min(1),
+  })
+  .passthrough();
+
+/** comment:list — fetch every comment pin for a project (all elements). */
+export const commentListSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+  })
+  .passthrough();
+
+/** comment:resolve — mark a comment resolved (or re-open it). */
+export const commentResolveSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    commentId: z.string(),
+    resolved: z.boolean(),
+  })
+  .passthrough();
+
+/** comment:delete — remove a single comment. */
+export const commentDeleteSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    commentId: z.string(),
+  })
+  .passthrough();
+
+// === Canvas version history (E8 — project snapshots) ===
+
+/** snapshot:create — save a named manual checkpoint of the current canvas. */
+export const snapshotCreateSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    label: z.string().max(100).optional(),
+  })
+  .passthrough();
+
+/** snapshot:list — a project's version timeline (metadata only). */
+export const snapshotListSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+  })
+  .passthrough();
+
+/** snapshot:restore — full-replace the canvas with a stored version. */
+export const snapshotRestoreSchema = z
+  .object({
+    projectName: z.string(),
+    projectType: projectTypeSchema,
+    snapshotId: z.string(),
   })
   .passthrough();
 

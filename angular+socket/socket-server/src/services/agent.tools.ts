@@ -30,6 +30,12 @@ export interface AgentToolContext {
   username: string;
   summariseProject: (projectName: string) => Promise<string>;
   suggestSchedule: (projectName: string) => Promise<string>;
+  // E9: analyze a project for blocked/at-risk work (overdue, undated, stalled,
+  // list-level dependencies) and return a concise natural-language breakdown.
+  findBlocked: (projectName: string) => Promise<string>;
+  // E9 (slice 2): extract action items from a chat conversation and create them
+  // as tasks in a project. Returns a user-facing summary of what was created.
+  threadToTasks: (args: { project_name: string; thread: string }) => Promise<string>;
   sendInvite: (invitee: string, projectName: string) => Promise<string>;
   // N5: create a task in a project from natural language. Args are the raw
   // structured tool arguments (priority as a word, due_date as ISO/plain date).
@@ -90,6 +96,51 @@ export const AGENT_TOOLS: AgentTool[] = [
       const name = String(args?.project_name ?? "").trim();
       if (!name) return "Please specify a project name to suggest a schedule for.";
       return await ctx.suggestSchedule(name);
+    },
+  },
+  {
+    name: "find_blocked",
+    description:
+      "Analyze a project for what is blocked, overdue, or at risk. Use when the " +
+      "user asks what's blocked, what's stuck, what's overdue, what's slipping, " +
+      "or what needs attention in a specific project. Surfaces overdue tasks, " +
+      "tasks with no due date, stalled in-progress work, and lists blocked by " +
+      "other lists.",
+    schema: z.object({
+      project_name: z
+        .string()
+        .describe("The exact name of the project to check for blockers."),
+    }),
+    handler: async (args, ctx) => {
+      const name = String(args?.project_name ?? "").trim();
+      if (!name) return "Please specify a project name to check for blockers.";
+      return await ctx.findBlocked(name);
+    },
+  },
+  {
+    name: "thread_to_tasks",
+    description:
+      "Turn a chat conversation into tasks: read the provided conversation text, " +
+      "extract the actionable to-do items discussed, and create them as tasks in a " +
+      "project. Use when the user asks to turn a thread/chat/discussion into tasks " +
+      "or action items. The 'thread' argument must contain the conversation text.",
+    schema: z.object({
+      project_name: z
+        .string()
+        .describe("The exact name of the project to add the extracted tasks to."),
+      thread: z
+        .string()
+        .describe(
+          "The chat conversation text to extract action items from, e.g. lines of " +
+            "\"author: message\"."
+        ),
+    }),
+    handler: async (args, ctx) => {
+      const projectName = String(args?.project_name ?? "").trim();
+      const thread = String(args?.thread ?? "").trim();
+      if (!projectName) return "Please tell me which project to add the tasks to.";
+      if (!thread) return "Please provide the conversation to turn into tasks.";
+      return await ctx.threadToTasks({ project_name: projectName, thread });
     },
   },
   {

@@ -1,0 +1,86 @@
+<div class="scrim" (click)="close()">
+  <div class="modal modal-md version-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Version history · “{{ projectName }}”</h2>
+      <div class="version-head-actions">
+        <button class="btn btn-icon btn-ghost btn-sm" (click)="refresh()" aria-label="Refresh" [disabled]="loading()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path></svg>
+        </button>
+        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="close()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Save a named checkpoint (editors only). -->
+    @if (canEdit) {
+      <div class="version-save">
+        <input
+          class="input version-label-input"
+          type="text"
+          maxlength="100"
+          placeholder="Name this version (optional)…"
+          [(ngModel)]="label"
+          (keydown.enter)="save()"
+          [disabled]="saving()"
+          aria-label="Version name" />
+        <button class="btn btn-primary btn-sm" (click)="save()" [disabled]="saving()">
+          @if (saving()) { Saving… } @else { Save version }
+        </button>
+      </div>
+    }
+
+    <div class="modal-body version-body">
+      @if (error()) {
+        <p class="version-error">{{ error() }}</p>
+      }
+
+      @if (loading() && items().length === 0) {
+        <p class="version-muted">Loading…</p>
+      } @else if (items().length === 0) {
+        <div class="version-empty">
+          <span>No versions yet.</span>
+          <span class="version-empty-sub">A version is captured automatically as you save, or save a named checkpoint above.</span>
+        </div>
+      } @else {
+        <ul class="version-list">
+          @for (s of items(); track s.id) {
+            <li class="version-row">
+              <span class="version-icon" [attr.data-kind]="s.kind" aria-hidden="true">
+                @if (s.kind === 'manual') {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"></path></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                }
+              </span>
+              <span class="version-content">
+                <span class="version-title">
+                  {{ labelFor(s) }}
+                  @if (s.kind === 'manual') { <span class="version-badge">saved</span> }
+                </span>
+                <span class="version-meta">
+                  {{ timeAgo(s.createdAt) }}
+                  @if (s.createdBy) { · {{ s.createdBy }} }
+                  · {{ s.elementCount }} element{{ s.elementCount === 1 ? '' : 's' }}
+                </span>
+              </span>
+
+              @if (canEdit) {
+                <span class="version-actions">
+                  @if (confirmId() === s.id) {
+                    <button class="btn btn-primary btn-sm" (click)="doRestore(s.id)" [disabled]="restoringId() === s.id">
+                      @if (restoringId() === s.id) { Restoring… } @else { Confirm }
+                    </button>
+                    <button class="btn btn-ghost btn-sm" (click)="cancelRestore()" [disabled]="restoringId() === s.id">Cancel</button>
+                  } @else {
+                    <button class="btn btn-secondary btn-sm" (click)="askRestore(s.id)" [disabled]="!!restoringId()">Restore</button>
+                  }
+                </span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</div>

@@ -184,6 +184,25 @@ export class CommandPaletteComponent {
         }),
     },
     {
+      id: 'act-new-task',
+      label: 'New Task',
+      hint: 'Add a task',
+      group: 'Actions',
+      keywords: 'new create task todo add schedule',
+      run: () =>
+        this.router.navigate(['/dashboard/tasks'], {
+          queryParams: { new: 1 },
+        }),
+    },
+    {
+      id: 'act-ask-ai',
+      label: 'Ask the assistant',
+      hint: 'Open AI Insights',
+      group: 'Actions',
+      keywords: 'ai ask assistant insights question chat help',
+      run: () => this.router.navigate(['/dashboard/ai-insights']),
+    },
+    {
       id: 'act-toggle-theme',
       label: 'Toggle theme',
       hint: 'Dark / Light',

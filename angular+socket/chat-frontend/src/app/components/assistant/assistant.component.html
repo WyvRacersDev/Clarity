@@ -40,6 +40,40 @@
       </div>
     </div>
 
+    <!-- ── Project scope bar (E9) ── -->
+    <div class="asst-scope-bar">
+      <div class="asst-scope-picker">
+        <svg class="asst-scope-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        </svg>
+        <select
+          class="input asst-scope-select"
+          [(ngModel)]="selectedProjectName"
+          [disabled]="loadingProjects || isLoading || isStreaming"
+          aria-label="Project the assistant should focus on"
+        >
+          <option value="">{{ loadingProjects ? 'Loading projects…' : 'No project (general)' }}</option>
+          @for (p of projects; track p.name + ':' + p.type) {
+            <option [value]="p.name">{{ p.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="asst-scope-actions">
+        @for (action of actions; track action.key) {
+          <button
+            class="btn btn-secondary btn-sm asst-scope-action"
+            type="button"
+            (click)="runAction(action)"
+            [disabled]="!selectedProjectName || isLoading || isStreaming"
+            [title]="selectedProjectName ? action.label : 'Select a project first'"
+          >
+            {{ action.label }}
+          </button>
+        }
+      </div>
+    </div>
+
     <!-- Messages -->
     <div class="asst-messages">
 
@@ -55,45 +89,28 @@
           <h3 class="asst-empty-title">How can I help?</h3>
           <p class="asst-empty-sub">Ask about your projects, tasks, schedule, or productivity. Type <kbd class="kbd">&#64;</kbd> to invoke a service.</p>
 
-          <p class="mono-label asst-suggest-label">Try one</p>
-          <!-- Suggestion chips — spectrum -soft backgrounds (categorical) -->
+          <p class="mono-label asst-suggest-label">
+            @if (selectedProjectName) { Acting on {{ selectedProjectName }} } @else { Pick a project above, then try one }
+          </p>
+          <!-- Project-aware quick actions (E9) — grounded in the selected project. -->
           <div class="asst-suggestion-chips">
-            <button
-              class="asst-suggestion-chip asst-chip--blue"
-              (click)="userInput = 'Summarize project YOOO'; sendMessage()"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                <line x1="8" y1="6" x2="21" y2="6"/>
-                <line x1="8" y1="12" x2="21" y2="12"/>
-                <line x1="8" y1="18" x2="21" y2="18"/>
-                <line x1="3" y1="6" x2="3.01" y2="6"/>
-                <line x1="3" y1="12" x2="3.01" y2="12"/>
-                <line x1="3" y1="18" x2="3.01" y2="18"/>
-              </svg>
-              <span>Summarize project YOOO</span>
-            </button>
-            <button
-              class="asst-suggestion-chip asst-chip--teal"
-              (click)="userInput = 'Suggest schedule for YOOO'; sendMessage()"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <span>Suggest schedule for YOOO</span>
-            </button>
-            <button
-              class="asst-suggestion-chip asst-chip--green"
-              (click)="userInput = 'send an invite to Bilal Kashif'; sendMessage()"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
-              <span>Send invite to Bilal Kashif</span>
-            </button>
+            @for (action of actions; track action.key) {
+              <button
+                class="asst-suggestion-chip asst-chip--blue"
+                (click)="runAction(action)"
+                [disabled]="!selectedProjectName || isLoading || isStreaming"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <line x1="8" y1="6" x2="21" y2="6"/>
+                  <line x1="8" y1="12" x2="21" y2="12"/>
+                  <line x1="8" y1="18" x2="21" y2="18"/>
+                  <line x1="3" y1="6" x2="3.01" y2="6"/>
+                  <line x1="3" y1="12" x2="3.01" y2="12"/>
+                  <line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+                <span>{{ action.label }}</span>
+              </button>
+            }
           </div>
         </div>
       }

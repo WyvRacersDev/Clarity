@@ -10,13 +10,24 @@
  * The Chat_Agent instance is injected so the router owns no singletons. Mounted
  * at app root in index.ts, so the path and error mapping are unchanged.
  */
-import { Router } from "express";
-import type { Chat_Agent } from "@services/agent.service.js";
+import { Router, json } from "express";
+import type { Chat_Agent, AgentProjectScope } from "@services/agent.service.js";
 import { computeSuggestionsForUser } from "@services/notification.service.js";
 import { resolveIdentity, resolveUsername } from "../middleware/auth.middleware.js";
 
 export function createAiRouter(agent: Chat_Agent): Router {
   const aiRouter: Router = Router();
+
+  // E9: optional project scope from the query. When a project is provided the
+  // agent grounds its answer/tools in that project's context (see build_scope_prefix).
+  const readScope = (req: { query: Record<string, any> }): AgentProjectScope | undefined => {
+    const projectName = String(req.query.projectName ?? "").trim();
+    if (!projectName) return undefined;
+    const rawType = String(req.query.projectType ?? "").trim();
+    return rawType === "local" || rawType === "hosted"
+      ? { projectName, projectType: rawType }
+      : { projectName };
+  };
 
   // Identity: honour AUTH_STRICT and prefer the verified JWT's username over the
   // `?username` query param (the streaming route accepts the token via `?token=`
@@ -26,9 +37,10 @@ export function createAiRouter(agent: Chat_Agent): Router {
   aiRouter.get("/ai-assistant/chat-agent", async (req, res) => {
     const input = String(req.query.input ?? "");
     const username = resolveUsername(req) || "Demo User";
-    console.log("AI Assistant chat input:", input);
+    const scope = readScope(req);
+    console.log("AI Assistant chat input:", input, "scope:", scope?.projectName ?? "(none)");
     try {
-      let result = await agent.chat(input, username);
+      let result = await agent.chat(input, username, scope);
       res.json(result);
     } catch (err: any) {
       if (err.status === 429 || err.code === 429) {
@@ -75,7 +87,8 @@ export function createAiRouter(agent: Chat_Agent): Router {
   aiRouter.get("/ai-assistant/chat-agent-stream", async (req, res) => {
     const input = String(req.query.input ?? "");
     const username = resolveUsername(req) || "Demo User";
-    console.log("AI Assistant stream input:", input);
+    const scope = readScope(req);
+    console.log("AI Assistant stream input:", input, "scope:", scope?.projectName ?? "(none)");
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -89,7 +102,7 @@ export function createAiRouter(agent: Chat_Agent): Router {
     req.on("close", () => { clientGone = true; });
 
     try {
-      for await (const chunk of agent.chatStream(input, username)) {
+      for await (const chunk of agent.chatStream(input, username, scope)) {
         if (clientGone) break;
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       }
@@ -107,6 +120,37 @@ export function createAiRouter(agent: Chat_Agent): Router {
       }
     } finally {
       res.end();
+    }
+  });
+
+  /**
+   * E9 (slice 2) — turn a chat conversation into tasks.
+   *   POST /ai-assistant/thread-to-tasks
+   *   body: { projectName, projectType?, thread }
+   * Extracts action items from `thread` and creates them in the project, then
+   * returns { message, created: string[], count }. Uses a JSON body (not query
+   * params) because a conversation can be long. Never 500s on "no items" — that
+   * is a normal { count: 0 } result.
+   */
+  aiRouter.post("/ai-assistant/thread-to-tasks", json({ limit: "1mb" }), async (req, res) => {
+    const projectName = String(req.body?.projectName ?? "").trim();
+    const thread = String(req.body?.thread ?? "").trim();
+    const rawType = String(req.body?.projectType ?? "").trim();
+    const projectType = rawType === "local" || rawType === "hosted" ? rawType : undefined;
+    if (!projectName || !thread) {
+      return res.status(400).json({ error: true, message: "projectName and thread are required." });
+    }
+    try {
+      const result = await agent.thread_to_tasks_by_name(
+        projectType ? { project_name: projectName, projectType, thread } : { project_name: projectName, thread }
+      );
+      res.json({ message: result.message, created: result.created, count: result.created.length });
+    } catch (err: any) {
+      console.error("[ai.routes] thread-to-tasks error:", err);
+      res.status(500).json({
+        error: true,
+        message: "Could not turn the conversation into tasks right now. Please try again.",
+      });
     }
   });
 

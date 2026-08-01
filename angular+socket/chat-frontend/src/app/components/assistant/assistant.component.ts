@@ -1,11 +1,21 @@
 import { ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
-import { AIService } from '../../services/ai.service';
+import { AIService, AIProjectScope } from '../../services/ai.service';
+import { DataService } from '../../services/data.service';
+import { isLocalhostServer } from '../../config/server.config';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { firstValueFrom } from 'rxjs';
 import { marked } from 'marked';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+
+/** E9 — a project-aware quick action surfaced as a chip in the Assistant. */
+interface AssistantAction {
+  key: string;
+  label: string;      // shown on the chip
+  userText: string;   // friendly bubble shown as the "user" turn
+  prompt: string;     // actual instruction sent to the model
+}
 
 @Component({
   selector: 'app-assistant',
@@ -34,8 +44,36 @@ export class AssistantComponent implements OnInit, OnDestroy {
   cursorPosition = 0;
   highlightedInput: SafeHtml = '';
 
+  // E9 — project scope: the assistant grounds answers/actions in the selected
+  // project. Empty selection = generic assistant (unchanged behavior).
+  projects: AIProjectScope[] = [];
+  selectedProjectName = '';
+  loadingProjects = false;
+
+  // E9 — project-aware quick actions (read-only; stream a grounded reply).
+  readonly actions: AssistantAction[] = [
+    {
+      key: 'summarize',
+      label: 'Summarize project',
+      userText: 'Summarize this project',
+      prompt:
+        'Give me a concise summary of this project: its lists, overall progress, ' +
+        'and a short timeline of tasks with their deadlines and completion status.',
+    },
+    {
+      key: 'blocked',
+      label: "What's blocked?",
+      userText: "What's blocked or at risk?",
+      prompt:
+        "What's blocked, overdue, or at risk in this project? List overdue tasks " +
+        '(most urgent first), tasks with no due date, stalled in-progress work, and ' +
+        'any lists blocked by other lists. Be specific and reference tasks by name.',
+    },
+  ];
+
   constructor(
     private aiService: AIService,
+    private dataService: DataService,
     private sanitizer: DomSanitizer,
     private cd: ChangeDetectorRef,
     @Inject(PLATFORM_ID) private platformId: object
@@ -43,6 +81,53 @@ export class AssistantComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.updateHighlightedInput();
+    this.loadProjects();
+  }
+
+  /**
+   * Load the user's projects for the scope picker. Mirrors ProjectsComponent:
+   * hosted always, local only when the server is localhost. Best-effort — the
+   * assistant still works generically if this fails.
+   */
+  private async loadProjects(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.loadingProjects = true;
+    try {
+      const loads = [this.dataService.listProjects('hosted')];
+      if (isLocalhostServer()) loads.push(this.dataService.listProjects('local'));
+      const results = await Promise.all(loads);
+      const seen = new Set<string>();
+      this.projects = results
+        .flat()
+        .map((p) => ({ name: p.name, type: (p as any).projectType as 'local' | 'hosted' }))
+        .filter((p) => p.name && !seen.has(`${p.type}:${p.name}`) && seen.add(`${p.type}:${p.name}`));
+    } catch (err) {
+      console.error('[Assistant] Failed to load projects for scope picker:', err);
+    } finally {
+      this.loadingProjects = false;
+      this.cd.detectChanges();
+    }
+  }
+
+  /** The currently selected project as a scope, or undefined for generic chat. */
+  private currentScope(): AIProjectScope | undefined {
+    if (!this.selectedProjectName) return undefined;
+    return this.projects.find((p) => p.name === this.selectedProjectName);
+  }
+
+  /** Run a project-aware quick action (E9). Requires a selected project. */
+  async runAction(action: AssistantAction): Promise<void> {
+    if (this.isLoading || this.isStreaming) return;
+    const scope = this.currentScope();
+    if (!scope) return;
+
+    this.aiChatMessages.push({ role: 'user', content: `${action.userText} — ${scope.name}` });
+    const canStream = isPlatformBrowser(this.platformId) && typeof fetch !== 'undefined';
+    if (canStream) {
+      await this.streamMessage(action.prompt, scope);
+    } else {
+      await this.blockingMessage(action.prompt, scope);
+    }
   }
 
   ngOnDestroy(): void {
@@ -86,14 +171,17 @@ export class AssistantComponent implements OnInit, OnDestroy {
       content: userMessage,
     });
 
+    // E9: ground the reply in the selected project (if any).
+    const scope = this.currentScope();
+
     // C3: prefer streaming; fall back to the blocking request if streaming is
     // unavailable (SSR / no fetch) or errors out before any token arrives.
     const canStream =
       isPlatformBrowser(this.platformId) && typeof fetch !== 'undefined';
     if (canStream) {
-      await this.streamMessage(userMessage);
+      await this.streamMessage(userMessage, scope);
     } else {
-      await this.blockingMessage(userMessage);
+      await this.blockingMessage(userMessage, scope);
     }
   }
 
@@ -102,7 +190,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
    * the last AI bubble in sync (markdown-rendered each tick), and shows the
    * typing indicator until the first token lands.
    */
-  private async streamMessage(userMessage: string): Promise<void> {
+  private async streamMessage(userMessage: string, scope?: AIProjectScope): Promise<void> {
     this.isLoading = true;
     this.isStreaming = true;
 
@@ -115,7 +203,7 @@ export class AssistantComponent implements OnInit, OnDestroy {
     marked.setOptions({ async: false });
 
     await new Promise<void>((resolve) => {
-      const sub = this.aiService.streamChat(userMessage).subscribe({
+      const sub = this.aiService.streamChat(userMessage, scope).subscribe({
         next: (ev) => {
           if (ev.type === 'chunk') {
             gotAnyToken = true;
@@ -161,16 +249,16 @@ export class AssistantComponent implements OnInit, OnDestroy {
       this.cd.detectChanges();
     } else if (!stopped) {
       // Streaming produced nothing — use the reliable blocking path.
-      await this.blockingMessage(userMessage);
+      await this.blockingMessage(userMessage, scope);
     }
   }
 
   /** Original non-streaming path, kept as a fallback (C3). */
-  private async blockingMessage(userMessage: string): Promise<void> {
+  private async blockingMessage(userMessage: string, scope?: AIProjectScope): Promise<void> {
     try {
       this.isLoading = true;
       const response = await firstValueFrom(
-        this.aiService.chat(userMessage)
+        this.aiService.chat(userMessage, scope)
       );
       this.isLoading = false;
       console.log('AI response received:', response);

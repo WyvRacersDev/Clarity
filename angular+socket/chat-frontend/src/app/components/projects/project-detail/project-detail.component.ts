@@ -7,7 +7,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { DataService } from '../../../services/data.service';
 import { SocketService } from '../../../services/socket.service';
-import { CollabService, PresenceUser } from '../../../services/collab.service';
+import { CollabService, PresenceUser, ElementComment } from '../../../services/collab.service';
 import { getServerConfig } from '../../../config/server.config';
 import { User } from '../../../../../../shared_models/models/user.model';
 import { Project, Grid } from '../../../../../../shared_models/models/project.model';
@@ -17,16 +17,24 @@ import { TextDocEditorComponent } from './text-doc-editor/text-doc-editor.compon
 import { FullScreenTodoComponent } from './fullscreen-todo/fullscreen-todo.component';
 import { ShareDialogComponent } from '../share-dialog/share-dialog.component';
 import { ActivityFeedComponent } from '../activity-feed/activity-feed.component';
+import { VersionHistoryComponent } from '../version-history/version-history.component';
 import { IntegrationsService } from '../../../services/integrations.service';
 import { ChatUiService } from '../../../services/chat-ui.service';
 import { CanvasViewportService } from '../../../services/canvas-viewport.service';
 import { DragEngineService } from '../../../services/drag-engine.service';
 import { userColor } from '../../../utils/user-color.util';
+import { ModalManager } from '../../../utils/modal-manager';
+
+/** Every modal / overlay / menu this screen can open — the one list `modals` is keyed by. */
+type ProjectDetailModal =
+  | 'createGrid' | 'shareDialog' | 'activityFeed' | 'versionHistory' | 'exportMenu'
+  | 'error' | 'confirm' | 'textEditor'
+  | 'fullScreenTodo' | 'elementTypeSelector';
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, TextDocEditorComponent, FullScreenTodoComponent, ShareDialogComponent, ActivityFeedComponent],
+  imports: [CommonModule, RouterModule, FormsModule, TextDocEditorComponent, FullScreenTodoComponent, ShareDialogComponent, ActivityFeedComponent, VersionHistoryComponent],
   templateUrl: './project-detail.component.html',
   styleUrls: ['./project-detail.component.css'],
   // Per-instance canvas state so each project visit starts fresh:
@@ -46,11 +54,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   project: Project | null = null;
   projectIndex: number = -1;
   selectedGridIndex: number = 0;
-  showCreateGridModal = false;
+  /** All modal/overlay/menu open-state for this screen, in one object (replaces
+   *  the old scatter of `showXModal` booleans). Public so the template reads it. */
+  readonly modals = new ModalManager<ProjectDetailModal>();
   newGridName = '';
 
   // N1: sharing / access control.
-  showShareDialog = false;
 
   /** The current user's effective role on the loaded project ('owner'|'admin'|'editor'|'viewer'|null). */
   get projectRole(): string | null {
@@ -74,36 +83,43 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     return p?.owner_name ?? p?.owner_username ?? '';
   }
 
-  openShareDialog(): void { this.showShareDialog = true; }
-  closeShareDialog(): void { this.showShareDialog = false; }
+  openShareDialog(): void { this.modals.open('shareDialog'); }
+  closeShareDialog(): void { this.modals.close('shareDialog'); }
 
   // N2: per-project activity feed.
-  showActivityFeed = false;
-  openActivityFeed(): void { this.showActivityFeed = true; }
-  closeActivityFeed(): void { this.showActivityFeed = false; }
+  openActivityFeed(): void { this.modals.open('activityFeed'); }
+  closeActivityFeed(): void { this.modals.close('activityFeed'); }
+
+  // E8: canvas version history / restore.
+  openVersionHistory(): void { this.modals.open('versionHistory'); }
+  closeVersionHistory(): void { this.modals.close('versionHistory'); }
+  /** After a restore (by us) the canvas was full-replaced server-side — reload it. */
+  onVersionRestored(): void {
+    this.modals.close('versionHistory');
+    this.reloadProjectFromServer();
+  }
 
   // N10: project export (JSON / Markdown download + browser print-to-PDF).
-  showExportMenu = false;
   toggleExportMenu(event?: Event): void {
     event?.stopPropagation();
-    this.showExportMenu = !this.showExportMenu;
+    this.modals.toggle('exportMenu');
   }
   private get projectTypeParam(): 'local' | 'hosted' {
     return ((this.project as any)?.projectType as 'local' | 'hosted') || 'local';
   }
   exportJson(): void {
-    this.showExportMenu = false;
+    this.modals.close('exportMenu');
     if (this.project) this.integrations.exportProject(this.project.name, this.projectTypeParam, 'json');
   }
   exportMarkdown(): void {
-    this.showExportMenu = false;
+    this.modals.close('exportMenu');
     if (this.project) this.integrations.exportProject(this.project.name, this.projectTypeParam, 'md');
   }
   /** Open a clean, print-styled view of the project and trigger the browser's
    *  print dialog (the user picks "Save as PDF"). Built client-side from the
    *  already-loaded project — no server round-trip. */
   printProject(): void {
-    this.showExportMenu = false;
+    this.modals.close('exportMenu');
     if (!this.project || !isPlatformBrowser(this.platformId)) return;
     const html = this.buildPrintHtml(this.project);
     const win = window.open('', '_blank', 'width=820,height=1000');
@@ -180,48 +196,27 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   /** N10: close the export menu on any outside click. */
   @HostListener('document:click')
   closeExportMenuOnOutsideClick(): void {
-    if (this.showExportMenu) this.showExportMenu = false;
+    if (this.modals.isOpen('exportMenu')) this.modals.close('exportMenu');
   }
   
   // Error/Alert modal
-  showErrorModal = false;
   errorMessage = '';
-  
+
   // Confirmation modal
-  showConfirmModal = false;
   confirmMessage = '';
   gridToDelete: { index: number; grid: Grid } | null = null;
   elementToDelete: { index: number; element: Screen_Element } | null = null;
-  showAddElementModal = false;
   newElementType: 'ToDoLst' | 'Image' | 'Video' | 'Text_document' = 'ToDoLst';
-  showAddTaskModal = false;
-  newTaskName = '';
-  newTaskPriority: number | null = null; // Changed to null to require selection
-  taskColumnIndex = -1;
-  taskElementIndex = -1;
   private lastSaveTimestamp = 0; // Track when we last saved to prevent reload loop
-  showAddTextModal = false;
-  newTextDocumentName = '';
-  newTextDocumentContent = '';
   isEditingText = false;
   editingTextIndex = -1;
   editingTextContent = '';
 
   // B3: collaborative rich-text editor overlay (Yjs). Opened on double-click of
   // a Text_document; the overlay owns the Y.Doc + Quill binding + live sync.
-  showTextEditor = false;
   textEditorElement: Text_document | null = null;
-  
-  // Image/Video name prompts
-  showImageNameModal = false;
-  showVideoNameModal = false;
-  newImageName = '';
-  newVideoName = '';
-  pendingImageFile: File | null = null;
-  pendingVideoFile: File | null = null;
 
   // Full-screen todo list view
-  showFullScreenTodo = false;
   fullScreenTodoElement: ToDoLst | null = null;
   fullScreenTodoElementIndex = -1;
   fullScreenTodoGridIndex = -1;
@@ -244,7 +239,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   justFinishedDragging: boolean = false;
 
   // New element on canvas
-  showElementTypeSelector = false;
   fileInput: HTMLInputElement | null = null;
 
   // Canvas viewport state (pan/zoom/grid + screen<->canvas coord math) lives in
@@ -280,6 +274,16 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private collabSubscriptions: Subscription[] = [];
   private lastCursorEmit = 0;
   private lastMoveEmit = 0;
+
+  // ---- E6: canvas comment pins (element_comments) ----
+  /** Every comment pinned to an element in this project (open + resolved). */
+  elementComments = signal<ElementComment[]>([]);
+  /** The element whose comment thread popover is open, plus its screen anchor. */
+  commentThread = signal<{ elementId: string; elementName: string; x: number; y: number } | null>(null);
+  /** Composer draft for the open thread. */
+  commentDraft = '';
+  /** True while a comment create/resolve/delete round-trip is in flight. */
+  commentBusy = signal<boolean>(false);
 
   // ---- A2: dependency links on the canvas ----
   /** When set, we're in "pick a target ToDoLst" mode; value is the source element id. */
@@ -505,6 +509,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       const users = await this.collabService.joinRoom(this.project.name, projectType);
       this.presenceUsers = users;
       this.cdr.detectChanges();
+      // E6: hydrate the canvas comment pins for this project.
+      const comments = await this.collabService.listElementComments();
+      this.elementComments.set(comments);
+      this.cdr.detectChanges();
     } catch (e) {
       console.warn('[ProjectDetail] joinProjectRoom failed (collab disabled):', e);
     }
@@ -514,6 +522,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.collabSubscriptions.forEach(s => s.unsubscribe());
     this.collabSubscriptions = [];
     this.remoteCursors.clear();
+    // E6: drop this project's comment pins + close any open thread.
+    this.elementComments.set([]);
+    this.commentThread.set(null);
+    this.commentDraft = '';
   }
 
   /** Subscribe to remote element ops / presence / cursors and apply them. */
@@ -537,8 +549,33 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
           this.remoteCursors.set(c.username, { x: c.x, y: c.y });
           this.cdr.detectChanges();
         }
-      })
+      }),
+      // E6: canvas comment pins — reconcile create/resolve/delete broadcasts.
+      this.collabService.onElementCommentCreated().subscribe(c => this.upsertComment(c)),
+      this.collabService.onElementCommentResolved().subscribe(c => this.upsertComment(c)),
+      this.collabService.onElementCommentDeleted().subscribe(({ commentId }) => this.removeComment(commentId)),
+      // E8: a peer restored a version — the canvas was full-replaced server-side,
+      // so reload it from the server to pick up the restored state.
+      this.collabService.onSnapshotRestored().subscribe(() => this.reloadProjectFromServer())
     );
+  }
+
+  /** E6: insert or replace a comment in local state (by id), keeping order stable. */
+  private upsertComment(comment: ElementComment): void {
+    this.elementComments.update(list => {
+      const i = list.findIndex(c => c.id === comment.id);
+      if (i < 0) return [...list, comment];
+      const next = list.slice();
+      next[i] = comment;
+      return next;
+    });
+    this.cdr.detectChanges();
+  }
+
+  /** E6: drop a comment from local state (by id). */
+  private removeComment(commentId: string): void {
+    this.elementComments.update(list => list.filter(c => c.id !== commentId));
+    this.cdr.detectChanges();
   }
 
   // ---- Helpers to locate elements by stable id across grids ----
@@ -549,7 +586,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     for (let g = 0; g < this.project.grid.length; g++) {
       const els = this.project.grid[g].Screen_elements;
       for (let i = 0; i < els.length; i++) {
-        if ((els[i] as any).id === elementId) {
+        if (els[i].id === elementId) {
           return { element: els[i], gridIndex: g, elementIndex: i };
         }
       }
@@ -577,10 +614,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const rebuilt = objects_builder.rebuild(data.element) as Screen_Element;
     if (!rebuilt || !(rebuilt instanceof Screen_Element)) return;
     // Ensure id carried through.
-    if (data.element.id && !(rebuilt as any).id) (rebuilt as any).id = data.element.id;
+    if (data.element.id && !rebuilt.id) rebuilt.id = data.element.id;
 
     // Skip if we already have this element (id already present).
-    if ((rebuilt as any).id && this.findElementById((rebuilt as any).id)) return;
+    if (rebuilt.id && this.findElementById(rebuilt.id)) return;
 
     // Locate the target grid by id; fall back to grid[0].
     let gridIndex = this.project.grid.findIndex(g => (g as any).id === data.gridId);
@@ -595,7 +632,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   private applyRemoteMoved(data: { elementId: string; x_pos: number; y_pos: number; x_scale: number; y_scale: number }): void {
     const found = this.findElementById(data?.elementId);
     if (!found) return;
-    const el = found.element as any;
+    const el = found.element;
     this.applyingRemoteIds.add(data.elementId);
     try {
       el.x_pos = data.x_pos;
@@ -643,27 +680,26 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   /** Emit a granular move/resize for an element. No-op if id missing. */
   private emitElementMove(element: Screen_Element, throttle = true): void {
-    const id = (element as any).id as string | undefined;
+    const id = element.id;
     if (!id || this.isApplyingRemote(id)) return; // missing id -> rely on whole-project save
     if (throttle) {
       const now = Date.now();
       if (now - this.lastMoveEmit < 50) return;
       this.lastMoveEmit = now;
     }
-    const e = element as any;
-    this.collabService.emitMove(id, e.x_pos ?? 0, e.y_pos ?? 0, e.x_scale ?? 1, e.y_scale ?? 1);
+    this.collabService.emitMove(id, element.x_pos ?? 0, element.y_pos ?? 0, element.x_scale ?? 1, element.y_scale ?? 1);
   }
 
   /** Emit a granular content patch (e.g. Text_field) for an element. */
   private emitElementContent(element: Screen_Element, content: any): void {
-    const id = (element as any).id as string | undefined;
+    const id = element.id;
     if (!id || this.isApplyingRemote(id)) return;
     this.collabService.emitContentUpdate(id, content);
   }
 
   /** Emit a granular delete for an element. */
   private emitElementDelete(element: Screen_Element): void {
-    const id = (element as any).id as string | undefined;
+    const id = element.id;
     if (!id) return;
     this.collabService.emitDelete(id);
   }
@@ -761,6 +797,183 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
+  // ---- E7: presence avatar stack (overflow + self-marking) ----
+  /** Max avatars rendered before collapsing the rest into a "+N" chip. */
+  private readonly MAX_PRESENCE_AVATARS = 5;
+
+  /** The avatars actually rendered in the topbar (capped). */
+  getVisiblePresence(): PresenceUser[] {
+    return this.presenceUsers.slice(0, this.MAX_PRESENCE_AVATARS);
+  }
+
+  /** How many present users are hidden behind the "+N" chip. */
+  getPresenceOverflow(): number {
+    return Math.max(0, this.presenceUsers.length - this.MAX_PRESENCE_AVATARS);
+  }
+
+  /** True when a presence entry is the current user (labelled "you"). */
+  isSelfPresence(username: string): boolean {
+    return !!this.currentUser?.name && username === this.currentUser.name;
+  }
+
+  /** Tooltip for a presence avatar ("Alice" / "Alice (you)"). */
+  presenceTooltip(username: string): string {
+    return this.isSelfPresence(username) ? `${username} (you)` : username;
+  }
+
+  // =========================================================================
+  // E6: canvas comment pins (element_comments)
+  // =========================================================================
+
+  /**
+   * Renderable comment pins: one per element that has at least one OPEN
+   * (unresolved) comment. Positioned in canvas-content coords at the element's
+   * top-right corner (computed with the same getElementX/Y/Width helpers the
+   * cards use), so the pin lives inside `.canvas-area` and survives pan/zoom.
+   */
+  getCommentPins(): { elementId: string; x: number; y: number; count: number }[] {
+    const openByElement = new Map<string, number>();
+    for (const c of this.elementComments()) {
+      if (c.resolvedBy) continue;
+      openByElement.set(c.elementId, (openByElement.get(c.elementId) ?? 0) + 1);
+    }
+    if (openByElement.size === 0) return [];
+    const pins: { elementId: string; x: number; y: number; count: number }[] = [];
+    this.getElements().forEach((el, i) => {
+      const count = el.id ? openByElement.get(el.id) : undefined;
+      if (!el.id || !count) return;
+      pins.push({
+        elementId: el.id,
+        x: this.getElementX(el, i) + this.getElementWidth(el) - 10,
+        y: this.getElementY(el, i) - 10,
+        count,
+      });
+    });
+    return pins;
+  }
+
+  /** Count of OPEN comments on an element (drives the header badge). */
+  getElementCommentCount(element: Screen_Element): number {
+    if (!element.id) return 0;
+    return this.elementComments().filter(c => c.elementId === element.id && !c.resolvedBy).length;
+  }
+
+  /** Comments for the currently-open thread, oldest-first. */
+  getThreadComments(): ElementComment[] {
+    const thread = this.commentThread();
+    if (!thread) return [];
+    return this.elementComments().filter(c => c.elementId === thread.elementId);
+  }
+
+  /**
+   * Open (or toggle closed) the comment thread for an element. Anchored to the
+   * click position in SCREEN space, so the popover is constant-size regardless
+   * of zoom (a sibling of `.canvas-container`, not inside the transformed area).
+   */
+  openCommentThread(element: Screen_Element, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!element.id) return;
+    const current = this.commentThread();
+    if (current && current.elementId === element.id) {
+      this.closeCommentThread();
+      return;
+    }
+    // Clamp the anchor so the popover stays on-screen near the click.
+    const vw = isPlatformBrowser(this.platformId) ? window.innerWidth : 1200;
+    const vh = isPlatformBrowser(this.platformId) ? window.innerHeight : 800;
+    this.commentThread.set({
+      elementId: element.id,
+      elementName: String(element.name ?? 'Element'),
+      x: Math.max(12, Math.min(event.clientX, vw - 340)),
+      y: Math.max(12, Math.min(event.clientY, vh - 360)),
+    });
+    this.commentDraft = '';
+    this.cdr.detectChanges();
+  }
+
+  /** Open the thread for a pin (looks the element up by id). */
+  openThreadForPin(elementId: string, event: MouseEvent): void {
+    const found = this.findElementById(elementId);
+    if (found) this.openCommentThread(found.element, event);
+  }
+
+  closeCommentThread(): void {
+    this.commentThread.set(null);
+    this.commentDraft = '';
+    this.cdr.detectChanges();
+  }
+
+  /** Post the composer draft as a new comment on the open thread's element. */
+  async submitComment(): Promise<void> {
+    const thread = this.commentThread();
+    const body = this.commentDraft.trim();
+    if (!thread || !body || this.commentBusy()) return;
+    this.commentBusy.set(true);
+    const draft = this.commentDraft;
+    this.commentDraft = '';
+    try {
+      const created = await this.collabService.createElementComment(thread.elementId, body);
+      // The room broadcast also echoes this back; upsert dedupes by id.
+      this.upsertComment(created);
+    } catch (e) {
+      console.warn('[ProjectDetail] add comment failed:', e);
+      this.commentDraft = draft; // restore so the user doesn't lose their text
+    } finally {
+      this.commentBusy.set(false);
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Toggle a comment's resolved state. */
+  async toggleResolveComment(comment: ElementComment): Promise<void> {
+    if (this.commentBusy()) return;
+    this.commentBusy.set(true);
+    try {
+      const updated = await this.collabService.resolveElementComment(comment.id, !comment.resolvedBy);
+      this.upsertComment(updated);
+    } catch (e) {
+      console.warn('[ProjectDetail] resolve comment failed:', e);
+    } finally {
+      this.commentBusy.set(false);
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Delete a comment. */
+  async removeCommentAction(comment: ElementComment): Promise<void> {
+    if (this.commentBusy()) return;
+    this.commentBusy.set(true);
+    try {
+      await this.collabService.deleteElementComment(comment.id);
+      this.removeComment(comment.id);
+    } catch (e) {
+      console.warn('[ProjectDetail] delete comment failed:', e);
+    } finally {
+      this.commentBusy.set(false);
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Whether the current user authored a comment (drives delete affordance). */
+  isOwnComment(comment: ElementComment): boolean {
+    return !!this.currentUser?.name && comment.author === this.currentUser.name;
+  }
+
+  /** Short timestamp for a comment. */
+  formatCommentTime(iso: string): string {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  /** Enter submits the composer; Shift+Enter inserts a newline. */
+  onCommentKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.submitComment();
+    }
+  }
+
   async reloadProjectFromServer(): Promise<void> {
     if (!this.project || !this.currentUser) {
       console.warn('[ProjectDetail] Cannot reload: project or user is null');
@@ -804,36 +1017,48 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   openCreateGridModal(): void {
-    this.showCreateGridModal = true;
+    this.modals.open('createGrid');
     this.newGridName = '';
   }
 
   closeCreateGridModal(): void {
-    this.showCreateGridModal = false;
+    this.modals.close('createGrid');
     this.newGridName = '';
   }
 
   showError(message: string): void {
     this.errorMessage = message;
-    this.showErrorModal = true;
+    this.modals.open('error');
   }
 
   closeErrorModal(): void {
-    this.showErrorModal = false;
+    this.modals.close('error');
     this.errorMessage = '';
   }
 
   showConfirmation(message: string, index: number, grid: Grid): void {
     this.confirmMessage = message;
     this.gridToDelete = { index, grid };
-    this.showConfirmModal = true;
+    this.modals.open('confirm');
   }
 
   closeConfirmModal(): void {
-    this.showConfirmModal = false;
+    this.modals.close('confirm');
     this.confirmMessage = '';
     this.gridToDelete = null;
     this.elementToDelete = null;
+  }
+
+  /** Confirm button on the delete dialog — routes to the grid or element handler
+   *  depending on which delete was requested (only one is ever pending). */
+  confirmDelete(): void {
+    if (this.gridToDelete) {
+      this.confirmDeleteGrid();
+    } else if (this.elementToDelete) {
+      this.confirmDeleteElement();
+    } else {
+      this.closeConfirmModal();
+    }
   }
 
   async confirmDeleteGrid(): Promise<void> {
@@ -938,7 +1163,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.showError('Could not create a canvas for this project. Please try again.');
       return;
     }
-    this.showElementTypeSelector = true;
+    this.modals.open('elementTypeSelector');
     this.cdr.detectChanges(); // Force change detection
   }
 
@@ -957,14 +1182,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   selectElementType(type: 'ToDoLst' | 'Image' | 'Video' | 'Text_document'): void {
     this.newElementType = type;
-    this.showElementTypeSelector = false;
+    this.modals.close('elementTypeSelector');
 
     if (type === 'Image') {
       this.triggerImageUpload();
     } else if (type === 'Video') {
       this.triggerVideoUpload();
     } else if (type === 'Text_document') {
-      this.openAddTextModal();
+      this.createTextElement();
     } else if (type === 'ToDoLst') {
       this.createTodoElement();
     }
@@ -987,6 +1212,28 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Create a Text_document immediately with a default name (mirrors
+   * createTodoElement — the add flow has no name prompt). The user renames it
+   * inline and edits the body via the double-click rich-text editor. Replaces
+   * the old add-text modal, whose template was removed (the flow was dead).
+   */
+  async createTextElement(): Promise<void> {
+    if (!this.project || this.selectedGridIndex < 0) {
+      console.error('[ProjectDetail] createTextElement: no project or invalid grid index');
+      return;
+    }
+    try {
+      const element = new Text_document('Text Document', 20, 20, '');
+      element.x_scale = 300;
+      element.y_scale = 200;
+      // Phase 6b (B1): granular create (captures id + notifies peers) then save.
+      await this.addElementCollab(element, this.selectedGridIndex);
+    } catch (error) {
+      console.error('[ProjectDetail] createTextElement error:', error);
+    }
+  }
+
   triggerImageUpload(): void {
     // A14: SSR guard — `document` doesn't exist on the server. Only reached from a
     // user gesture in the browser, but guard defensively so the component never
@@ -1001,29 +1248,18 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.fileInput.accept = 'image/*';
     this.fileInput.onchange = () => {
       if (this.fileInput && this.fileInput.files && this.fileInput.files.length > 0) {
-        this.pendingImageFile = this.fileInput.files[0];
-        this.newImageName = '';
-        this.showImageNameModal = true;
+        const file = this.fileInput.files[0];
+        // Immediate create (the name-prompt modal was removed): use the file name
+        // (sans extension) as the element name; the user can rename it later.
+        this.handleImageUpload(file, this.defaultElementName(file.name));
       }
     };
     this.fileInput.click();
   }
-  
-  async confirmImageUpload(): Promise<void> {
-    if (!this.pendingImageFile || !this.newImageName.trim()) {
-      return;
-    }
-    
-    this.showImageNameModal = false;
-    await this.handleImageUpload(this.pendingImageFile, this.newImageName.trim());
-    this.pendingImageFile = null;
-    this.newImageName = '';
-  }
-  
-  cancelImageUpload(): void {
-    this.showImageNameModal = false;
-    this.pendingImageFile = null;
-    this.newImageName = '';
+
+  /** File name without its extension, for use as a default element name. */
+  private defaultElementName(fileName: string): string {
+    return fileName.replace(/\.[^./\\]+$/, '') || fileName;
   }
 
   triggerVideoUpload(): void {
@@ -1038,29 +1274,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.fileInput.accept = 'video/*';
     this.fileInput.onchange = () => {
       if (this.fileInput && this.fileInput.files && this.fileInput.files.length > 0) {
-        this.pendingVideoFile = this.fileInput.files[0];
-        this.newVideoName = '';
-        this.showVideoNameModal = true;
+        const file = this.fileInput.files[0];
+        // Immediate create (the name-prompt modal was removed): use the file name.
+        this.handleVideoUpload(file, this.defaultElementName(file.name));
       }
     };
     this.fileInput.click();
-  }
-  
-  async confirmVideoUpload(): Promise<void> {
-    if (!this.pendingVideoFile || !this.newVideoName.trim()) {
-      return;
-    }
-    
-    this.showVideoNameModal = false;
-    await this.handleVideoUpload(this.pendingVideoFile, this.newVideoName.trim());
-    this.pendingVideoFile = null;
-    this.newVideoName = '';
-  }
-  
-  cancelVideoUpload(): void {
-    this.showVideoNameModal = false;
-    this.pendingVideoFile = null;
-    this.newVideoName = '';
   }
 
   async handleImageUpload(file: File, imageName: string): Promise<void> {
@@ -1202,10 +1421,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   startEditingText(element: Screen_Element, gridIndex: number, elementIndex: number): void {
-    if (element.constructor.name === 'Text_document') {
+    if (objects_builder.isTextDocument(element)) {
       this.isEditingText = true;
       this.editingTextIndex = elementIndex;
-      this.editingTextContent = (element as any).get_field() || '';
+      this.editingTextContent = element.get_field() || '';
     }
   }
 
@@ -1213,8 +1432,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (!this.project || this.editingTextIndex === -1) return;
 
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.editingTextIndex];
-    if (element && element.constructor.name === 'Text_document') {
-      (element as any).set_field(this.editingTextContent);
+    if (element && objects_builder.isTextDocument(element)) {
+      element.set_field(this.editingTextContent);
       // Phase 6b: broadcast the granular content patch to peers.
       this.emitElementContent(element, { Text_field: this.editingTextContent });
       this.dataService.updateCurrentUser();
@@ -1241,45 +1460,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   getTextContent(element: Screen_Element): string {
-    if (element.constructor.name === 'Text_document') {
-      return (element as any).get_field() || '';
+    if (objects_builder.isTextDocument(element)) {
+      return element.get_field() || '';
     }
     return '';
-  }
-
-  openAddTextModal(): void {
-    this.showAddTextModal = true;
-    this.newTextDocumentName = '';
-    this.newTextDocumentContent = '';
-  }
-
-  closeAddTextModal(): void {
-    this.showAddTextModal = false;
-    this.newTextDocumentName = '';
-    this.newTextDocumentContent = '';
-  }
-
-  async submitAddTextDocument(): Promise<void> {
-    if (!this.project || this.selectedGridIndex < 0 || !this.newTextDocumentName.trim()) {
-      return;
-    }
-
-    // Store values before closing modal
-    const documentName = this.newTextDocumentName.trim();
-    const documentContent = this.newTextDocumentContent || '';
-
-    // Close modal first to provide immediate feedback
-    this.closeAddTextModal();
-
-    const element = new Text_document(
-      documentName,
-      200,
-      200,
-      documentContent
-    );
-    // Phase 6b (B1): granular create (captures id + notifies peers) then save.
-    await this.addElementCollab(element, this.selectedGridIndex);
-    this.socketService.emitElementUpdate(element, this.project.name, this.project.grid[this.selectedGridIndex].name);
   }
 
   async deleteElement(elementIndex: number): Promise<void> {
@@ -1287,7 +1471,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
       this.elementToDelete = { index: elementIndex, element };
       this.confirmMessage = `Are you sure you want to delete the element "${element.name}"?`;
-      this.showConfirmModal = true;
+      this.modals.open('confirm');
     }
   }
 
@@ -1298,96 +1482,50 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     return objects_builder.typeOf(element);
   }
 
-  getTodoTasks(element: Screen_Element): any[] {
-    if (this.getElementType(element) === 'ToDoLst') {
-      return (element as any).scheduled_tasks || [];
+  getTodoTasks(element: Screen_Element): scheduled_task[] {
+    if (objects_builder.isToDoLst(element)) {
+      return element.scheduled_tasks || [];
     }
     return [];
   }
 
   getImagePath(element: Screen_Element): SafeUrl {
-    if (this.getElementType(element) === 'Image') {
-      const path = (element as any).imagepath || '';
+    if (objects_builder.isImage(element)) {
+      const path = element.imagepath || '';
       return this.sanitizer.bypassSecurityTrustUrl(path);
     }
     return this.sanitizer.bypassSecurityTrustUrl('');
   }
 
   getVideoPath(element: Screen_Element): SafeUrl {
-    if (this.getElementType(element) === 'Video') {
-      const path = (element as any).VideoPath || '';
+    if (objects_builder.isVideo(element)) {
+      const path = element.VideoPath || '';
       return this.sanitizer.bypassSecurityTrustUrl(path);
     }
     return this.sanitizer.bypassSecurityTrustUrl('');
   }
 
 
-  addTaskToTodoList(elementIndex: number): void {
+  /**
+   * Quick-add a task to a ToDoLst directly on the canvas (no modal — mirrors the
+   * immediate-create add-element flow). Drops in a default-named, medium-priority
+   * task and saves; the user renames it / sets priority / date / repeat in the
+   * fullscreen todo view (double-click the list). Default priority 2 = Medium.
+   */
+  async addTaskToTodoList(elementIndex: number): Promise<void> {
     if (!this.project || this.selectedGridIndex < 0) return;
 
     const element = this.project.grid[this.selectedGridIndex].Screen_elements[elementIndex];
-    if (element && this.getElementType(element) === 'ToDoLst') {
-      // Set the task column index to the selected grid index and use the element as the todo list
-      this.taskColumnIndex = this.selectedGridIndex;
-      this.taskElementIndex = elementIndex;
-      this.showAddTaskModal = true;
-      this.newTaskName = '';
-      this.newTaskPriority = 2;
-    }
-  }
+    if (!objects_builder.isToDoLst(element)) return;
 
-  closeAddTaskModal(): void {
-    this.showAddTaskModal = false;
-    this.newTaskName = '';
-    this.newTaskPriority = null;
-    this.taskColumnIndex = -1;
-    this.taskElementIndex = -1;
-  }
+    const task = new scheduled_task('New task', 2, new Date().toISOString());
+    element.add_task(task);
 
-  async submitAddTask(): Promise<void> {
-    if (!this.project || this.taskColumnIndex === -1 || !this.newTaskName.trim()) return;
-
-    let todoList: ToDoLst | null = null;
-
-    // If we have a specific element index (from grid view), use that
-    if (this.taskElementIndex >= 0 && this.project.grid[this.taskColumnIndex]) {
-      const element = this.project.grid[this.taskColumnIndex].Screen_elements[this.taskElementIndex];
-      if (element && this.getElementType(element) === 'ToDoLst') {
-        todoList = element as ToDoLst;
-      }
-    }
-
-    // Find the first todo list in the column if no specific element index
-    if (!todoList && this.project.grid[this.taskColumnIndex]) {
-      const element = this.project.grid[this.taskColumnIndex].Screen_elements.find(
-        (el: Screen_Element) => this.getElementType(el) === 'ToDoLst'
-      );
-      if (element) {
-        todoList = element as ToDoLst;
-      }
-    }
-
-    if (!todoList) {
-      // Create new todo list
-      todoList = new ToDoLst('Tasks', 0, 0);
-      await this.dataService.addElementToGrid(this.projectIndex, this.taskColumnIndex, todoList);
-    }
-
-    // Ensure priority is a number (it should be set by validation, but just in case)
-    const priority = typeof this.newTaskPriority === 'string' ? 
-      parseInt(this.newTaskPriority, 10) : (this.newTaskPriority || 2);
-    
-    // Create new task
-    const task = new scheduled_task(this.newTaskName.trim(), priority, new Date().toISOString());
-    todoList.add_task(task);
-    
-    // Track save timestamp for hosted projects
+    // Track save timestamp for the hosted reload-skip, then persist + reload.
     this.lastSaveTimestamp = Date.now();
-    
     await this.dataService.saveProject(this.project, (this.project as any).projectType || 'local');
-    this.loadProject(); // Reload to see the changes
+    this.loadProject();
     this.cdr.detectChanges();
-    this.closeAddTaskModal();
   }
 
   // Full-screen todo list methods
@@ -1411,12 +1549,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       this.fullScreenTodoElement = element as ToDoLst;
       this.fullScreenTodoElementIndex = elementIndex;
       this.fullScreenTodoGridIndex = this.selectedGridIndex;
-      this.showFullScreenTodo = true;
+      this.modals.open('fullScreenTodo');
     }
   }
 
   closeFullScreenTodo(): void {
-    this.showFullScreenTodo = false;
+    this.modals.close('fullScreenTodo');
     this.fullScreenTodoElement = null;
     this.fullScreenTodoElementIndex = -1;
     this.fullScreenTodoGridIndex = -1;
@@ -1829,13 +1967,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       y = Math.max(0, Math.min(y, maxY));
       const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.drag.draggedElementIndex];
       if (element) {
-        if ((element as any).set_xpos) {
-          (element as any).set_xpos(x);
-          (element as any).set_ypos(y);
-        } else {
-          (element as any).x_pos = x;
-          (element as any).y_pos = y;
-        }
+        this.setElementPos(element, x, y);
         this.emitElementMove(element, false);
         const projectType = (this.project as any).projectType;
         if (projectType) await this.dataService.saveProject(this.project, projectType);
@@ -1918,13 +2050,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   const element = this.project.grid[this.selectedGridIndex].Screen_elements[this.drag.draggedElementIndex];
   if (element) {
-    if ((element as any).set_xpos) {
-      (element as any).set_xpos(x);
-      (element as any).set_ypos(y);
-    } else {
-      (element as any).x_pos = x;
-      (element as any).y_pos = y;
-    }
+    this.setElementPos(element, x, y);
 
     const projectType = (this.project as any).projectType;
     if (projectType) {
@@ -1952,10 +2078,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   getElementStyle(element: Screen_Element): any {
     // Handle both class instances and plain objects
-    const xpos = (element as any).get_xpos ? (element as any).get_xpos() : ((element as any).x_pos || 0);
-    const ypos = (element as any).get_ypos ? (element as any).get_ypos() : ((element as any).y_pos || 0);
-    let xscale = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
-    let yscale = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
+    const xpos = this.elXpos(element);
+    const ypos = this.elYpos(element);
+    let xscale = this.elXscale(element, 200);
+    let yscale = this.elYscale(element, 100);
 
     // Elements with default scale (1) should use auto sizing via CSS min-width/min-height
     // Don't set explicit tiny dimensions that could cause layout issues
@@ -2010,13 +2136,35 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   /** G2: set an element's grid-unit position (x_pos/y_pos), via setters when present. */
   private setElementPos(element: Screen_Element, xPos: number, yPos: number): void {
-    if ((element as any).set_xpos) {
-      (element as any).set_xpos(xPos);
-      (element as any).set_ypos(yPos);
+    const e = element as any;
+    if (typeof e.set_xpos === 'function') {
+      e.set_xpos(xPos);
+      e.set_ypos(yPos);
     } else {
-      (element as any).x_pos = xPos;
-      (element as any).y_pos = yPos;
+      e.x_pos = xPos;
+      e.y_pos = yPos;
     }
+  }
+
+  // Geometry accessors that read via the model's getters when the element is a
+  // class instance, and fall back to the raw field for plain (un-rebuilt)
+  // objects. Centralized here so the getter-or-field `as any` dance lives in one
+  // place instead of being duplicated across every canvas/drag/layout method.
+  private elXpos(element: Screen_Element): number {
+    const e = element as any;
+    return typeof e.get_xpos === 'function' ? e.get_xpos() : (e.x_pos || 0);
+  }
+  private elYpos(element: Screen_Element): number {
+    const e = element as any;
+    return typeof e.get_ypos === 'function' ? e.get_ypos() : (e.y_pos || 0);
+  }
+  private elXscale(element: Screen_Element, fallback: number): number {
+    const e = element as any;
+    return typeof e.get_x_scale === 'function' ? e.get_x_scale() : (e.x_scale || fallback);
+  }
+  private elYscale(element: Screen_Element, fallback: number): number {
+    const e = element as any;
+    return typeof e.get_y_scale === 'function' ? e.get_y_scale() : (e.y_scale || fallback);
   }
 
   onCanvasWheel(event: WheelEvent): void {
@@ -2028,8 +2176,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   startResize(event: MouseEvent, element: Screen_Element, gridIndex: number, elementIndex: number, handle: string): void {
     event.stopPropagation();
-    const startWidth = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 200);
-    const startHeight = (element as any).get_y_scale ? (element as any).get_y_scale() : ((element as any).y_scale || 100);
+    const startWidth = this.elXscale(element, 200);
+    const startHeight = this.elYscale(element, 100);
     this.drag.beginResize(element, elementIndex, gridIndex, handle, event.clientX, event.clientY, startWidth, startHeight);
   }
 
@@ -2052,8 +2200,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     // Calculate the content bounding box (screen px) for the viewport to fit.
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const el of elements) {
-      const x = (el as any).x_pos || 0;
-      const y = (el as any).y_pos || 0;
+      const x = el.x_pos || 0;
+      const y = el.y_pos || 0;
       const w = this.getElementWidth(el);
       const h = 150; // Default height
       minX = Math.min(minX, x * 250);
@@ -2067,7 +2215,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   getElementWidth(element: Screen_Element): number {
-    const xscale = (element as any).get_x_scale ? (element as any).get_x_scale() : ((element as any).x_scale || 1);
+    const xscale = this.elXscale(element, 1);
     if (xscale > 10) {
       return xscale;
     }
@@ -2103,12 +2251,12 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   }
 
   getElementX(element: Screen_Element, index: number): number {
-    const x = (element as any).x_pos || 0;
+    const x = element.x_pos || 0;
     return x * 250 || index * 280;
   }
 
   getElementY(element: Screen_Element, index: number): number {
-    const y = (element as any).y_pos || 0;
+    const y = element.y_pos || 0;
     return y * 200 || index * 180;
   }
 
@@ -2144,14 +2292,14 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   /** B3: open the collaborative Yjs editor for a Text_document element. */
   openTextEditor(element: Text_document): void {
     this.textEditorElement = element;
-    this.showTextEditor = true;
+    this.modals.open('textEditor');
     this.cdr.detectChanges();
   }
 
   /** Close the collaborative editor. The overlay has already mirrored its final
    *  state onto the element; persist a whole-project snapshot for durability. */
   async closeTextEditor(): Promise<void> {
-    this.showTextEditor = false;
+    this.modals.close('textEditor');
     this.textEditorElement = null;
     this.cdr.detectChanges();
     if (this.project) {
@@ -2303,9 +2451,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
-    if (this.showFullScreenTodo || this.showElementTypeSelector || this.showErrorModal ||
-        this.showConfirmModal || this.showAddTaskModal || this.showAddTextModal ||
-        this.showCreateGridModal || this.showImageNameModal || this.showVideoNameModal) return;
+    if (this.modals.anyOpen('fullScreenTodo', 'elementTypeSelector', 'error',
+        'confirm', 'createGrid')) return;
     if (!this.project) return;
 
     // Ctrl/Cmd+A → select all.
@@ -2459,10 +2606,10 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   // =========================================================================
 
   /** All ToDoLst elements in the current grid (with their index). */
-  private getTodoElements(): { element: Screen_Element; index: number }[] {
-    const out: { element: Screen_Element; index: number }[] = [];
+  private getTodoElements(): { element: ToDoLst; index: number }[] {
+    const out: { element: ToDoLst; index: number }[] = [];
     this.getElements().forEach((element, index) => {
-      if (this.getElementType(element) === 'ToDoLst') out.push({ element, index });
+      if (objects_builder.isToDoLst(element)) out.push({ element, index });
     });
     return out;
   }
@@ -2474,7 +2621,7 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   /** Center Y of an element card (canvas-content coords). */
   getElementCenterY(element: Screen_Element, index: number): number {
-    const yscale = (element as any).y_scale;
+    const yscale = element.y_scale;
     const h = yscale && yscale > 10 ? yscale : 120;
     return this.getElementY(element, index) + h / 2;
   }
@@ -2490,19 +2637,19 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const links: Array<{ x1: number; y1: number; x2: number; y2: number; blocked: boolean; key: string }> = [];
     const todos = this.getTodoElements();
     for (const { element, index } of todos) {
-      const dependsOn = (element as any).dependsOn as string[] | undefined;
+      const dependsOn = element.dependsOn;
       if (!Array.isArray(dependsOn) || dependsOn.length === 0) continue;
       const sx = this.getElementCenterX(element, index);
       const sy = this.getElementCenterY(element, index);
       for (const targetId of dependsOn) {
-        const target = todos.find(t => (t.element as any).id === targetId);
+        const target = todos.find(t => t.element.id === targetId);
         if (!target) continue;
         const tx = this.getElementCenterX(target.element, target.index);
         const ty = this.getElementCenterY(target.element, target.index);
         links.push({
           x1: tx, y1: ty, x2: sx, y2: sy,
           blocked: !this.isElementComplete(target.element),
-          key: `${(element as any).id}->${targetId}`
+          key: `${element.id}->${targetId}`
         });
       }
     }
@@ -2518,24 +2665,25 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   /** True if this ToDoLst is blocked by at least one incomplete dependency. */
   isElementBlocked(element: Screen_Element): boolean {
-    const dependsOn = (element as any).dependsOn as string[] | undefined;
+    if (!objects_builder.isToDoLst(element)) return false;
+    const dependsOn = element.dependsOn;
     if (!Array.isArray(dependsOn) || dependsOn.length === 0) return false;
     const todos = this.getTodoElements();
     return dependsOn.some(id => {
-      const target = todos.find(t => (t.element as any).id === id);
+      const target = todos.find(t => t.element.id === id);
       return target ? !this.isElementComplete(target.element) : false;
     });
   }
 
   /** Whether the "add dependency" affordance should be shown for an element. */
   canLinkElement(element: Screen_Element): boolean {
-    return this.getElementType(element) === 'ToDoLst' && !!(element as any).id;
+    return objects_builder.isToDoLst(element) && !!element.id;
   }
 
   /** Start "pick target" mode from the given source ToDoLst element. */
   startLinkMode(element: Screen_Element, event?: MouseEvent): void {
     if (event) event.stopPropagation();
-    const id = (element as any).id as string | undefined;
+    const id = element.id;
     if (!id) {
       this.showError('This todo list needs to sync with the server before it can link. Try again in a moment.');
       return;
@@ -2556,16 +2704,16 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   async pickLinkTarget(element: Screen_Element, event?: MouseEvent): Promise<void> {
     if (!this.linkSourceId || !this.project) return;
     if (event) event.stopPropagation();
-    const targetId = (element as any).id as string | undefined;
+    const targetId = element.id;
     if (!targetId || targetId === this.linkSourceId) {
       this.cancelLinkMode();
       return;
     }
     const found = this.findElementById(this.linkSourceId);
     this.linkSourceId = null;
-    if (!found) return;
+    if (!found || !objects_builder.isToDoLst(found.element)) return;
 
-    const source = found.element as any;
+    const source = found.element;
     if (!Array.isArray(source.dependsOn)) source.dependsOn = [];
     if (source.dependsOn.includes(targetId)) {
       this.cdr.detectChanges();
@@ -2589,8 +2737,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   /** Remove a single dependency from a ToDoLst element. */
   async removeDependency(element: Screen_Element, targetId: string, event?: MouseEvent): Promise<void> {
     if (event) event.stopPropagation();
-    if (!this.project) return;
-    const source = element as any;
+    if (!this.project || !objects_builder.isToDoLst(element)) return;
+    const source = element;
     if (!Array.isArray(source.dependsOn)) return;
     const i = source.dependsOn.indexOf(targetId);
     if (i === -1) return;
@@ -2607,7 +2755,8 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
   /** dependsOn ids for a ToDoLst (empty array if none). */
   getDependencies(element: Screen_Element): string[] {
-    const d = (element as any).dependsOn;
+    if (!objects_builder.isToDoLst(element)) return [];
+    const d = element.dependsOn;
     return Array.isArray(d) ? d : [];
   }
 

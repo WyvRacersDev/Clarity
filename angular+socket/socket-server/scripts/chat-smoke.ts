@@ -102,6 +102,17 @@ async function main(): Promise<void> {
   const hist = await emitAck(a, "chat:history", { scope: "project", projectName, projectType });
   check("project history contains message", Array.isArray(hist?.messages) && hist.messages.some((m: any) => m.id === projMsgId));
 
+  // 2b) Threaded reply (E4): alice replies to her own message; the ack, the
+  //     peer broadcast, and history all carry replyToId pointing at the parent.
+  const gotReply = waitFor(b, "chat:message", (d) => d?.message?.body === "replying here");
+  const sendReply = await emitAck(a, "chat:send", { scope: "project", projectName, projectType, body: "replying here", replyToId: projMsgId });
+  const replyEvt = await gotReply;
+  check("reply ack carries replyToId", sendReply?.success === true && sendReply?.message?.replyToId === projMsgId, JSON.stringify(sendReply));
+  check("reply broadcast carries replyToId", replyEvt?.message?.replyToId === projMsgId);
+  const hist2 = await emitAck(a, "chat:history", { scope: "project", projectName, projectType });
+  check("history persists replyToId",
+    Array.isArray(hist2?.messages) && hist2.messages.some((m: any) => m.id === sendReply?.message?.id && m.replyToId === projMsgId));
+
   // 3) DM: alice -> bob, bob receives.
   const gotDm = waitFor(b, "chat:message", (d) => d?.message?.scope === "dm" && d?.message?.body === "hi bob");
   const sendDm = await emitAck(a, "chat:send", { scope: "dm", to: bob.username, body: "hi bob" });

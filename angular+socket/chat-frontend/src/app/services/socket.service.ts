@@ -206,6 +206,35 @@ export class SocketService {
     return this.isSocketAvailable() ? this.socket : null;
   }
 
+  /** Whether the underlying socket is currently connected. */
+  isConnected(): boolean {
+    return this.isSocketAvailable() && this.socket!.connected;
+  }
+
+  /**
+   * E10: fires on every successful (re)connection, including Socket.IO's own
+   * auto-reconnects. Consumers (CollabService) use it to re-join rooms and
+   * replay work that was buffered while offline.
+   */
+  onConnect(): Observable<void> {
+    return new Observable<void>(observer => {
+      if (!this.isSocketAvailable()) { observer.complete(); return; }
+      const handler = () => observer.next();
+      this.socket!.on('connect', handler);
+      return () => { if (this.isSocketAvailable()) this.socket!.off('connect', handler); };
+    });
+  }
+
+  /** E10: fires whenever the socket drops (network blip, server restart, etc.). */
+  onDisconnect(): Observable<void> {
+    return new Observable<void>(observer => {
+      if (!this.isSocketAvailable()) { observer.complete(); return; }
+      const handler = () => observer.next();
+      this.socket!.on('disconnect', handler);
+      return () => { if (this.isSocketAvailable()) this.socket!.off('disconnect', handler); };
+    });
+  }
+
   // === Project Management Methods ===
 
   /**
@@ -645,14 +674,20 @@ export class SocketService {
    * stable id — the caller needs that id so the element's later move/edit/delete
    * ops can sync. Returns an Observable that emits the ack (or null during SSR).
    */
-  emitElementCreate(projectName: string, projectType: 'local' | 'hosted', gridId: string, element: any): Observable<any> {
+  emitElementCreate(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    gridId: string,
+    element: any,
+    opId?: string
+  ): Observable<any> {
     return new Observable(observer => {
       if (!this.isSocketAvailable()) {
         observer.next(null);
         observer.complete();
         return;
       }
-      this.socket!.emit('element:create', { projectName, projectType, gridId, element }, (ack: any) => {
+      this.socket!.emit('element:create', { projectName, projectType, gridId, element, opId }, (ack: any) => {
         observer.next(ack);
         observer.complete();
       });
@@ -669,7 +704,11 @@ export class SocketService {
     y_scale: number
   ): void {
     if (!this.isSocketAvailable()) return;
-    this.socket!.emit('element:move', { projectName, projectType, elementId, x_pos, y_pos, x_scale, y_scale });
+    // E10: moves are ephemeral, last-write-wins absolute transforms. Send them
+    // volatile so intermediate frames emitted while the transport is briefly
+    // unwritable are DROPPED rather than buffered and replayed stale on
+    // reconnect — CollabService replays the final per-element transform instead.
+    this.socket!.volatile.emit('element:move', { projectName, projectType, elementId, x_pos, y_pos, x_scale, y_scale });
   }
 
   emitElementUpdateContent(projectName: string, projectType: 'local' | 'hosted', elementId: string, content: any): void {
@@ -852,6 +891,83 @@ export class SocketService {
    * user in a comment. Delivered to the user's personal room (transient push).
    */
   onMentionNotified(): Observable<any> { return this.onEvent('mention:notified'); }
+
+  // --- E6: element comments (canvas comment pins) ----------------------------
+  // Ack-based create/list/resolve/delete + room broadcasts. projectName/type
+  // scope the room; `author`/`resolved_by` are derived server-side.
+
+  /** Pin a comment to an element. Ack `{ success, comment }`. */
+  emitCommentCreate(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    elementId: string,
+    body: string
+  ): Observable<any> {
+    return this.ackEmit('comment:create', { projectName, projectType, elementId, body }, 'Add comment');
+  }
+
+  /** List every comment pin for a project. Ack `{ success, comments }`. */
+  emitCommentList(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
+    return this.ackEmit('comment:list', { projectName, projectType }, 'List comments');
+  }
+
+  /** Resolve/re-open a comment. Ack `{ success, comment }`. */
+  emitCommentResolve(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    commentId: string,
+    resolved: boolean
+  ): Observable<any> {
+    return this.ackEmit('comment:resolve', { projectName, projectType, commentId, resolved }, 'Resolve comment');
+  }
+
+  /** Delete a comment. Ack `{ success, commentId }`. */
+  emitCommentDelete(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    commentId: string
+  ): Observable<any> {
+    return this.ackEmit('comment:delete', { projectName, projectType, commentId }, 'Delete comment');
+  }
+
+  /** `{ comment }` — a comment was created (broadcast to the whole room). */
+  onCommentCreated(): Observable<any> { return this.onEvent('comment:created'); }
+  /** `{ comment }` — a comment was resolved/re-opened. */
+  onCommentResolved(): Observable<any> { return this.onEvent('comment:resolved'); }
+  /** `{ commentId, elementId }` — a comment was deleted. */
+  onCommentDeleted(): Observable<any> { return this.onEvent('comment:deleted'); }
+
+  // --- E8: canvas version history / restore (ack-based) ----------------------
+  // Whole-canvas snapshots. projectName/type scope the room + authorization;
+  // `createdBy` is derived server-side. All three require edit access.
+
+  /** Save a named manual checkpoint of the current canvas. Ack `{ success, snapshot }`. */
+  emitSnapshotCreate(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    label?: string
+  ): Observable<any> {
+    return this.ackEmit('snapshot:create', { projectName, projectType, label }, 'Save version');
+  }
+
+  /** List the project's version timeline (metadata only). Ack `{ success, snapshots }`. */
+  emitSnapshotList(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
+    return this.ackEmit('snapshot:list', { projectName, projectType }, 'Load versions');
+  }
+
+  /** Restore the canvas to a stored version. Ack `{ success, snapshotId }`. */
+  emitSnapshotRestore(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    snapshotId: string
+  ): Observable<any> {
+    return this.ackEmit('snapshot:restore', { projectName, projectType, snapshotId }, 'Restore version');
+  }
+
+  /** `{ snapshot }` — a new version was saved (broadcast to the whole room). */
+  onSnapshotCreated(): Observable<any> { return this.onEvent('snapshot:created'); }
+  /** `{ projectName, projectType, snapshotId, restoredBy }` — the canvas was restored; peers should reload. */
+  onSnapshotRestored(): Observable<any> { return this.onEvent('snapshot:restored'); }
 
   // --- N1: sharing / access control (ack-based) ------------------------------
 

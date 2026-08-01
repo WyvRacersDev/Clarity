@@ -7,6 +7,7 @@ import { UserHandler } from "./user.service.js";
 import { CalendarSyncService } from "./calendar-sync.service.js";
 import { fileURLToPath } from "url";
 import * as projectRepo from "../repositories/project.repository.js";
+import { maybeAutoSnapshot } from "../repositories/snapshot.repository.js";
 import { clientError } from "../lib/clientError.js";
 import { getAuthoritativeContent } from "../realtime/ydoc-registry.js";
 import { preferLiveContent } from "../lib/ydoc-reconcile.js";
@@ -137,6 +138,9 @@ export class ProjectHandler implements ProjectPaths {
             // save can clobber newer collaborative rich-text edits (closes B3).
             await this.reconcileWithLiveDocs(serialized);
             await projectRepo.saveProject(serialized, projectType);
+            // E8: capture this saved state as an (auto) version. Throttled +
+            // de-duplicated inside the repo, and best-effort — never fails a save.
+            await maybeAutoSnapshot(serialized, projectType);
             return { success: true, message: `Project "${project.name}" saved successfully` };
         } catch (error: any) {
             console.error('Error saving project:', error);

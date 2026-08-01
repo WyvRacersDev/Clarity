@@ -1,5 +1,7 @@
-import { Component, OnInit, signal, computed, PLATFORM_ID, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, signal, computed, PLATFORM_ID, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isPlatformBrowser } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { User } from '../../../../../shared_models/models/user.model';
@@ -25,6 +27,9 @@ export interface CalendarDay {
 })
 export class TasksComponent implements OnInit {
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   // Existing data fields (preserved verbatim)
   currentUser: User | null = null;
@@ -132,6 +137,21 @@ export class TasksComponent implements OnInit {
       }
       this.isLoading.set(false);
     });
+
+    // E11: the ⌘K "New Task" action deep-links here with `?new=1`. Open the
+    // add-task modal, then strip the flag so a refresh/back doesn't reopen it.
+    this.route.queryParams
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        if (params['new'] && !this.showAddTaskModal) {
+          this.openAddTaskModal();
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: {},
+            replaceUrl: true,
+          });
+        }
+      });
   }
 
   loadAllTasks(): void {

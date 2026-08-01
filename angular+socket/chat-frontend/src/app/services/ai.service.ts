@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { User } from '../../../../shared_models/models/user.model';
 import { AnalyticsService } from './analytics.service';
 import { DataService } from './data.service';
-import { Observable, tap, map } from 'rxjs';
+import { Observable, tap, map, firstValueFrom } from 'rxjs';
 import { getServerConfig } from '../config/server.config';
 import { authHeaders } from '../config/auth-token';
 
@@ -12,6 +12,12 @@ export interface AIMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+/** E9 — optional project the assistant should ground its answer/actions in. */
+export interface AIProjectScope {
+  name: string;
+  type?: 'local' | 'hosted';
 }
 
 /** One event from the streaming chat: an incremental token, or the terminal. */
@@ -46,7 +52,7 @@ export class AIService {
     if(this.dataService.getCurrentUser()==null) return;
   }
 
- chat(input: string): Observable<string> {
+ chat(input: string, scope?: AIProjectScope): Observable<string> {
         // Add user message to history
     console.log("Sending to AIService chat:", input);
         this.chatHistory.push({
@@ -55,7 +61,12 @@ export class AIService {
       timestamp: new Date()
     });
     console.log("Current user in AIService chat:", this.dataService.getCurrentUser());
-    return this.http.get<string>(`${getServerConfig()}/ai-assistant/chat-agent?username=${this.dataService.getCurrentUser()?.name}&input=${input}`, { headers: authHeaders() }).pipe(
+    const username = this.dataService.getCurrentUser()?.name ?? 'Demo User';
+    const url =
+      `${getServerConfig()}/ai-assistant/chat-agent` +
+      `?username=${encodeURIComponent(username)}&input=${encodeURIComponent(input)}` +
+      this.scopeQuery(scope);
+    return this.http.get<string>(url, { headers: authHeaders() }).pipe(
       tap((response: string) => {
         this.chatHistory.push({
           role: 'assistant',
@@ -77,7 +88,15 @@ export class AIService {
    * The user message is pushed to history immediately; the assistant message is
    * NOT pushed here (the component owns incremental rendering + final history).
    */
-  streamChat(input: string): Observable<AIStreamEvent> {
+  /** Build the optional `&projectName=&projectType=` scope query fragment (E9). */
+  private scopeQuery(scope?: AIProjectScope): string {
+    if (!scope?.name) return '';
+    let q = `&projectName=${encodeURIComponent(scope.name)}`;
+    if (scope.type) q += `&projectType=${encodeURIComponent(scope.type)}`;
+    return q;
+  }
+
+  streamChat(input: string, scope?: AIProjectScope): Observable<AIStreamEvent> {
     console.log('Streaming to AIService chat:', input);
     this.chatHistory.push({ role: 'user', content: input, timestamp: new Date() });
 
@@ -91,7 +110,8 @@ export class AIService {
       const username = this.dataService.getCurrentUser()?.name ?? 'Demo User';
       const url =
         `${getServerConfig()}/ai-assistant/chat-agent-stream` +
-        `?username=${encodeURIComponent(username)}&input=${encodeURIComponent(input)}`;
+        `?username=${encodeURIComponent(username)}&input=${encodeURIComponent(input)}` +
+        this.scopeQuery(scope);
 
       const controller = new AbortController();
 
@@ -196,6 +216,25 @@ export class AIService {
       )
       // Unwrap the envelope so callers get the suggestion (or null) directly.
       .pipe(map((res) => res?.suggestion ?? null));
+  }
+
+  /**
+   * E9 (slice 2) — turn a chat conversation into tasks in a project. Sends the
+   * serialized thread text; the backend extracts action items and creates them.
+   * Returns the summary + created task names (count for the UI).
+   */
+  threadToTasks(
+    projectName: string,
+    projectType: 'local' | 'hosted' | undefined,
+    thread: string
+  ): Promise<{ message: string; created: string[]; count: number }> {
+    return firstValueFrom(
+      this.http.post<{ message: string; created: string[]; count: number }>(
+        `${getServerConfig()}/ai-assistant/thread-to-tasks`,
+        { projectName, projectType, thread },
+        { headers: authHeaders() }
+      )
+    );
   }
 
   getChatHistory(): AIMessage[] {

@@ -2,7 +2,9 @@
 
 **Branch:** `hamza-clarity`
 **Date:** 2026-08-01
-**Status:** Stabilize pass complete + verified. Decomposition Stage 1 complete + verified. Stages 2–5 not started. Nothing committed.
+**Status:** Stabilize pass complete + verified. Decomposition **Stages 1–5 ALL complete + verified**. Stages 2–3 (CanvasViewport + DragEngine) are committed (see `git log`); Stages 4–5 (type guards + ModalManager) are in the working tree, not yet committed.
+
+> **UPDATE (2026-08-01, later session):** Stage 4 (element type guards) and Stage 5 (ModalManager) are now DONE — see §5. Live-verified 9/9 via Playwright (demo login → create/open project → element-type-selector modal open/close, ToDoLst renders at correct geometry, export menu toggle + outside-click close). Note: a concurrent unrelated chat/assistant WIP is in the same working tree (`assistant.component.ts` has its own tsc errors — NOT from this work).
 
 This document is a handoff for another terminal/developer. It covers three pieces of work done this session, all in the Angular frontend (`angular+socket/chat-frontend`).
 
@@ -106,12 +108,12 @@ During smoke testing the backend logged `Failed to save project` — even for a 
 
 ## 5. What's left — decomposition Stages 2–5
 
-The parent is still ~2800 lines. Remaining, roughly in risk order (do one at a time, build + live-verify between each):
+All four remaining items are now DONE:
 
-1. **CanvasViewportService** — pan/zoom/fit/grid state + screen↔canvas coord math. HIGHER RISK (drag paths read this state).
-2. **DragEngineService** — long-press + drag/resize. HIGHER RISK.
-3. **Element type interfaces + guards** — kill ~30 `as any` casts and the mixed `constructor.name` vs `objects_builder.typeOf()` detection. LOW risk, mechanical.
-4. **ModalManager** — collapse ~15 modal booleans into one state object. LOW risk.
+1. ✅ **CanvasViewportService** — pan/zoom/fit/grid state + screen↔canvas coord math. (committed)
+2. ✅ **DragEngineService** — long-press + drag/resize. (committed)
+3. ✅ **Element type interfaces + guards** — DONE (working tree). Added `objects_builder.isTextDocument/isImage/isVideo/isToDoLst` type-predicate guards over the single `typeOf()` detector; replaced all 3 `constructor.name` checks + type-specific accessors + `dependsOn` sites with guard-narrowed typed access (`getTodoElements()` now returns `ToDoLst[]`); centralized geometry casts into `elXpos/elYpos/elXscale/elYscale` helpers. `as any` 88→42 in the component. New: guards live in `shared_models/models/screen-elements.model.ts`.
+4. ✅ **ModalManager** — DONE (working tree). New `src/app/utils/modal-manager.ts` (generic `ModalManager<T>` Set-backed open/close/toggle/isOpen/anyOpen/closeAll); all ~14 `showXModal` booleans migrated 1:1 to one `modals` object (TS + template). Kept `showCompletedTasks` (a preference, not a modal). **Heads-up:** ~7 of the migrated modal flags were already DEAD (no template renders them) — the add-Text_document / image-name / video-name / confirm / create-grid / add-element flows currently have no modal UI. Pre-existing; migrated as-is to preserve behavior. Restoring those modals (or deleting the orphaned open/submit methods) is a separate, non-Stage-5 task.
 
 Pattern to follow for UI extractions: mirror the existing `text-doc-editor/` and `share-dialog/` child components (standalone, `@Input` element + `@Output() closed`, inject own services, `takeUntilDestroyed`).
 

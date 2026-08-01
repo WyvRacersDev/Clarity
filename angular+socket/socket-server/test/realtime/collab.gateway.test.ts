@@ -240,6 +240,78 @@ describe("collab.gateway — granular per-element realtime (2 clients)", () => {
     }
   });
 
+  it("E10: element:create is idempotent per opId — a replay never duplicates the row", async () => {
+    // Seed one owner + a local project with a single empty grid.
+    const username = unique("collab_idem");
+    createdUsers.add(username);
+    const owner = await ensureUser(username);
+    const projectName = unique("collab_proj");
+    await saveProject(
+      {
+        owner_name: username,
+        name: projectName,
+        projectType: "local",
+        grid: [{ name: "Main", Screen_elements: [] }],
+        lastModified: new Date().toISOString(),
+      },
+      "local"
+    );
+    const gridId = await findFirstGridId(projectName, "local");
+    const token = issueJwt({ id: owner.id, username: owner.username, email: owner.email });
+    // Two "tabs": A is the creator, B stands in for a peer that must NOT see a
+    // second broadcast when the create is replayed.
+    const tabA = await connect(token);
+    const tabB = await connect(token);
+
+    try {
+      const room = { projectName, projectType: "local" as const };
+      await emitAck(tabA, "joinProjectRoom", room);
+      await emitAck(tabB, "joinProjectRoom", room);
+
+      const opId = `op_idem_${Date.now()}`;
+      const payload = {
+        ...room,
+        gridId,
+        opId,
+        element: { type: "Text_document", name: "Once", x_pos: 5, y_pos: 5, Text_field: "once" },
+      };
+
+      // First create: inserts + broadcasts + acks the authoritative element.
+      const firstCreatedOnB = once(tabB, "element:created");
+      const first = await emitAck(tabA, "element:create", payload);
+      expect(first.success).toBe(true);
+      const elementId: string = first.element.id;
+      expect(elementId).toBeTruthy();
+      await firstCreatedOnB;
+
+      // A peer that would (erroneously) receive a SECOND broadcast for the replay.
+      let secondBroadcast = false;
+      tabB.on("element:created", () => {
+        secondBroadcast = true;
+      });
+
+      // Replay the SAME opId (simulates a create buffered across a reconnect and
+      // flushed on rejoin). It must ack the original element, flagged deduped.
+      const second = await emitAck(tabA, "element:create", payload);
+      expect(second.success).toBe(true);
+      expect(second.deduped).toBe(true);
+      expect(second.element.id).toBe(elementId); // same authoritative id
+
+      // No second broadcast to peers.
+      await new Promise((r) => setTimeout(r, 200));
+      expect(secondBroadcast).toBe(false);
+
+      // Exactly ONE row persisted — the replay did not duplicate.
+      const loaded = await loadProject(projectName, "local");
+      const matches = loaded!.grid[0]!.Screen_elements.filter((e: any) => e.id === elementId);
+      expect(matches.length).toBe(1);
+      expect(loaded!.grid[0]!.Screen_elements.length).toBe(1);
+    } finally {
+      tabA.close();
+      tabB.close();
+    }
+  });
+
   it("the sender does NOT receive its own element ops (broadcast-except-sender)", async () => {
     const username = unique("collab_solo");
     createdUsers.add(username);

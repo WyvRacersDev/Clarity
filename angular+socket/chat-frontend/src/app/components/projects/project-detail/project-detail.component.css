@@ -124,6 +124,14 @@
   transform: translateY(-2px);
   z-index: 1;
 }
+/* E7: ring the current user's own avatar. */
+.presence-avatar.is-self { border-color: var(--accent-blue); }
+/* E7: "+N" overflow chip when more viewers than fit in the stack. */
+.presence-avatar.presence-overflow {
+  background: var(--surface-3) !important;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
 .presence-pill {
   display: inline-flex;
   align-items: center;
@@ -354,6 +362,28 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
   font-style: italic;
+}
+/* Inline quick-add task affordance on a ToDoLst card (immediate add). */
+.todo-add-task {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  padding: 2px 6px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+.todo-add-task svg { width: 13px; height: 13px; }
+.todo-add-task:hover {
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+  background: var(--accent-blue-soft);
 }
 
 /* Custom checkbox */
@@ -800,3 +830,180 @@
   color: var(--text-muted);
 }
 .readonly-chip svg { width: 14px; height: 14px; }
+
+/* =========================================================================
+   E6: canvas comment pins (element_comments)
+   ========================================================================= */
+
+/* Header comment affordance on each element card (mirrors .element-link-btn). */
+.element-comment-btn {
+  position: relative;
+  opacity: 0;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.element-comment-btn svg { width: 15px; height: 15px; }
+.canvas-element:hover .element-comment-btn,
+.canvas-element.selected .element-comment-btn,
+.element-comment-btn.has-comments { opacity: 1; }
+.element-comment-btn:hover { color: var(--accent-blue); background: var(--accent-blue-soft); }
+.element-comment-btn.has-comments { color: var(--accent-blue); }
+.element-comment-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: var(--radius-full);
+  background: var(--accent-blue);
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* Comment pin floating over an element (canvas-content coords; scales w/ zoom). */
+.comment-pin {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px 3px 5px;
+  border-radius: var(--radius-full) var(--radius-full) var(--radius-full) 2px;
+  background: var(--accent-blue);
+  color: #FFFFFF;
+  box-shadow: var(--shadow-sm);
+  z-index: var(--z-panel);
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.comment-pin svg { width: 13px; height: 13px; }
+.comment-pin:hover { transform: translateY(-1px) scale(1.05); box-shadow: var(--shadow-md); }
+.comment-pin.active { outline: 2px solid var(--surface-1); outline-offset: 1px; }
+.comment-pin-count { font-size: 11px; font-weight: 700; line-height: 1; }
+
+/* Screen-space thread popover (constant size across zoom; a fixed overlay). */
+.comment-thread-pop {
+  position: fixed;
+  width: 320px;
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-modal, 100);
+  overflow: hidden;
+}
+.comment-thread-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.comment-thread-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.comment-thread-title svg { width: 15px; height: 15px; color: var(--accent-blue); flex-shrink: 0; }
+.comment-thread-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comment-thread-close { color: var(--text-muted); flex-shrink: 0; border-radius: var(--radius-sm); }
+.comment-thread-close svg { width: 15px; height: 15px; }
+.comment-thread-close:hover { color: var(--text-primary); background: var(--surface-3); }
+
+.comment-thread-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.comment-item { display: flex; gap: var(--space-2); }
+.comment-item.resolved { opacity: 0.55; }
+.comment-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  color: #FFFFFF;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.comment-main { flex: 1; min-width: 0; }
+.comment-meta { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.comment-author { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.comment-time { font-size: var(--text-xs); color: var(--text-muted); }
+.comment-resolved-chip {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--accent-green-soft, var(--surface-3));
+  color: var(--accent-green, var(--text-secondary));
+  font-size: 10px;
+  font-weight: 700;
+}
+.comment-text {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.comment-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+.comment-action {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.comment-action:hover:not(:disabled) { color: var(--accent-blue); background: var(--accent-blue-soft); }
+.comment-action.danger:hover:not(:disabled) { color: var(--danger); background: var(--danger-soft); }
+.comment-action:disabled { opacity: 0.5; cursor: default; }
+.comment-empty { font-size: var(--text-sm); color: var(--text-muted); text-align: center; padding: var(--space-3) 0; }
+
+.comment-thread-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.comment-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 44px;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.comment-input:focus { outline: none; border-color: var(--accent-blue); }
+.comment-thread-composer .btn { align-self: flex-end; }
+.comment-thread-readonly {
+  padding: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}

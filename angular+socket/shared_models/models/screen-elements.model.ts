@@ -511,6 +511,17 @@ export class objects_builder {
   }
 
   /**
+   * Type guards built on the single `typeOf` detector, so callers narrow an
+   * element to its concrete type WITHOUT the scattered `constructor.name` checks
+   * or `as any` casts. Each returns a TS type predicate, giving typed field
+   * access after the guard. Extend alongside `typeOf`/`rebuild` for a new type.
+   */
+  static isTextDocument(obj: any): obj is Text_document { return objects_builder.typeOf(obj) === 'Text_document'; }
+  static isImage(obj: any): obj is Image { return objects_builder.typeOf(obj) === 'Image'; }
+  static isVideo(obj: any): obj is Video { return objects_builder.typeOf(obj) === 'Video'; }
+  static isToDoLst(obj: any): obj is ToDoLst { return objects_builder.typeOf(obj) === 'ToDoLst'; }
+
+  /**
    * The type-specific DB `content` JSONB for an element, derived polymorphically
    * via each subclass's `toContent()`. Accepts a live instance or a plain
    * (client-sent) object — plain objects are rebuilt first. The single

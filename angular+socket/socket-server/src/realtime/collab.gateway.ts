@@ -44,6 +44,13 @@ import {
   cursorMoveSchema,
   taskCommentAddSchema,
   taskCommentListSchema,
+  commentCreateSchema,
+  commentListSchema,
+  commentResolveSchema,
+  commentDeleteSchema,
+  snapshotCreateSchema,
+  snapshotListSchema,
+  snapshotRestoreSchema,
   ydocSyncSchema,
   ydocUpdateSchema,
   ydocAwarenessSchema,
@@ -67,6 +74,28 @@ interface AuthedContext {
 
 function roomKeyFor(projectType: string, projectName: string): string {
   return `${projectType}:${projectName}`;
+}
+
+/**
+ * E10 — in-memory idempotency cache for `element:create`.
+ *
+ * Keyed by the client-generated `opId`. When a create is replayed after a
+ * reconnect (or an app-level retry), we return the ORIGINAL insert's result
+ * instead of inserting a second row / re-broadcasting. Duplicates only occur
+ * within a reconnect window of seconds, so an in-memory, process-local,
+ * bounded (insertion-ordered evicting) cache is sufficient — no migration.
+ * Shared across all sockets in this process, hence module scope.
+ */
+const CREATE_DEDUP_MAX = 1000;
+const createDedup = new Map<string, { gridId: string; element: any }>();
+
+function rememberCreate(opId: string, result: { gridId: string; element: any }): void {
+  // Evict oldest first (Map preserves insertion order) to keep the cache bounded.
+  if (createDedup.size >= CREATE_DEDUP_MAX) {
+    const oldest = createDedup.keys().next().value;
+    if (oldest !== undefined) createDedup.delete(oldest);
+  }
+  createDedup.set(opId, result);
 }
 
 export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
@@ -204,6 +233,16 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
     elementCreateSchema,
     "create the element",
     async (data, { roomKey }, ack) => {
+      // E10: idempotency — if this opId was already applied (reconnect replay /
+      // retry), ack the original element and skip re-insert + re-broadcast.
+      const opId = (data as { opId?: string }).opId;
+      if (opId) {
+        const cached = createDedup.get(opId);
+        if (cached) {
+          ack?.({ success: true, gridId: cached.gridId, element: cached.element, deduped: true });
+          return;
+        }
+      }
       // A3: resolve grid + insert atomically under the project advisory lock so
       // a concurrent full-replace saveProject can't delete the grid mid-insert.
       const result = await collab.createElement(
@@ -221,6 +260,9 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
         return;
       }
       const { gridId, element } = result;
+
+      // E10: remember this insert so a later replay of the same opId is a no-op.
+      if (opId) rememberCreate(opId, { gridId, element });
 
       // Broadcast to the room EXCEPT the sender.
       socket.to(roomKey).emit("element:created", { gridId, element });
@@ -420,6 +462,176 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
     async (data, _ctx, ack) => {
       const comments = await collab.listComments(data.taskId);
       ack?.({ success: true, comments });
+    }
+  );
+
+  // ─── Element comments (E6) — canvas comment pins ────────────────────────────
+  //
+  // Persisted to Postgres (element_comments) and scoped to a project. `author`/
+  // `resolved_by` come from the socket identity, never the payload. On every
+  // mutation, broadcast the change to the WHOLE project room (including the
+  // sender — comments are low-frequency, so echoing keeps every client's pins
+  // consistent without special-casing the author's own view), mirroring
+  // task:comment:added. create additionally fans mentions into the durable inbox.
+
+  onAuthed(
+    "comment:create",
+    commentCreateSchema,
+    "add the comment",
+    async (data, { projectId, roomKey, username }, ack) => {
+      const comment = await collab.createElementComment(
+        projectId,
+        data.elementId,
+        username,
+        data.body
+      );
+
+      io.to(roomKey).emit("comment:created", { comment });
+      ack?.({ success: true, comment });
+
+      // N7: live @mention push to each mentioned user's personal room.
+      const mentioned = parseMentions(data.body).filter((m) => m !== username);
+      for (const m of mentioned) {
+        io.to(userRoom(m)).emit("mention:notified", {
+          elementId: data.elementId,
+          author: username,
+          body: data.body,
+          created_at: comment.created_at,
+        });
+      }
+
+      // N2: durable inbox — a `mention` row per @mention + a `comment` row for
+      // the other participants. Best-effort: never fail the comment on this.
+      try {
+        await notifications.recordCommentNotifications(io, {
+          projectId,
+          projectName: data.projectName,
+          projectType: data.projectType,
+          author: username,
+          body: data.body,
+          mentioned,
+        });
+      } catch (err) {
+        console.error("[Collab] comment notification fan-out failed:", err);
+      }
+    },
+    { requireElement: true }
+  );
+
+  onAuthed(
+    "comment:list",
+    commentListSchema,
+    "load comments",
+    async (_data, { projectId }, ack) => {
+      const comments = await collab.listElementComments(projectId);
+      ack?.({ success: true, comments });
+    }
+  );
+
+  onAuthed(
+    "comment:resolve",
+    commentResolveSchema,
+    "resolve the comment",
+    async (data, { projectId, roomKey, username }, ack) => {
+      const comment = await collab.setElementCommentResolved(
+        data.commentId,
+        projectId,
+        data.resolved,
+        username
+      );
+      if (!comment) {
+        ack?.({ success: false, message: "Comment not found" });
+        return;
+      }
+      io.to(roomKey).emit("comment:resolved", { comment });
+      ack?.({ success: true, comment });
+    }
+  );
+
+  onAuthed(
+    "comment:delete",
+    commentDeleteSchema,
+    "delete the comment",
+    async (data, { projectId, roomKey }, ack) => {
+      const deleted = await collab.deleteElementComment(data.commentId, projectId);
+      if (!deleted) {
+        ack?.({ success: false, message: "Comment not found" });
+        return;
+      }
+      io.to(roomKey).emit("comment:deleted", {
+        commentId: data.commentId,
+        elementId: deleted.elementId,
+      });
+      ack?.({ success: true, commentId: data.commentId });
+    }
+  );
+
+  // ─── Canvas version history (E8) ────────────────────────────────────────────
+  //
+  // Whole-canvas snapshots + restore. All three events require EDIT access (the
+  // shared onAuthed preamble authorizes edit) — history is an editor concern.
+  // `snapshot:create` captures the current persisted state as a named manual
+  // checkpoint; `snapshot:list` returns the timeline (metadata only, no payload);
+  // `snapshot:restore` full-replaces the canvas with a stored version and tells
+  // the rest of the room to reload (the restoring client reloads from its ack).
+
+  onAuthed(
+    "snapshot:create",
+    snapshotCreateSchema,
+    "save the version",
+    async (data, { username }, ack) => {
+      const label = typeof data.label === "string" && data.label.trim().length > 0
+        ? data.label.trim()
+        : null;
+      const snapshot = await collab.createManualSnapshot(
+        data.projectName,
+        data.projectType,
+        username,
+        label
+      );
+      if (!snapshot) {
+        ack?.({ success: false, message: "Project not found" });
+        return;
+      }
+      // Echo to the whole room so every open timeline gains the new version.
+      io.to(roomKeyFor(data.projectType, data.projectName)).emit("snapshot:created", { snapshot });
+      ack?.({ success: true, snapshot });
+    }
+  );
+
+  onAuthed(
+    "snapshot:list",
+    snapshotListSchema,
+    "load versions",
+    async (_data, { projectId }, ack) => {
+      const snapshots = await collab.listSnapshots(projectId);
+      ack?.({ success: true, snapshots });
+    }
+  );
+
+  onAuthed(
+    "snapshot:restore",
+    snapshotRestoreSchema,
+    "restore the version",
+    async (data, { projectId, roomKey, username }, ack) => {
+      const restored = await collab.restoreSnapshot(
+        data.snapshotId,
+        projectId,
+        data.projectName,
+        data.projectType
+      );
+      if (!restored) {
+        ack?.({ success: false, message: "Version not found" });
+        return;
+      }
+      // Peers reload the project; the initiator reloads off its own ack.
+      socket.to(roomKey).emit("snapshot:restored", {
+        projectName: data.projectName,
+        projectType: data.projectType,
+        snapshotId: data.snapshotId,
+        restoredBy: username,
+      });
+      ack?.({ success: true, snapshotId: data.snapshotId });
     }
   );
 

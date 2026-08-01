@@ -52,6 +52,7 @@
     "y-protocols": "^1.0.7",
     "y-quill": "^1.0.0",
     "yjs": "^13.6.18",
+    "zod": "^4.4.3",
     "zone.js": "^0.15.1"
   },
   "devDependencies": {

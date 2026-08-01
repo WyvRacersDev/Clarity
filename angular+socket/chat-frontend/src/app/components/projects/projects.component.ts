@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, signal } from '@angula
 
 import { FormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { SocketService } from '../../services/socket.service';
 import { User } from '../../../../../shared_models/models/user.model';
@@ -63,11 +63,13 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   private userSubscription: any;
   private hostedProjectUpdateSubscription: any;
   private hostedProjectDeleteSubscription: any;
+  private queryParamSubscription: any;
 
   constructor(
     private dataService: DataService,
     private socketService: SocketService,
     private router: Router,
+    private route: ActivatedRoute,
     private cdr: ChangeDetectorRef
   ) { }
 
@@ -108,6 +110,19 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.hasLoadedProjects = false;
     this.isLoadingProjects = false;
     this.isLoading = false; // Reset display loading state
+
+    // E11: the ⌘K "New Project" action deep-links here with `?new=1`. Open the
+    // create modal, then strip the flag so a refresh/back doesn't reopen it.
+    this.queryParamSubscription = this.route.queryParams.subscribe((params) => {
+      if (params['new'] && !this.showCreateModal) {
+        this.openCreateModal();
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true,
+        });
+      }
+    });
 
     // Get initial user state
     const initialUser = this.dataService.getCurrentUser();
@@ -196,6 +211,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     }
     if (this.hostedProjectDeleteSubscription) {
       this.hostedProjectDeleteSubscription.unsubscribe();
+    }
+    if (this.queryParamSubscription) {
+      this.queryParamSubscription.unsubscribe();
     }
   }
 

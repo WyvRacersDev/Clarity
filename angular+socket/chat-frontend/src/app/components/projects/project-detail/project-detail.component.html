@@ -34,10 +34,15 @@
         @if (presenceUsers.length > 0) {
           <div class="presence-cluster" title="People in this project">
             <div class="presence-bar">
-              @for (u of presenceUsers; track u.username) {
+              @for (u of getVisiblePresence(); track u.username) {
                 <span class="presence-avatar"
-                      [title]="u.username"
+                      [class.is-self]="isSelfPresence(u.username)"
+                      [title]="presenceTooltip(u.username)"
                       [style.background]="getUserColor(u.username)">{{ getInitials(u.username) }}</span>
+              }
+              @if (getPresenceOverflow() > 0) {
+                <span class="presence-avatar presence-overflow"
+                      [title]="getPresenceOverflow() + ' more'">+{{ getPresenceOverflow() }}</span>
               }
             </div>
             <span class="presence-pill">{{ presenceUsers.length }} here</span>
@@ -54,6 +59,12 @@
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
           </svg>
           Activity
+        </button>
+        <button class="btn btn-secondary" (click)="openVersionHistory()" title="Version history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 106 5.3L3 8"></path><path d="M12 7v5l4 2"></path>
+          </svg>
+          History
         </button>
         <button class="btn btn-secondary" (click)="openTeamChat()" title="Team chat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -72,13 +83,13 @@
         <!-- N10: Export (JSON / Markdown / print-to-PDF) -->
         <div class="export-anchor" style="position: relative;">
           <button class="btn btn-secondary" (click)="toggleExportMenu($event)"
-                  [attr.aria-expanded]="showExportMenu" aria-haspopup="menu" title="Export project">
+                  [attr.aria-expanded]="modals.isOpen('exportMenu')" aria-haspopup="menu" title="Export project">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
             Export
           </button>
-          @if (showExportMenu) {
+          @if (modals.isOpen('exportMenu')) {
             <div class="menu export-menu" role="menu" (click)="$event.stopPropagation()"
                  style="position:absolute; right:0; top:calc(100% + 6px); min-width:184px; z-index:var(--z-panel,60);">
               <button class="menu-item" role="menuitem" (click)="exportJson()">Download JSON</button>
@@ -97,7 +108,7 @@
     </div>
 
     <!-- N1: Share dialog -->
-    @if (showShareDialog) {
+    @if (modals.isOpen('shareDialog')) {
       <app-share-dialog
         [projectName]="project.name"
         [projectType]="$any(project).projectType || 'local'"
@@ -109,12 +120,23 @@
     }
 
     <!-- N2: Activity feed -->
-    @if (showActivityFeed) {
+    @if (modals.isOpen('activityFeed')) {
       <app-activity-feed
         [projectName]="project.name"
         [projectType]="$any(project).projectType || 'local'"
         (closed)="closeActivityFeed()">
       </app-activity-feed>
+    }
+
+    <!-- E8: Version history / restore -->
+    @if (modals.isOpen('versionHistory')) {
+      <app-version-history
+        [projectName]="project.name"
+        [projectType]="$any(project).projectType || 'local'"
+        [canEdit]="canEditProject"
+        (restored)="onVersionRestored()"
+        (closed)="closeVersionHistory()">
+      </app-version-history>
     }
 
     <!-- Canvas Workspace -->
@@ -280,6 +302,17 @@
                     </svg>
                   </button>
                 }
+                <!-- E6: comment affordance (badge = open comment count) -->
+                <button class="element-comment-btn"
+                        [class.has-comments]="getElementCommentCount(element) > 0"
+                        (click)="openCommentThread(element, $event)"
+                        [title]="getElementCommentCount(element) > 0 ? getElementCommentCount(element) + ' open comment(s)' : 'Add a comment'"
+                        aria-label="Comments">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                  @if (getElementCommentCount(element) > 0) {
+                    <span class="element-comment-count">{{ getElementCommentCount(element) }}</span>
+                  }
+                </button>
                 <button class="element-delete-btn" (click)="deleteElement(i); $event.stopPropagation()" aria-label="Delete element">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
                 </button>
@@ -301,6 +334,10 @@
                     @if (getTodoTasks(element).length === 0) {
                       <span class="empty-text">No tasks</span>
                     }
+                    <button class="todo-add-task" (click)="addTaskToTodoList(i); $event.stopPropagation()" title="Add a task">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg>
+                      Add task
+                    </button>
                   </div>
                 }
                 @if (getElementType(element) === 'Text_document') {
@@ -347,6 +384,18 @@
               <span class="remote-cursor-label" [style.background]="getUserColor(cursor.username)">{{ cursor.username }}</span>
             </div>
           }
+          <!-- E6: comment pins (canvas-content coords; one per element with open comments) -->
+          @for (pin of getCommentPins(); track pin.elementId) {
+            <button class="comment-pin"
+                    [class.active]="commentThread()?.elementId === pin.elementId"
+                    [style.left.px]="pin.x"
+                    [style.top.px]="pin.y"
+                    (click)="openThreadForPin(pin.elementId, $event)"
+                    [title]="pin.count + ' comment' + (pin.count === 1 ? '' : 's')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <span class="comment-pin-count">{{ pin.count }}</span>
+            </button>
+          }
           @if (getElements().length === 0) {
             <div class="empty-canvas empty-state">
               <div class="empty-icon">
@@ -386,8 +435,70 @@
       </div>
     </div>
 
+    <!-- E6: comment thread popover (screen-space; constant size across zoom) -->
+    @if (commentThread(); as thread) {
+      <div class="comment-thread-pop glass"
+           [style.left.px]="thread.x"
+           [style.top.px]="thread.y"
+           (click)="$event.stopPropagation()">
+        <div class="comment-thread-head">
+          <div class="comment-thread-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span class="comment-thread-name">{{ thread.elementName }}</span>
+          </div>
+          <button class="comment-thread-close" (click)="closeCommentThread()" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div class="comment-thread-body">
+          @for (c of getThreadComments(); track c.id) {
+            <div class="comment-item" [class.resolved]="c.resolvedBy">
+              <span class="comment-avatar" [style.background]="getUserColor(c.author)">{{ getInitials(c.author) }}</span>
+              <div class="comment-main">
+                <div class="comment-meta">
+                  <span class="comment-author">{{ c.author }}</span>
+                  <span class="comment-time">{{ formatCommentTime(c.created_at) }}</span>
+                  @if (c.resolvedBy) {
+                    <span class="comment-resolved-chip">Resolved</span>
+                  }
+                </div>
+                <div class="comment-text">{{ c.body }}</div>
+                @if (canEditProject) {
+                  <div class="comment-actions">
+                    <button class="comment-action" (click)="toggleResolveComment(c)" [disabled]="commentBusy()">
+                      {{ c.resolvedBy ? 'Reopen' : 'Resolve' }}
+                    </button>
+                    @if (isOwnComment(c)) {
+                      <button class="comment-action danger" (click)="removeCommentAction(c)" [disabled]="commentBusy()">Delete</button>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @if (getThreadComments().length === 0) {
+            <div class="comment-empty">No comments yet. Start the thread below.</div>
+          }
+        </div>
+        @if (canEditProject) {
+          <div class="comment-thread-composer">
+            <textarea class="comment-input"
+                      [value]="commentDraft"
+                      (input)="commentDraft = $any($event.target).value"
+                      (keydown)="onCommentKeydown($event)"
+                      placeholder="Add a comment… (Enter to send)"
+                      rows="2"></textarea>
+            <button class="btn btn-primary btn-sm" (click)="submitComment()"
+                    [disabled]="!commentDraft.trim() || commentBusy()">Comment</button>
+          </div>
+        } @else {
+          <div class="comment-thread-readonly">View-only access — you can't add comments.</div>
+        }
+      </div>
+    }
+
     <!-- B3: Collaborative rich-text editor (Yjs) -->
-    @if (showTextEditor && textEditorElement) {
+    @if (modals.isOpen('textEditor') && textEditorElement) {
       <app-text-doc-editor
         [element]="textEditorElement"
         [projectName]="project?.name || ''"
@@ -398,7 +509,7 @@
     }
 
     <!-- Full Screen Todo View -->
-    @if (showFullScreenTodo && fullScreenTodoElement) {
+    @if (modals.isOpen('fullScreenTodo') && fullScreenTodoElement) {
       <app-fullscreen-todo
         [list]="fullScreenTodoElement"
         (save)="saveFullScreenTodo()"
@@ -416,12 +527,12 @@
 }
 
 <!-- Element Type Selector Modal -->
-@if (showElementTypeSelector) {
-  <div class="scrim" (click)="showElementTypeSelector = false">
+@if (modals.isOpen('elementTypeSelector')) {
+  <div class="scrim" (click)="modals.close('elementTypeSelector')">
     <div class="modal modal-md" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Add Element</h2>
-        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="showElementTypeSelector = false" aria-label="Close">
+        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="modals.close('elementTypeSelector')" aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
         </button>
       </div>
@@ -456,7 +567,7 @@
 }
 
 <!-- Error Modal -->
-@if (showErrorModal) {
+@if (modals.isOpen('error')) {
   <div class="scrim" (click)="closeErrorModal()">
     <div class="modal modal-sm error-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
@@ -473,6 +584,27 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary submit-btn" (click)="closeErrorModal()">OK</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete confirmation -->
+@if (modals.isOpen('confirm')) {
+  <div class="scrim" (click)="closeConfirmModal()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirm delete</h2>
+        <button class="btn btn-icon btn-ghost btn-sm close-btn" (click)="closeConfirmModal()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>{{ confirmMessage }}</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+        <button class="btn btn-danger submit-btn" (click)="confirmDelete()">Delete</button>
       </div>
     </div>
   </div>
