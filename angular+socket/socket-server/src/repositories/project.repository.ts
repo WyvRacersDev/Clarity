@@ -23,6 +23,7 @@
  */
 import { sql } from "../infrastructure/db.js";
 import { ensureUser, resolveUser } from "./identity.repository.js";
+import { objects_builder } from "@models/screen-elements.model.js";
 
 type ProjectType = "local" | "hosted";
 
@@ -41,6 +42,9 @@ export interface SerializedProject {
 
 // ─── LOAD ────────────────────────────────────────────────────────────────────
 
+/** Link-share configuration for a project (N1). */
+export type LinkShareRole = "none" | "viewer" | "editor";
+
 interface ProjectRow {
   id: string;
   name: string;
@@ -48,6 +52,8 @@ interface ProjectRow {
   project_type: ProjectType;
   updated_at: Date;
   owner_username: string;
+  link_share_role: LinkShareRole;
+  link_share_token: string | null;
 }
 
 async function findProjectRow(
@@ -56,6 +62,7 @@ async function findProjectRow(
 ): Promise<ProjectRow | null> {
   const rows = await sql<ProjectRow[]>`
     select p.id, p.name, p.owner_id, p.project_type, p.updated_at,
+           p.link_share_role, p.link_share_token,
            u.username as owner_username
     from projects p
     join users u on u.id = p.owner_id
@@ -63,6 +70,153 @@ async function findProjectRow(
     limit 1
   `;
   return rows.length > 0 ? rows[0]! : null;
+}
+
+/**
+ * Stable transaction-advisory-lock key for a project (A3). saveProject's
+ * full-replace (delete grids + reinsert) and the granular element:create path
+ * both take `pg_advisory_xact_lock(hashtext(key))` so they serialize instead of
+ * racing the grid delete/recreate — which otherwise made element:create fail
+ * with "grid missing" and silently drop elements. Keyed on (type, name), which
+ * matches how the granular ops resolve a project (by name+type), so both paths
+ * agree on the same lock.
+ */
+function projectLockKey(name: string, projectType: ProjectType): string {
+  return `project:${projectType}:${name}`;
+}
+
+/**
+ * Lightweight project lookup used for AUTHORIZATION (A2): returns the project id
+ * and its owner's username, or null when the project doesn't exist. Callers gate
+ * mutations on `owner_username` (local projects: owner-only) without loading the
+ * whole project.
+ */
+export async function findProjectAuth(
+  name: string,
+  projectType: ProjectType
+): Promise<{
+  id: string;
+  owner_username: string;
+  link_share_role: LinkShareRole;
+  link_share_token: string | null;
+} | null> {
+  const row = await findProjectRow(name, projectType);
+  return row
+    ? {
+        id: row.id,
+        owner_username: row.owner_username,
+        link_share_role: row.link_share_role,
+        link_share_token: row.link_share_token,
+      }
+    : null;
+}
+
+/**
+ * Read a project's link-share config by id (N1). Returns null if the project no
+ * longer exists.
+ */
+export async function getProjectLinkShare(
+  projectId: string
+): Promise<{ link_share_role: LinkShareRole; link_share_token: string | null } | null> {
+  const rows = await sql<
+    Array<{ link_share_role: LinkShareRole; link_share_token: string | null }>
+  >`
+    select link_share_role, link_share_token
+    from projects where id = ${projectId} limit 1
+  `;
+  return rows.length > 0 ? rows[0]! : null;
+}
+
+/**
+ * Set a project's link-share role (N1). Enabling ('viewer'/'editor') mints a
+ * share token if none exists; disabling ('none') clears it. Returns the token
+ * in effect after the write (null when disabled).
+ */
+export async function setProjectLinkShare(
+  projectId: string,
+  role: LinkShareRole
+): Promise<string | null> {
+  if (role === "none") {
+    await sql`
+      update projects set link_share_role = 'none', link_share_token = null
+      where id = ${projectId}
+    `;
+    return null;
+  }
+  const rows = await sql<Array<{ link_share_token: string }>>`
+    update projects
+       set link_share_role  = ${role},
+           link_share_token = coalesce(link_share_token, gen_random_uuid())
+     where id = ${projectId}
+    returning link_share_token
+  `;
+  return rows.length > 0 ? rows[0]!.link_share_token : null;
+}
+
+/**
+ * Projects of a type the given user can reach as owner OR collaborator (N1).
+ * Used by the local-project list so shared-with-me projects appear alongside
+ * owned ones. Each row carries the user's effective role ('owner' for owned).
+ */
+export async function listProjectsForUser(
+  projectType: ProjectType,
+  username: string
+): Promise<Array<ProjectListItem & { role: string; isOwner: boolean }>> {
+  const rows = await sql<
+    Array<{
+      name: string;
+      owner_username: string;
+      updated_at: Date;
+      grid_count: string;
+      role: string;
+    }>
+  >`
+    select p.name,
+           owner.username as owner_username,
+           p.updated_at,
+           count(g.id)    as grid_count,
+           case when owner.username = ${username} then 'owner'
+                else pc.role end as role
+    from projects p
+    join users owner on owner.id = p.owner_id
+    left join users me on me.username = ${username}
+    left join project_collaborators pc
+           on pc.project_id = p.id and pc.user_id = me.id
+    left join grids g on g.project_id = p.id
+    where p.project_type = ${projectType}
+      and (owner.username = ${username} or pc.user_id is not null)
+    group by p.id, owner.username, pc.role
+    order by p.updated_at desc
+  `;
+  return rows.map((r) => ({
+    name: r.name,
+    owner_name: r.owner_username,
+    filename: `${r.name}.json`,
+    projectType,
+    gridCount: Number(r.grid_count),
+    lastModified: r.updated_at.toISOString(),
+    role: r.role,
+    isOwner: r.owner_username === username,
+  }));
+}
+
+/**
+ * Whether `elementId` belongs to a grid of `projectId` (A2). Prevents a client
+ * from naming its OWN project in the payload while targeting an element that
+ * lives in someone else's project.
+ */
+export async function elementInProject(
+  elementId: string,
+  projectId: string
+): Promise<boolean> {
+  const rows = await sql<Array<{ ok: boolean }>>`
+    select true as ok
+    from screen_elements se
+    join grids g on g.id = se.grid_id
+    where se.id = ${elementId} and g.project_id = ${projectId}
+    limit 1
+  `;
+  return rows.length > 0;
 }
 
 /**
@@ -118,7 +272,13 @@ export async function loadProject(
       const content = el.content ?? {};
 
       if (el.element_type === "Text_document") {
-        screenElements.push({ ...base, Text_field: content.Text_field ?? "" });
+        screenElements.push({
+          ...base,
+          Text_field: content.Text_field ?? "",
+          // B3: collaborative Yjs state (base64). Only emit when present so
+          // non-collab text docs keep their old shape.
+          ...(content.ydoc != null ? { ydoc: content.ydoc } : {}),
+        });
       } else if (el.element_type === "Image") {
         screenElements.push({ ...base, imagepath: content.imagepath ?? "" });
       } else if (el.element_type === "Video") {
@@ -136,11 +296,13 @@ export async function loadProject(
             creation_time: Date | null;
             calendar_event_id: string | null;
             notified: boolean;
+            repeat: string;
+            status: string;
           }>
         >`
           select t.id, t.taskname, t.priority, t.is_done, t.time,
                  t.completion_time, t.creation_time, t.calendar_event_id,
-                 t.notified, cu.username as completed_by_username
+                 t.notified, t.repeat, t.status, cu.username as completed_by_username
           from tasks t
           left join users cu on cu.id = t.completed_by
           where t.element_id = ${el.id}
@@ -163,6 +325,9 @@ export async function loadProject(
             : "",
           calendar_event_id: t.calendar_event_id ?? null,
           notified: t.notified,
+          repeat: t.repeat ?? "none",
+          // N6: derive the lane from is_done for rows predating the status column.
+          status: t.status ?? (t.is_done ? "done" : "todo"),
         }));
 
         screenElements.push({
@@ -194,10 +359,48 @@ export async function loadProject(
 
 // ─── SAVE ────────────────────────────────────────────────────────────────────
 
+/**
+ * A16: does `ownerName` already own a project with this (name, projectType)?
+ * Scoped by owner so it matches the `(owner_id, name, project_type)` unique
+ * constraint that saveProject upserts on — lets the gateway give explicit
+ * "already exists" feedback on a create instead of silently overwriting.
+ */
+export async function projectExistsForOwner(
+  ownerName: string,
+  name: string,
+  projectType: ProjectType
+): Promise<boolean> {
+  const rows = await sql<Array<{ id: string }>>`
+    select p.id
+    from projects p
+    join users u on u.id = p.owner_id
+    where u.username = ${ownerName}
+      and p.name = ${name}
+      and p.project_type = ${projectType}
+    limit 1
+  `;
+  return rows.length > 0;
+}
+
 function toTimestampOrNull(v: any): string | null {
   if (v === undefined || v === null || v === "") return null;
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+// N7: guard the recurrence rule against the DB CHECK constraint. Any unknown /
+// missing value degrades to 'none' (a one-off) rather than failing the save.
+const ALLOWED_REPEAT = new Set(["none", "daily", "weekly", "monthly"]);
+function normalizeRepeat(v: any): string {
+  return typeof v === "string" && ALLOWED_REPEAT.has(v) ? v : "none";
+}
+
+// N6: guard the kanban lane against the DB CHECK constraint AND the done/is_done
+// invariant. A done task is always 'done'; otherwise an unknown/'done' value
+// degrades to 'todo'. Mirrors normalizeStatus in the shared model.
+function normalizeStatus(v: any, isDone: boolean): string {
+  if (isDone) return "done";
+  return v === "todo" || v === "in_progress" ? v : "todo";
 }
 
 /**
@@ -229,10 +432,23 @@ export async function saveProject(
   }
 
   return await sql.begin(async (tx) => {
+    // A3: serialize with any concurrent full-replace save AND granular
+    // element:create on the same project. Held until the tx commits/rolls back.
+    await tx`select pg_advisory_xact_lock(hashtext(${projectLockKey(serialized.name, projectType)}))`;
+
     // UPSERT projects on (owner_id, name, project_type).
+    // N1: a NEWLY created hosted project defaults to public link sharing
+    // ('editor'), preserving the prior "hosted = anyone can edit" behaviour;
+    // local projects start private ('none'). On an existing project the
+    // conflict branch only bumps updated_at, so the owner's link-share choice is
+    // preserved across saves (never reset by a content save).
+    const defaultLinkRole: LinkShareRole = projectType === "hosted" ? "editor" : "none";
     const projRows = await tx<Array<{ id: string }>>`
-      insert into projects (name, owner_id, project_type)
-      values (${serialized.name}, ${owner.id}, ${projectType})
+      insert into projects (name, owner_id, project_type, link_share_role, link_share_token)
+      values (
+        ${serialized.name}, ${owner.id}, ${projectType}, ${defaultLinkRole},
+        ${defaultLinkRole === "none" ? null : sql`gen_random_uuid()`}
+      )
       on conflict (owner_id, name, project_type)
       do update set updated_at = now()
       returning id
@@ -313,7 +529,7 @@ export async function saveProject(
               await tx`
                 insert into tasks
                   (id, element_id, taskname, priority, is_done, time, completion_time,
-                   completed_by, notified, calendar_event_id, creation_time, sort_order)
+                   completed_by, notified, calendar_event_id, creation_time, sort_order, repeat, status)
                 values (
                   ${incomingTaskId}, ${elementId},
                   ${t.taskname ?? ""},
@@ -325,14 +541,16 @@ export async function saveProject(
                   ${!!t.notified},
                   ${t.calendar_event_id ?? null},
                   ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()},
-                  ${ti}
+                  ${ti},
+                  ${normalizeRepeat(t.repeat)},
+                  ${normalizeStatus(t.status, !!t.is_done)}
                 )
               `;
             } else {
               await tx`
                 insert into tasks
                   (element_id, taskname, priority, is_done, time, completion_time,
-                   completed_by, notified, calendar_event_id, creation_time, sort_order)
+                   completed_by, notified, calendar_event_id, creation_time, sort_order, repeat, status)
                 values (
                   ${elementId},
                   ${t.taskname ?? ""},
@@ -344,7 +562,9 @@ export async function saveProject(
                   ${!!t.notified},
                   ${t.calendar_event_id ?? null},
                   ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()},
-                  ${ti}
+                  ${ti},
+                  ${normalizeRepeat(t.repeat)},
+                  ${normalizeStatus(t.status, !!t.is_done)}
                 )
               `;
             }
@@ -363,44 +583,15 @@ function num(v: any, fallback = 0): number {
 }
 
 function resolveElementType(el: any): string {
-  if (
-    el.type === "Text_document" ||
-    el.type === "Image" ||
-    el.type === "Video" ||
-    el.type === "ToDoLst"
-  ) {
-    return el.type;
-  }
-  // Fall back to property detection (mirrors serializeProject logic).
-  if (el.scheduled_tasks !== undefined && Array.isArray(el.scheduled_tasks))
-    return "ToDoLst";
-  if (el.imagepath !== undefined || el.imagePath !== undefined) return "Image";
-  if (el.VideoPath !== undefined || el.videoPath !== undefined) return "Video";
-  if (el.Text_field !== undefined || el.text_field !== undefined)
-    return "Text_document";
-  return "Text_document";
+  // Delegate to the single canonical detector (shared model). Adding a new
+  // element type no longer means editing this duplicated ladder.
+  return objects_builder.typeOf(el);
 }
 
-function buildElementContent(elementType: string, el: any): Record<string, unknown> {
-  switch (elementType) {
-    case "Text_document":
-      return { Text_field: el.Text_field ?? el.text_field ?? "" };
-    case "Image":
-      return { imagepath: el.imagepath ?? el.imagePath ?? "" };
-    case "Video":
-      return { VideoPath: el.VideoPath ?? el.videoPath ?? "" };
-    case "ToDoLst":
-      return {
-        collaborators: Array.isArray(el.collaborators) ? el.collaborators : [],
-        tags: Array.isArray(el.tags) ? el.tags : [],
-        // A2: element-level dependencies (ids of ToDoLst elements this one is
-        // blocked by). Stored inside content JSONB — saveProject cherry-picks
-        // ToDoLst content, so this rides along with collaborators/tags.
-        dependsOn: Array.isArray(el.dependsOn) ? el.dependsOn : [],
-      };
-    default:
-      return {};
-  }
+function buildElementContent(_elementType: string, el: any): Record<string, unknown> {
+  // Polymorphic: each Screen_Element subclass owns its own `content` shape via
+  // toContent(). Adding an element type no longer means editing this function.
+  return objects_builder.contentOf(el);
 }
 
 // ─── GRANULAR ELEMENT OPS (Phase 6b) ─────────────────────────────────────────
@@ -440,16 +631,15 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
   };
   const content = el.content ?? {};
 
-  if (el.element_type === "Text_document") {
-    return { ...base, Text_field: content.Text_field ?? "" };
+  // Non-ToDoLst types store their full client shape in `content` JSONB, so a
+  // generic spread reconstructs them — no per-type branch needed. ToDoLst is the
+  // one special case: its tasks live in the `tasks` table, joined below.
+  if (el.element_type !== "ToDoLst") {
+    return { ...base, ...content };
   }
-  if (el.element_type === "Image") {
-    return { ...base, imagepath: content.imagepath ?? "" };
-  }
-  if (el.element_type === "Video") {
-    return { ...base, VideoPath: content.VideoPath ?? "" };
-  }
-  if (el.element_type === "ToDoLst") {
+
+  // ToDoLst: base + content (collaborators/tags/dependsOn) + joined task rows.
+  {
     const taskRows = await sql<
       Array<{
         id: string;
@@ -493,7 +683,6 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
       dependsOn: Array.isArray(content.dependsOn) ? content.dependsOn : [],
     };
   }
-  return { ...base, ...content };
 }
 
 /**
@@ -541,19 +730,117 @@ export async function insertElement(
       await sql`
         insert into tasks
           (element_id, taskname, priority, is_done, time, notified,
-           calendar_event_id, creation_time, sort_order)
+           calendar_event_id, creation_time, sort_order, status)
         values (
           ${row.id}, ${t.taskname ?? ""},
           ${typeof t.priority === "number" ? t.priority : parseInt(t.priority, 10) || 2},
           ${!!t.is_done}, ${toTimestampOrNull(t.time)}, ${!!t.notified},
           ${t.calendar_event_id ?? null},
-          ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()}, ${ti}
+          ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()}, ${ti},
+          ${normalizeStatus(t.status, !!t.is_done)}
         )
       `;
     }
   }
 
   return await serializeElementRow(row);
+}
+
+/**
+ * Atomically create ONE element in a project (A3). Resolves the project + target
+ * grid and inserts the element inside a single transaction that holds the
+ * project advisory lock, so it can NOT interleave with a concurrent
+ * full-replace saveProject (which drops + recreates grids). This closes the race
+ * where a double-clicked save deleted the grid between the caller resolving a
+ * gridId and inserting, yielding "grid missing" and silently lost elements.
+ *
+ * `gridId` (optional) is honored only if it belongs to the project; otherwise
+ * (or when omitted) the project's first grid is used. Returns the serialized
+ * element on success, or `{ ok: false, reason }` when the project/grid is gone.
+ */
+export async function createElement(
+  name: string,
+  projectType: ProjectType,
+  gridId: string | null,
+  element: any
+): Promise<
+  | { ok: true; gridId: string; element: any }
+  | { ok: false; reason: "no_project" | "no_grid" }
+> {
+  const result = await sql.begin(async (tx) => {
+    await tx`select pg_advisory_xact_lock(hashtext(${projectLockKey(name, projectType)}))`;
+
+    const projRows = await tx<Array<{ id: string }>>`
+      select id from projects where name = ${name} and project_type = ${projectType} limit 1
+    `;
+    const projectId = projRows[0]?.id;
+    if (!projectId) return { ok: false as const, reason: "no_project" as const };
+
+    // Resolve the target grid inside the lock so it can't vanish under us.
+    let resolvedGridId: string | null = null;
+    if (gridId) {
+      const g = await tx<Array<{ id: string }>>`
+        select id from grids where id = ${gridId} and project_id = ${projectId} limit 1
+      `;
+      resolvedGridId = g[0]?.id ?? null;
+    }
+    if (!resolvedGridId) {
+      const g = await tx<Array<{ id: string }>>`
+        select id from grids where project_id = ${projectId}
+        order by sort_order asc, created_at asc limit 1
+      `;
+      resolvedGridId = g[0]?.id ?? null;
+    }
+    if (!resolvedGridId) return { ok: false as const, reason: "no_grid" as const };
+
+    const elementType = resolveElementType(element);
+    const content = buildElementContent(elementType, element);
+
+    const orderRows = await tx<Array<{ next_order: number }>>`
+      select coalesce(max(sort_order) + 1, 0) as next_order
+      from screen_elements where grid_id = ${resolvedGridId}
+    `;
+    const sortOrder = Number(orderRows[0]?.next_order ?? 0);
+
+    const rows = await tx<ElementRow[]>`
+      insert into screen_elements
+        (grid_id, element_type, name, x_pos, y_pos, x_scale, y_scale, content, sort_order)
+      values (
+        ${resolvedGridId}, ${elementType}, ${element.name ?? ""},
+        ${num(element.x_pos)}, ${num(element.y_pos)},
+        ${num(element.x_scale, 1)}, ${num(element.y_scale, 1)},
+        ${sql.json(content as any)}, ${sortOrder}
+      )
+      returning id, grid_id, element_type, name, x_pos, y_pos, x_scale, y_scale, content
+    `;
+    const row = rows[0];
+    if (!row) return { ok: false as const, reason: "no_grid" as const };
+
+    if (elementType === "ToDoLst" && Array.isArray(element.scheduled_tasks)) {
+      for (let ti = 0; ti < element.scheduled_tasks.length; ti++) {
+        const t = element.scheduled_tasks[ti]!;
+        await tx`
+          insert into tasks
+            (element_id, taskname, priority, is_done, time, notified,
+             calendar_event_id, creation_time, sort_order, status)
+          values (
+            ${row.id}, ${t.taskname ?? ""},
+            ${typeof t.priority === "number" ? t.priority : parseInt(t.priority, 10) || 2},
+            ${!!t.is_done}, ${toTimestampOrNull(t.time)}, ${!!t.notified},
+            ${t.calendar_event_id ?? null},
+            ${toTimestampOrNull(t.creation_time) ?? new Date().toISOString()}, ${ti},
+            ${normalizeStatus(t.status, !!t.is_done)}
+          )
+        `;
+      }
+    }
+
+    return { ok: true as const, gridId: resolvedGridId, row };
+  });
+
+  if (!result.ok) return result;
+  // Serialize AFTER commit so any freshly-inserted ToDoLst tasks are visible.
+  return { ok: true, gridId: result.gridId, element: await serializeElementRow(result.row) };
 }
 
 /**
@@ -596,6 +883,22 @@ export async function updateElementContent(
     returning id
   `;
   return rows.length > 0;
+}
+
+/**
+ * Read a single element's JSONB `content` (or null if the row is missing).
+ * Used by the B3 ydoc registry to hydrate the authoritative server Y.Doc from
+ * the persisted `content.ydoc` on first access.
+ */
+export async function getElementContent(
+  elementId: string
+): Promise<Record<string, any> | null> {
+  const rows = await sql<Array<{ content: any }>>`
+    select content from screen_elements where id = ${elementId}
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return (row.content ?? {}) as Record<string, any>;
 }
 
 /** Delete a single element (CASCADE removes its tasks). Returns true if removed. */
