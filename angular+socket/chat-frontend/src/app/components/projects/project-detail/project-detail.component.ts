@@ -2002,90 +2002,11 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     this.viewport.beginPan(event.clientX, event.clientY);
   }
 
-  onCanvasMouseMove(event: MouseEvent): void {
-    // G2: update the selection marquee rectangle while shift-dragging empty canvas.
-    if (this.isMarqueeSelecting) {
-      const container = document.querySelector('.canvas-container') as HTMLElement;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        const cx = this.viewport.toCanvasX(event.clientX, rect.left);
-        const cy = this.viewport.toCanvasY(event.clientY, rect.top);
-        const x = Math.min(this.marqueeStartX, cx);
-        const y = Math.min(this.marqueeStartY, cy);
-        const w = Math.abs(cx - this.marqueeStartX);
-        const h = Math.abs(cy - this.marqueeStartY);
-        this.marquee.set({ x, y, w, h });
-        this.cdr.detectChanges();
-      }
-      return;
-    }
-
-    if (this.viewport.isPanning) {
-      this.viewport.updatePan(event.clientX, event.clientY);
-      return;
-    }
-
-    if (this.drag.isResizing && this.drag.resizingElement) {
-      const { width: newWidth, height: newHeight } = this.drag.computeResizeSize(event.clientX, event.clientY);
-
-      if ((this.drag.resizingElement as any).set_x_scale) {
-        (this.drag.resizingElement as any).set_x_scale(newWidth);
-        (this.drag.resizingElement as any).set_y_scale(newHeight);
-      } else {
-        (this.drag.resizingElement as any).x_scale = newWidth;
-        (this.drag.resizingElement as any).y_scale = newHeight;
-      }
-      this.dataService.updateCurrentUser();
-      // Phase 6b: throttled granular resize broadcast.
-      this.emitElementMove(this.drag.resizingElement);
-      return;
-    }
-
-    if (this.drag.isDraggingEnabled && this.drag.draggedElement) {
-      const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
-      if (!canvasContainer) return;
-
-      const rect = canvasContainer.getBoundingClientRect();
-      const x = this.viewport.toCanvasX(event.clientX, rect.left, this.drag.elementDragOffsetX);
-      const y = this.viewport.toCanvasY(event.clientY, rect.top, this.drag.elementDragOffsetY);
-
-      // Update the data model
-      if (this.drag.draggedElementGridIndex >= 0 && this.drag.draggedElementIndex >= 0 && this.project) {
-        const gridEls = this.project.grid[this.drag.draggedElementGridIndex].Screen_elements;
-        const element = gridEls[this.drag.draggedElementIndex];
-        if (element) {
-          // Leader element's new grid-unit position (pixels ÷ per-unit factor).
-          const newXPos = Math.max(0, x) / this.GRID_PX_X;
-          const newYPos = Math.max(0, y) / this.GRID_PX_Y;
-
-          // G2: group move — when multiple elements are selected, translate every
-          // selected element by the SAME delta the leader moved (grid-unit space).
-          const start = this.drag.groupDragStart;
-          const selected = this.selectedIndices();
-          if (start && selected.size > 1 && start.has(this.drag.draggedElementIndex)) {
-            const leaderStart = start.get(this.drag.draggedElementIndex)!;
-            const dx = newXPos - leaderStart.x;
-            const dy = newYPos - leaderStart.y;
-            start.forEach((pos, idx) => {
-              const el = gridEls[idx];
-              if (!el) return;
-              const nx = Math.max(0, pos.x + dx);
-              const ny = Math.max(0, pos.y + dy);
-              this.setElementPos(el, nx, ny);
-              // Phase 6b: throttled granular move broadcast for each moved element.
-              this.emitElementMove(el);
-            });
-            this.dataService.updateCurrentUser();
-          } else {
-            this.setElementPos(element, newXPos, newYPos);
-            this.dataService.updateCurrentUser();
-            // Phase 6b: throttled granular move broadcast.
-            this.emitElementMove(element);
-          }
-        }
-      }
-    }
-  }
+  // NOTE: the old onCanvasMouseMove/onCanvasMouseUp handlers were never wired
+  // (no template binding, not among the registered document listeners — the
+  // live handlers are onDocumentMouseMove/onDocumentMouseUp). They were dead
+  // duplicates of the marquee/pan/drag logic and have been removed. As a side
+  // effect element *resize* has no live move handler — see startResize below.
 
   /** G2: set an element's grid-unit position (x_pos/y_pos), via setters when present. */
   private setElementPos(element: Screen_Element, xPos: number, yPos: number): void {
@@ -2096,67 +2017,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
       (element as any).x_pos = xPos;
       (element as any).y_pos = yPos;
     }
-  }
-
-  async onCanvasMouseUp(event: MouseEvent): Promise<void> {
-    // G2: finish a marquee selection — select all elements intersecting the box.
-    if (this.isMarqueeSelecting) {
-      const box = this.marquee();
-      this.isMarqueeSelecting = false;
-      this.marquee.set(null);
-      if (box) this.applyMarqueeSelection(box);
-      this.cdr.detectChanges();
-      return;
-    }
-
-    if (this.drag.isDraggingEnabled && this.drag.draggedElementGridIndex >= 0 && this.drag.draggedElementIndex >= 0 && this.project) {
-      const gridEls = this.project.grid[this.drag.draggedElementGridIndex].Screen_elements;
-      const element = gridEls[this.drag.draggedElementIndex];
-      if (element) {
-        // G2: on drop, snap every moved element to the nearest 0.5 grid unit.
-        const start = this.drag.groupDragStart;
-        const selected = this.selectedIndices();
-        const movedIndices: number[] = (start && selected.size > 1 && start.has(this.drag.draggedElementIndex))
-          ? Array.from(start.keys())
-          : [this.drag.draggedElementIndex];
-
-        for (const idx of movedIndices) {
-          const el = gridEls[idx];
-          if (!el) continue;
-          if (this.snapEnabled()) this.snapElementToGrid(el);
-          // Phase 6b: final (un-throttled) move broadcast for each moved element.
-          this.emitElementMove(el, false);
-        }
-        this.dataService.updateCurrentUser();
-
-        const projectType = (this.project as any).projectType;
-        if (!projectType) {
-          console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
-          this.drag.groupDragStart = null;
-          return;
-        }
-        await this.dataService.saveProject(this.project, projectType);
-      }
-      this.drag.groupDragStart = null;
-    }
-
-    if (this.drag.isResizing && this.drag.resizingElement && this.project) {
-      // Phase 6b: final (un-throttled) resize broadcast.
-      this.emitElementMove(this.drag.resizingElement, false);
-      // Save size changes
-      const projectType = (this.project as any).projectType;
-      if (!projectType) {
-        console.error(`[ProjectDetail] Cannot save project ${this.project.name} - projectType is missing!`);
-        return;
-      }
-      await this.dataService.saveProject(this.project, projectType);
-    }
-
-    this.viewport.endPan();
-    this.drag.isResizing = false;
-    this.drag.resizingElement = null;
-    this.drag.isDraggingEnabled = false;
-    this.drag.draggedElement = null;
   }
 
   onCanvasWheel(event: WheelEvent): void {

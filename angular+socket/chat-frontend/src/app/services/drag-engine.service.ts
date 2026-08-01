@@ -86,6 +86,11 @@ export class DragEngineService {
   /**
    * Given the current pointer, compute the new element size for the active
    * resize session: start size + pointer delta, clamped to the minimums.
+   *
+   * NOTE: currently dormant — `startResize` still arms a resize session, but the
+   * element-resize move handler was never wired (see the note in
+   * ProjectDetailComponent where onCanvasMouseMove/Up were removed). Kept as the
+   * resize geometry for whenever a live move handler is added.
    */
   computeResizeSize(clientX: number, clientY: number): { width: number; height: number } {
     const width = Math.max(DragEngineService.MIN_WIDTH, this.startWidth + (clientX - this.startResizeX));
