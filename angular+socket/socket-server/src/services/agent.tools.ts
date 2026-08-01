@@ -31,6 +31,16 @@ export interface AgentToolContext {
   summariseProject: (projectName: string) => Promise<string>;
   suggestSchedule: (projectName: string) => Promise<string>;
   sendInvite: (invitee: string, projectName: string) => Promise<string>;
+  // N5: create a task in a project from natural language. Args are the raw
+  // structured tool arguments (priority as a word, due_date as ISO/plain date).
+  createTask: (args: {
+    project_name: string;
+    task_name: string;
+    priority?: string;
+    due_date?: string;
+    list_name?: string;
+    repeat?: string;
+  }) => Promise<string>;
 }
 
 /**
@@ -108,6 +118,60 @@ export const AGENT_TOOLS: AgentTool[] = [
       // Preserve the legacy default project label used by the old regex path.
       const projectName = String(args?.project_name ?? "").trim() || "all Project";
       return await ctx.sendInvite(invitee, projectName);
+    },
+  },
+  {
+    name: "create_task",
+    description:
+      "Create a new task in a project from a natural-language request. Use when " +
+      "the user asks to add, create, or schedule a task/to-do/reminder (e.g. " +
+      "\"add a task to review the deck Friday, high priority\"). Resolve any " +
+      "relative date (today, tomorrow, Friday, next week) to a concrete calendar " +
+      "date using today's date given in the system prompt, and pass it as " +
+      "due_date in ISO YYYY-MM-DD form.",
+    schema: z.object({
+      project_name: z
+        .string()
+        .describe("The exact name of the project to add the task to."),
+      task_name: z
+        .string()
+        .describe("The task's title/description, e.g. \"Review the pitch deck\"."),
+      priority: z
+        .enum(["high", "medium", "low"])
+        .optional()
+        .describe("Task priority. Omit if the user didn't say; defaults to medium."),
+      due_date: z
+        .string()
+        .optional()
+        .describe(
+          "The due date as an ISO date (YYYY-MM-DD) or full ISO timestamp. " +
+            "Resolve relative phrases to a concrete date first. Omit if none given."
+        ),
+      list_name: z
+        .string()
+        .optional()
+        .describe(
+          "Name of the to-do list within the project to add the task to. Omit " +
+            "to use the project's first list (one is created if the project has none)."
+        ),
+      repeat: z
+        .enum(["none", "daily", "weekly", "monthly"])
+        .optional()
+        .describe("Recurrence. Omit for a one-off task (default 'none')."),
+    }),
+    handler: async (args, ctx) => {
+      const projectName = String(args?.project_name ?? "").trim();
+      const taskName = String(args?.task_name ?? "").trim();
+      if (!projectName) return "Please tell me which project to add the task to.";
+      if (!taskName) return "Please tell me what the task should be.";
+      return await ctx.createTask({
+        project_name: projectName,
+        task_name: taskName,
+        priority: args?.priority,
+        due_date: args?.due_date,
+        list_name: args?.list_name,
+        repeat: args?.repeat,
+      });
     },
   },
 ];

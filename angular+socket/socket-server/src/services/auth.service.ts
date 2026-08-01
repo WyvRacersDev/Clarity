@@ -14,12 +14,30 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
-import { sql } from "../infrastructure/db.js";
 import { ensureUser } from "../repositories/identity.repository.js";
 import type { UserRow } from "../repositories/identity.repository.js";
+import * as authRepo from "../repositories/auth.repository.js";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/index.js";
+import { SharingService } from "./sharing.service.js";
 
 const BCRYPT_ROUNDS = 10;
+
+// Stateless orchestrator for auto-accepting project invitations on account
+// creation (N1). Failures here must never block sign-up / login.
+const sharingService = new SharingService();
+
+/**
+ * N1: convert any pending project invitations addressed to this user's email
+ * into real memberships, so an invited person gains access the moment they have
+ * an account. Best-effort — swallow errors so auth never fails on this.
+ */
+async function acceptInvitationsFor(user: AuthUser): Promise<void> {
+  try {
+    await sharingService.acceptPendingInvitations({ id: user.id, email: user.email });
+  } catch (err) {
+    console.error("[auth] accepting pending invitations failed:", err);
+  }
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +51,8 @@ export interface JwtClaims {
   sub: string;
   username: string;
   email: string;
+  /** Optional avatar URL (e.g. Google profile photo) for display only. */
+  picture?: string;
 }
 
 /** Thrown for expected auth failures so routes can map them to HTTP codes. */
@@ -52,13 +72,19 @@ function toAuthUser(row: UserRow): AuthUser {
 
 // ─── JWT ─────────────────────────────────────────────────────────────────────
 
-/** Sign a JWT for a user. Claims: { sub: userId, username, email }. */
-export function issueJwt(user: AuthUser): string {
+/**
+ * Sign a JWT for a user. Claims: { sub: userId, username, email }, plus an
+ * optional `picture` (avatar URL) used by the frontend for display only.
+ */
+export function issueJwt(user: AuthUser, picture?: string): string {
   const claims: JwtClaims = {
     sub: user.id,
     username: user.username,
     email: user.email,
   };
+  if (picture) {
+    claims.picture = picture;
+  }
   const options = {
     expiresIn: JWT_EXPIRES_IN,
   } as SignOptions;
@@ -71,7 +97,7 @@ export function verifyJwt(token: string): JwtClaims {
   if (typeof decoded === "string" || !decoded || typeof decoded !== "object") {
     throw new AuthError("Invalid token", 401);
   }
-  const { sub, username, email } = decoded as Record<string, unknown>;
+  const { sub, username, email, picture } = decoded as Record<string, unknown>;
   if (typeof sub !== "string") {
     throw new AuthError("Invalid token claims", 401);
   }
@@ -79,6 +105,7 @@ export function verifyJwt(token: string): JwtClaims {
     sub,
     username: typeof username === "string" ? username : "",
     email: typeof email === "string" ? email : "",
+    ...(typeof picture === "string" && picture ? { picture } : {}),
   };
 }
 
@@ -107,13 +134,9 @@ export async function registerWithPassword(input: {
   const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
   try {
-    const rows = await sql<UserRow[]>`
-      insert into users (username, email, password_hash)
-      values (${username}, ${email}, ${password_hash})
-      returning *
-    `;
-    const row = rows[0]!;
+    const row = await authRepo.insertUserWithPassword(username, email, password_hash);
     const user = toAuthUser(row);
+    await acceptInvitationsFor(user); // N1: honor pending invites for this email
     return { user, token: issueJwt(user) };
   } catch (err: any) {
     // Postgres unique_violation
@@ -141,12 +164,7 @@ export async function loginWithPassword(input: {
   const hasAt = identifier.includes("@");
   const value = hasAt ? identifier.toLowerCase() : identifier;
   // Match against either column so email or username both work.
-  const rows = await sql<UserRow[]>`
-    select * from users
-    where email = ${value} or username = ${identifier}
-    limit 1
-  `;
-  const row = rows[0];
+  const row = await authRepo.findUserByEmailOrUsername(value, identifier);
   if (!row || !row.password_hash) {
     throw new AuthError("Invalid credentials", 401);
   }
@@ -178,12 +196,7 @@ export async function linkGoogleIdentity(
   sub: string,
   email: string
 ): Promise<void> {
-  await sql`
-    insert into oauth_identities (user_id, provider, provider_user_id, email)
-    values (${userId}, 'google', ${sub}, ${email})
-    on conflict (provider, provider_user_id)
-    do update set email = excluded.email
-  `;
+  await authRepo.linkGoogleIdentity(userId, sub, email);
 }
 
 /**
@@ -201,17 +214,11 @@ export async function findOrCreateUserFromGoogle(
   }
 
   // 1. Existing linked identity → reuse the user.
-  const linked = await sql<Array<{ user_id: string }>>`
-    select user_id from oauth_identities
-    where provider = 'google' and provider_user_id = ${profile.sub}
-    limit 1
-  `;
-  if (linked.length > 0) {
-    const rows = await sql<UserRow[]>`
-      select * from users where id = ${linked[0]!.user_id} limit 1
-    `;
-    if (rows.length > 0) {
-      const user = toAuthUser(rows[0]!);
+  const linkedUserId = await authRepo.findUserIdByGoogleSub(profile.sub);
+  if (linkedUserId) {
+    const row = await authRepo.findUserById(linkedUserId);
+    if (row) {
+      const user = toAuthUser(row);
       // Keep the recorded email fresh in case it changed.
       await linkGoogleIdentity(user.id, profile.sub, email);
       return user;
@@ -222,5 +229,6 @@ export async function findOrCreateUserFromGoogle(
   const row = await ensureUser(email);
   const user = toAuthUser(row);
   await linkGoogleIdentity(user.id, profile.sub, email);
+  await acceptInvitationsFor(user); // N1: honor pending invites for this email
   return user;
 }

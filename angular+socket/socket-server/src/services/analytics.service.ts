@@ -1,11 +1,27 @@
 // analytics.ts
 import express from "express";
-import { sql } from "../infrastructure/db.js";
 import { resolveUser } from "../repositories/identity.repository.js";
+import { getCompletionRows, getUserTagRows } from "../repositories/analytics.repository.js";
 
 const router = express.Router();
 
 const UNTAGGED = "__untagged__";
+
+// Upper bound on the analytics window. Guards against unbounded `days` values
+// (e.g. ?days=99999999) that would allocate multi-GB arrays and OOM-crash the
+// whole process. One request must never be able to take the server down.
+export const MAX_ANALYTICS_DAYS = 366;
+const DEFAULT_ANALYTICS_DAYS = 30;
+
+/**
+ * Parse an untrusted `days` query value into a safe integer in [1, MAX_ANALYTICS_DAYS].
+ * Non-numeric / missing / out-of-range values fall back to the default window.
+ */
+export function parseDays(raw: unknown): number {
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_ANALYTICS_DAYS;
+  return Math.min(n, MAX_ANALYTICS_DAYS);
+}
 
 type SeriesEntry = { tag: string; data: number[] };
 
@@ -51,6 +67,8 @@ const CACHE_TTL_MS = 30 * 1000; // 30 seconds
  *   completionRateByTag  : onTime/total ratio per tag  (onTime = completion_time <= time)
  */
 export async function aggregateAnalytics(days = 30, username: string) {
+  // Defense in depth: never trust the caller to have clamped `days`.
+  days = parseDays(days);
   const now = Date.now();
   if (
     cache &&
@@ -80,36 +98,11 @@ export async function aggregateAnalytics(days = 30, username: string) {
 
   const owner = await resolveUser(username);
   if (owner) {
-    // One row per (completed task, tag). COALESCE the tags array to a single
-    // __untagged__ element so untagged tasks still produce a row.
-    const rows = await sql<
-      Array<{
-        completion_ymd: string;
-        tag: string;
-        on_time: boolean;
-      }>
-    >`
-      select to_char(t.completion_time, 'YYYY-MM-DD') as completion_ymd,
-             coalesce(tag.value, ${UNTAGGED})          as tag,
-             (t.time is not null and t.completion_time <= t.time) as on_time
-      from tasks t
-      join screen_elements se on se.id = t.element_id
-      join grids g           on g.id  = se.grid_id
-      join projects p        on p.id  = g.project_id
-      left join lateral (
-        select value
-        from jsonb_array_elements_text(
-          case when jsonb_typeof(se.content->'tags') = 'array'
-                 and jsonb_array_length(se.content->'tags') > 0
-               then se.content->'tags'
-               else '[]'::jsonb
-          end
-        ) as value
-      ) tag on true
-      where p.owner_id = ${owner.id}
-        and t.is_done = true
-        and t.completion_time is not null
-    `;
+    // One row per completed task, grouped by its PROJECT name (the analytics
+    // "tag" is the project). Every project the task belongs to is a bucket, so
+    // completion trends and on-time rates are reported per project automatically
+    // — no manual tagging required.
+    const rows = await getCompletionRows(owner.id);
 
     for (const r of rows) {
       // Only count completions that fall inside the [today-days+1 .. today] window.
@@ -186,6 +179,22 @@ export async function aggregateAnalytics(days = 30, username: string) {
   };
 
   return { completedPerDay, completionRateByTag };
+}
+
+/**
+ * List the analytics "tags" for a user — which are their PROJECT names. Every
+ * project the user owns is returned (even with no completed tasks) so it shows
+ * as a selectable chip; the completion charts carry data only for projects that
+ * have completed tasks, but an empty project can still be picked (charts zero).
+ */
+export async function listUserTags(username: string): Promise<string[]> {
+  const owner = await resolveUser(username);
+  if (!owner) {
+    console.warn(`[analytics] user "${username}" not found; returning no tags.`);
+    return [];
+  }
+  const rows = await getUserTagRows(owner.id);
+  return rows.map((r) => r.tag).filter((t) => t && t.length > 0);
 }
 
 export default router;

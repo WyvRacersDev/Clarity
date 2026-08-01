@@ -12,6 +12,7 @@
  */
 import * as userRepo from "../repositories/user.repository.js";
 import type { SerializedUser } from "../repositories/user.repository.js";
+import { clientError } from "../lib/clientError.js";
 
 export class UserHandler {
   /**
@@ -89,7 +90,7 @@ export class UserHandler {
       console.error("[UserHandler] Error saving user:", error);
       return {
         success: false,
-        message: `Failed to save user: ${error.message}`,
+        message: clientError("save the user"),
       };
     }
   }
@@ -115,7 +116,7 @@ export class UserHandler {
       console.error(`[UserHandler] Error loading user "${username}":`, error);
       return {
         success: false,
-        message: `Failed to load user: ${error.message}`,
+        message: clientError("load the user"),
       };
     }
   }
@@ -137,7 +138,7 @@ export class UserHandler {
       return {
         success: false,
         users: [],
-        message: `Failed to list users: ${error.message}`,
+        message: clientError("list users"),
       };
     }
   }
@@ -158,7 +159,7 @@ export class UserHandler {
       console.error("[UserHandler] Error deleting user:", error);
       return {
         success: false,
-        message: `Failed to delete user: ${error.message}`,
+        message: clientError("delete the user"),
       };
     }
   }

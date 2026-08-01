@@ -10,7 +10,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { ProjectHandler } from "../project.service.js";
+import type { ProjectPaths } from "../project.service.js";
 import type {
   StorageService,
   SaveAssetResult,
@@ -19,8 +19,9 @@ import type {
 } from "./StorageService.js";
 
 export class DiskStorageService implements StorageService {
-  // Reuse ProjectHandler's path/sanitize helpers so paths stay identical.
-  constructor(private readonly project_handler: ProjectHandler) {}
+  // Depend only on the narrow ProjectPaths collaborator (DIP), reusing its
+  // path/sanitize helpers so disk layout + returned paths stay identical.
+  constructor(private readonly project_handler: ProjectPaths) {}
 
   async saveAsset(
     projectName: string,
@@ -53,9 +54,13 @@ export class DiskStorageService implements StorageService {
     const buffer = Buffer.from(base64Data, "base64");
     fs.writeFileSync(filePath, buffer);
 
-    // Return relative path from project directory
-    const projectDir = this.project_handler.getProjectDirectory(projectType);
-    const relativePath = path.relative(projectDir, filePath).replace(/\\/g, "/"); // Use forward slashes for web
+    // A11: return the path RELATIVE TO THE PROJECTS BASE, so it includes the
+    // `local/` or `hosted/` segment and can be appended directly to the
+    // documented `/projects` static route (`/projects/<filePath>`). Previously
+    // this was relative to the type directory, omitting the segment — the served
+    // URL then 404'd unless the client re-inserted `local`/`hosted` by hand.
+    const basePath = this.project_handler.get_base_path();
+    const relativePath = path.relative(basePath, filePath).replace(/\\/g, "/"); // forward slashes for web
 
     return { filePath: relativePath, fileName: uniqueFileName };
   }

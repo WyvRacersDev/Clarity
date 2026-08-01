@@ -2,15 +2,32 @@ import { Project, Grid } from "@models/project.model.js";
 import fs from "fs";
 import path from "path";
 import { objects_builder } from '@models/screen-elements.model.js';
-import { createCalendarEvent, deleteCalendarEvent } from "./calendar.service.js";
+import { deleteCalendarEvent } from "./calendar.service.js";
 import { UserHandler } from "./user.service.js";
+import { CalendarSyncService } from "./calendar-sync.service.js";
 import { fileURLToPath } from "url";
 import * as projectRepo from "../repositories/project.repository.js";
+import { clientError } from "../lib/clientError.js";
+import { getAuthoritativeContent } from "../realtime/ydoc-registry.js";
+import { preferLiveContent } from "../lib/ydoc-reconcile.js";
 
 const user_handler = new UserHandler();
+const calendarSync = new CalendarSyncService(user_handler);
 
 type ProjectType = "local" | "hosted";
-export class ProjectHandler {
+
+/**
+ * The path/filename responsibility of ProjectHandler, as a narrow collaborator
+ * interface. DiskStorageService depends on THIS (DIP) rather than the concrete
+ * ProjectHandler, so it only sees the asset-path helpers it actually uses.
+ */
+export interface ProjectPaths {
+    getProjectDirectory(projectType: ProjectType): string;
+    getProjectAssetsDirectory(projectName: string, projectType: ProjectType): string;
+    sanitizeFilename(name: string): string;
+    get_base_path(): string;
+}
+export class ProjectHandler implements ProjectPaths {
 
     private __dirname: string;
     private PROJECTS_BASE_PATH: string;
@@ -61,60 +78,18 @@ export class ProjectHandler {
                 ...(grid.id !== undefined ? { id: grid.id } : {}),
                 name: grid.name,
                 Screen_elements: grid.Screen_elements.map((element: any) => {
-                    // Use toJSON if available, otherwise serialize manually
-                    if (element.toJSON && typeof element.toJSON === 'function') {
-                        const serialized = element.toJSON();
-                        // console.log(`[ProjectHandler] Element serialized via toJSON():`, serialized);
-                        return serialized;
+                    // Serialize canonically via the model. Live instances have
+                    // toJSON(); plain (socket-received) objects are rebuilt into an
+                    // instance first, so BOTH paths produce the complete per-type
+                    // shape. This replaced a manual duck-typing block that dropped
+                    // fields it didn't know about (e.g. ToDoLst.dependsOn).
+                    if (element && typeof element.toJSON === 'function') {
+                        return element.toJSON();
                     }
-
-                    // Detect element type by properties if type is missing or wrong
-                    let elementType = element.type || element.constructor?.name || 'Screen_Element';
-
-                    // Fix type detection for plain objects
-                    if (elementType === 'Object' || elementType === 'Screen_Element') {
-                        if (element.imagepath !== undefined || element.imagePath !== undefined || element.ImageBase64 !== undefined) {
-                            elementType = 'Image';
-                            console.log(`[ProjectHandler] Detected Image element by properties`);
-                        } else if (element.VideoPath !== undefined || element.videoPath !== undefined || element.videoBase64 !== undefined) {
-                            elementType = 'Video';
-                            console.log(`[ProjectHandler] Detected Video element by properties`);
-                        } else if (element.Text_field !== undefined || element.text_field !== undefined) {
-                            elementType = 'Text_document';
-                        } else if (element.scheduled_tasks !== undefined && Array.isArray(element.scheduled_tasks)) {
-                            elementType = 'ToDoLst';
-                        }
-                    }
-
-                    const serialized: any = {
-                        type: elementType,
-                        name: element.name,
-                        x_pos: element.x_pos,
-                        y_pos: element.y_pos,
-                        x_scale: element.x_scale,
-                        y_scale: element.y_scale
-                    };
-
-                    // Add type-specific properties - check all possible property names
-                    if (element.Text_field !== undefined || element.text_field !== undefined) {
-                        serialized.Text_field = element.Text_field || element.text_field;
-                    }
-                    if (element.imagepath !== undefined || element.imagePath !== undefined) {
-                        serialized.imagepath = element.imagepath || element.imagePath;
-                        console.log(`[ProjectHandler] Added imagepath: ${serialized.imagepath}`);
-                    }
-                    if (element.VideoPath !== undefined || element.videoPath !== undefined) {
-                        serialized.VideoPath = element.VideoPath || element.videoPath;
-                        console.log(`[ProjectHandler] Added VideoPath: ${serialized.VideoPath}`);
-                    }
-                    if (element.scheduled_tasks !== undefined) {
-                        serialized.scheduled_tasks = element.scheduled_tasks.map((t: any) => t.toJSON ? t.toJSON() : t);
-                        serialized.collaborators = element.collaborators || [];
-                        serialized.tags = element.tags || [];
-                    }
-
-                    console.log(`[ProjectHandler] Element serialized manually:`, serialized);
-                    return serialized;
+                    const rebuilt = objects_builder.rebuild(element);
+                    return rebuilt && typeof (rebuilt as any).toJSON === 'function'
+                        ? (rebuilt as any).toJSON()
+                        : element;
                 })
             }))
         };
@@ -147,119 +122,52 @@ export class ProjectHandler {
     }
     async saveProject(project: any, projectType: 'local' | 'hosted'): Promise<{ success: boolean; message: string; path?: string }> {
         try {
-            let old_task_ids: string[] = [];
-            let new_Task_ids: string[] = [];
-
-            // Get the username from the socket session
-            const username = project.owner_name;
-
-            // Check if user has calendar integration enabled and create calendar events for new tasks.
-            // This block runs FIRST, before the DB full-replace, because it reads the
-            // *previous* stored task ids (to diff/delete stale calendar events) and writes
-            // new `calendar_event_id`s onto the incoming object so they get persisted below.
-            if (username && project) {
-                try {
-                    // Load user to check calendar settings
-                    const userResult = await user_handler.loadUser(username);
-                    if (userResult.success && userResult.user?.settings?.allow_google_calender && userResult.user?.name !== "Demo User") {
-                        console.log(`[Server] 📅 Calendar integration enabled for ${username}, checking for new tasks...`);
-
-
-                        //load old version of project to compare tasks
-                        const existingProjectResult = await this.loadProject(project.name, projectType);
-                        if (existingProjectResult.success && existingProjectResult.project !== undefined) {
-
-                            for (let grid of existingProjectResult.project.grid) {
-                                if (grid.Screen_elements && Array.isArray(grid.Screen_elements)) {
-                                    for (const element of grid.Screen_elements) {
-                                        // Check if this is a ToDoLst
-                                        if (element.type === 'ToDoLst' || (element.scheduled_tasks && Array.isArray(element.scheduled_tasks))) {
-                                            const tasks = element.scheduled_tasks || [];
-                                            for (const task of tasks) {
-                                                // calendar_event_id is null until the task is synced to Calendar
-                                                if (task.calendar_event_id) old_task_ids.push(task.calendar_event_id);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-
-                        // Find all tasks in the project
-                        let hasNewTasks = false;
-                        const projectData = project;
-
-                        if (projectData.grid && Array.isArray(projectData.grid)) {
-                            for (const grid of projectData.grid) {
-                                if (grid.Screen_elements && Array.isArray(grid.Screen_elements)) {
-                                    for (const element of grid.Screen_elements) {
-                                        // Check if this is a ToDoLst
-                                        if (element.type === 'ToDoLst' || (element.scheduled_tasks && Array.isArray(element.scheduled_tasks))) {
-                                            const tasks = element.scheduled_tasks || [];
-                                            for (const task of tasks) {
-                                                // Only create calendar events for tasks that don't have one yet
-                                                // and have a valid time
-                                                if (!task.calendar_event_id && task.time && task.taskname) {
-                                                    console.log(`[Server] 📅 Creating calendar event for task: "${task.taskname}"`);
-
-                                                    const calendarResult = await createCalendarEvent(
-                                                        username,
-                                                        task.taskname,
-                                                        task.time
-                                                    );
-
-                                                    if (calendarResult.success && calendarResult.eventId) {
-                                                        task.calendar_event_id = calendarResult.eventId;
-                                                        hasNewTasks = true;
-                                                        new_Task_ids.push(calendarResult.eventId);
-                                                        console.log(`[Server] ✓ Calendar event created: ${calendarResult.eventId}`);
-                                                    } else {
-                                                        console.warn(`[Server] ⚠️ Failed to create calendar event: ${calendarResult.message}`);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (hasNewTasks) {
-                            console.log(`[Server] 📅 Updated project with calendar event IDs`);
-                        }
-                    } else {
-                        console.log(`[Server] ℹ️ Calendar integration not enabled for ${username}`);
-                    }
-                    for (let id of old_task_ids) {
-                        if (!new_Task_ids.includes(id) && id !== null) {
-                            //delete calendar event
-                            const deleteResult = await deleteCalendarEvent(
-                                username,
-                                id
-                            );
-                            if (deleteResult.success) {
-                                console.log(`[ProjectHandler] Deleted calendar event: "${id}"`);
-                            } else {
-                                console.warn(`[ProjectHandler] Failed to delete calendar event: "${id}": ${deleteResult.message}`);
-                            }
-                        }
-                    }
-                } catch (calendarError: any) {
-                    console.error(`[Server] ⚠️ Error processing calendar events (continuing with save):`, calendarError);
-                    // Continue with project save even if calendar integration fails
-                }
-            }
+            // Sync ToDoLst tasks to Google Calendar first (create/delete events,
+            // stamping calendar_event_id onto the tasks so they persist below).
+            // Owns the whole calendar concern; never throws.
+            await calendarSync.syncTasks(project, projectType, (name, type) => this.loadProject(name, type));
 
             // Serialize via the shared serializer (keeps field-name casing correct),
             // then persist through the repository full-replace transaction.
             const serialized = this.serializeProject(project);
             serialized.projectType = projectType;
+            // N8: the server Y.Doc is authoritative for any Text_document under a
+            // live co-editing session, so reconcile this (possibly stale) snapshot
+            // against the registry BEFORE persisting — no out-of-band whole-project
+            // save can clobber newer collaborative rich-text edits (closes B3).
+            await this.reconcileWithLiveDocs(serialized);
             await projectRepo.saveProject(serialized, projectType);
             return { success: true, message: `Project "${project.name}" saved successfully` };
         } catch (error: any) {
             console.error('Error saving project:', error);
-            return { success: false, message: `Failed to save project: ${error.message}` };
+            return { success: false, message: clientError("save the project") };
+        }
+    }
+
+    /**
+     * N8 — replace each Text_document's snapshot content with the authoritative
+     * server Y.Doc state whenever a live co-editing session is resident for it, so
+     * an out-of-band whole-project save can't overwrite newer collaborative edits
+     * with a stale snapshot (the B3 stale-snapshot limit). Operates on the already
+     * -serialized (plain-object) project in place; only elements with a stable id
+     * can have a resident doc, and the `preferLiveContent` guard ensures a transient
+     * empty doc never wipes non-empty snapshot text.
+     */
+    private async reconcileWithLiveDocs(serialized: any): Promise<void> {
+        const grids = Array.isArray(serialized.grid) ? serialized.grid : [];
+        for (const grid of grids) {
+            const elements = Array.isArray(grid.Screen_elements) ? grid.Screen_elements : [];
+            for (const el of elements) {
+                if (el?.type !== "Text_document") continue;
+                if (typeof el.id !== "string" || el.id.length === 0) continue;
+                const live = await getAuthoritativeContent(el.id);
+                if (!live) continue;
+                const preferred = preferLiveContent(el, live);
+                if (preferred) {
+                    el.Text_field = preferred.Text_field;
+                    el.ydoc = preferred.ydoc;
+                }
+            }
         }
     }
 
@@ -277,7 +185,7 @@ export class ProjectHandler {
             return { success: true, project, message: `Project "${projectName}" loaded from ${projectType} directory` };
         } catch (error: any) {
             console.error(`Error loading ${projectType} project "${projectName}":`, error);
-            return { success: false, message: `Failed to load project: ${error.message}` };
+            return { success: false, message: clientError("load the project") };
         }
     }
 
@@ -290,7 +198,25 @@ export class ProjectHandler {
             return { success: true, projects, message: `Found ${projects.length} ${projectType} projects` };
         } catch (error: any) {
             console.error(`Error listing ${projectType} projects:`, error);
-            return { success: false, projects: [], message: `Failed to list projects: ${error.message}` };
+            return { success: false, projects: [], message: clientError("list projects") };
+        }
+    }
+
+    /**
+     * N1: projects of a type the user can reach as owner OR collaborator, each
+     * annotated with the user's effective role. Backs the local-project list so
+     * shared-with-me projects appear alongside owned ones.
+     */
+    async listProjectsForUser(
+        projectType: 'local' | 'hosted',
+        username: string
+    ): Promise<{ success: boolean; projects: any[]; message: string }> {
+        try {
+            const projects = await projectRepo.listProjectsForUser(projectType, username);
+            return { success: true, projects, message: `Found ${projects.length} ${projectType} projects` };
+        } catch (error: any) {
+            console.error(`Error listing ${projectType} projects for ${username}:`, error);
+            return { success: false, projects: [], message: clientError("list projects") };
         }
     }
     async deleteProject(projectName: string, projectType: 'local' | 'hosted'): Promise<{ success: boolean; message: string }> {
@@ -341,7 +267,7 @@ export class ProjectHandler {
             return { success: true, message: `Project "${projectName}" and its assets deleted successfully` };
         } catch (error: any) {
             console.error('Error deleting project:', error);
-            return { success: false, message: `Failed to delete project: ${error.message}` };
+            return { success: false, message: clientError("delete the project") };
         }
     }
     getProjectAssetsDirectory(projectName: string, projectType: 'local' | 'hosted'): string {

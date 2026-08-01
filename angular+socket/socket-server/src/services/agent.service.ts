@@ -16,6 +16,12 @@ import {
     type AgentTool,
     type AgentToolContext,
 } from "./agent.tools.js";
+import {
+    priorityFromWord,
+    resolveDueIso,
+    normalizeRepeat,
+    addTaskToProject,
+} from "../lib/task-create.js";
 const projectHandler = new ProjectHandler();
 const userHandler = new UserHandler();
 
@@ -97,45 +103,15 @@ export class Chat_Agent extends AI_agent {
         ]);
     }
     async summarise_project(project: Project): Promise<string> {
-
         const chain = RunnableSequence.from([this.summarise_prompt, this.model]);
         const response = await chain.invoke({ input: `here is the project: ${JSON.stringify(project)}` });
-
-        // ---- FIX: Extract plain text from Gemini content blocks ----
-        let textOutput = "";
-
-        if (Array.isArray(response.content)) {
-            textOutput = response.content
-                .map(block => ("text" in block ? block.text : ""))
-                .join("");
-        } else if (typeof response.content === "string") {
-            textOutput = response.content;
-        } else {
-            textOutput = "";
-        }
-
-        return textOutput;
+        return this.extract_text(response.content);
     }
 
     async suggest_schedule(project: Project): Promise<string> {
-
         const chain = RunnableSequence.from([this.suggest_schedule_prompt, this.model]);
         const response = await chain.invoke({ input: `here is the project: ${JSON.stringify(project)}` });
-
-        // ---- FIX: Extract plain text from Gemini content blocks ----
-        let textOutput = "";
-
-        if (Array.isArray(response.content)) {
-            textOutput = response.content
-                .map(block => ("text" in block ? block.text : ""))
-                .join("");
-        } else if (typeof response.content === "string") {
-            textOutput = response.content;
-        } else {
-            textOutput = "";
-        }
-
-        return textOutput;
+        return this.extract_text(response.content);
     }
     async send_invite(invitee: string, project_name: string, username: string): Promise<string> {
         let curr_user = (await userHandler.loadUser(username)).user!;
@@ -189,6 +165,55 @@ export class Chat_Agent extends AI_agent {
         const project = await this.load_project_by_name(projectName);
         if (!project) return `Project "${projectName}" not found.`;
         return await this.suggest_schedule(project);
+    }
+
+    /**
+     * N5 — backs the create_task tool. Loads the named project (local then
+     * hosted), appends a task to a to-do list (creating one if needed via the
+     * pure task-create helpers), and persists through the same saveProject path
+     * the canvas uses (so calendar sync / repository transaction all apply).
+     */
+    private async create_task_by_name(args: {
+        project_name: string;
+        task_name: string;
+        priority?: string;
+        due_date?: string;
+        list_name?: string;
+        repeat?: string;
+    }): Promise<string> {
+        // Load with the project's type retained so we save it back to the same store.
+        let projectType: "local" | "hosted" = "local";
+        let loaded = await projectHandler.loadProject(args.project_name, "local");
+        if (!loaded.success) {
+            projectType = "hosted";
+            loaded = await projectHandler.loadProject(args.project_name, "hosted");
+        }
+        if (!loaded.success || !loaded.project) {
+            return `Project "${args.project_name}" not found.`;
+        }
+        const project = loaded.project;
+
+        const priority = priorityFromWord(args.priority);
+        const dueIso = resolveDueIso(args.due_date);
+        const repeat = normalizeRepeat(args.repeat);
+        const { list, task } = addTaskToProject(project, {
+            taskName: args.task_name,
+            priority,
+            dueIso,
+            listName: args.list_name ?? null,
+            repeat,
+        });
+
+        const saved = await projectHandler.saveProject(project, projectType);
+        if (!saved.success) {
+            return `Sorry, I couldn't save the new task to "${project.name}". Please try again.`;
+        }
+
+        const priorityWord = priority === 1 ? "high" : priority === 3 ? "low" : "medium";
+        const due = new Date(dueIso).toLocaleDateString();
+        const repeatNote = repeat !== "none" ? `, repeating ${repeat}` : "";
+        return `Added "${task.taskname}" to "${list.name}" in ${project.name} ` +
+            `(${priorityWord} priority, due ${due}${repeatNote}).`;
     }
 
     /**
@@ -312,14 +337,21 @@ export class Chat_Agent extends AI_agent {
             summariseProject: (name) => this.summarise_project_by_name(name),
             suggestSchedule: (name) => this.suggest_schedule_by_name(name),
             sendInvite: (invitee, projectName) => this.send_invite(invitee, projectName, username),
+            createTask: (args) => this.create_task_by_name(args),
         };
 
+        // Today's date lets the model resolve relative due dates ("Friday",
+        // "tomorrow") into concrete calendar dates for the create_task tool.
+        const today = new Date().toISOString().slice(0, 10);
         const systemPrompt =
             "You are a helpful assistant for a productivity app called Clarity. " +
             `You are talking to the user named "${username}"; address them by name. ` +
+            `Today's date is ${today}. ` +
             "When the user's request matches one of the available tools (summarizing a " +
-            "project, suggesting a project schedule, or sending a project invite), call " +
-            "that tool with the correct structured arguments. Otherwise, answer directly.";
+            "project, suggesting a project schedule, sending a project invite, or creating " +
+            "a task in a project), call that tool with the correct structured arguments. " +
+            "For create_task, resolve any relative due date to a concrete ISO date " +
+            "(YYYY-MM-DD) using today's date. Otherwise, answer directly.";
 
         const messages: Array<SystemMessage | HumanMessage | AIMessage | ToolMessage> = [
             new SystemMessage(systemPrompt),

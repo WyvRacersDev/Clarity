@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { getAuthForUser } from "@services/OAuth.service.js";
+import { clientError } from "../lib/clientError.js";
 
 /**
  * Create a Google Calendar event for a scheduled task
@@ -117,7 +118,7 @@ export async function createCalendarEvent(
     console.error(`[CalendarService] Error creating calendar event:`, error);
     return {
       success: false,
-      message: `Failed to create calendar event: ${error.message}`
+      message: clientError("create the calendar event")
     };
   }
 }
@@ -158,7 +159,7 @@ export async function deleteCalendarEvent(
     console.error(`[CalendarService] Error deleting calendar event:`, error);
     return {
       success: false,
-      message: `Failed to delete calendar event: ${error.message}`
+      message: clientError("delete the calendar event")
     };
   }
 }

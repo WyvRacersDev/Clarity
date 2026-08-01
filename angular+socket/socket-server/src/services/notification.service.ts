@@ -1,111 +1,62 @@
 import cron from "node-cron";
-import { sql } from "../infrastructure/db.js";
-import fs from "fs";
-import { google } from "googleapis";
 import type { Server } from "socket.io";
 import type { Chat_Agent } from "./agent.service.js";
+import type { NotificationCenterService } from "./notification-center.service.js";
+import { sendAppEmail } from "./email.service.js";
+import {
+  getDueTasks,
+  markTaskNotified,
+  getProblemTasksForUser,
+  getAllProblemTasks,
+} from "../repositories/notification.repository.js";
 
-
-
-const CREDENTIALS_PATH = "../credentials.json";
-const TOKENS_PATH = "../tokens.json";
-
-import nodemailer from "nodemailer";
-
-import { env, loadEnvFile } from "process";
-
-import { fileURLToPath } from "url";
-import path from "path";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// console.log("DIRNAME:", __dirname);
-// console.log("RESOLVED PATH:", path.resolve(__dirname, "../.env"));
-
-loadEnvFile(path.resolve(__dirname, "../../.env")); //dynamic to bana lete bilal bro
-
-//loadEnvFile("/home/thebestdev/Desktop/FAST/5sem/SDA/Project/Clarity-clean/angular+socket/socket-server/.env")
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: env.GOOGLE_APP_USER,
-pass: env.GOOGLE_APP_PASSWORD  // app password (not your real password)
-  }
-});
-async function sendEmail(userEmail: string,projectName: string, taskName: string) {
-  console.log(`Sending email to ${userEmail} about task "${taskName}" in project "${projectName}"`);  
-  await transporter.sendMail({
-  from: `Clarity <${env.GOOGLE_APP_USER}>`,
-  to: userEmail,
-  subject: "Task Due Soon",
-  html: `<p>You have a task "${taskName}" due in project "${projectName}" in 24 hours.</p>`
-});
+/** Optional durable-inbox sink (N2). When present, the cron ALSO records
+ *  `due_soon` / `ai_suggestion` notifications alongside its email / live push. */
+interface InboxSink {
+  io: Server;
+  notifications: NotificationCenterService;
 }
 
-async function sendEmailWithGmailAuth(auth: any, to:string, subject:string, message:string) {
-  const gmail = google.gmail({ version: "v1", auth });
-
-  const email = [
-    `To: ${to}`,
-    "Subject: " + subject,
-    "Content-Type: text/html; charset=UTF-8",
-    "",
-    message,
-  ].join("\n");
-
-  const encodedMessage = Buffer.from(email)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  await gmail.users.messages.send({
-    userId: "me",
-    requestBody: {
-      raw: encodedMessage,
-    },
-  });
+async function sendEmail(userEmail: string, projectName: string, taskName: string) {
+  console.log(`Sending email to ${userEmail} about task "${taskName}" in project "${projectName}"`);
+  await sendAppEmail(
+    userEmail,
+    "Task Due Soon",
+    `<p>You have a task "${taskName}" due in project "${projectName}" in 24 hours.</p>`
+  );
 }
 
-export async function checkUpcomingTasks(): Promise<void> {
-    // One SQL pass: all tasks due within the next 24h, not done, not yet notified.
-    // Joins task -> element -> grid -> project -> owner so we can email the owner.
-    const dueTasks = await sql<Array<{
-        id: string;
-        taskname: string;
-        project_name: string;
-        owner_username: string;
-        owner_email: string;
-    }>>`
-        select t.id,
-               t.taskname,
-               p.name     as project_name,
-               u.username as owner_username,
-               u.email    as owner_email
-        from tasks t
-        join screen_elements se on se.id = t.element_id
-        join grids g           on g.id  = se.grid_id
-        join projects p        on p.id  = g.project_id
-        join users u           on u.id  = p.owner_id
-        where t.is_done = false
-          and t.notified = false
-          and t.time is not null
-          and t.time > now()
-          and t.time <= now() + interval '24 hours'
-    `;
+export async function checkUpcomingTasks(inbox?: InboxSink): Promise<void> {
+    // All tasks due within the next 24h, not done, not yet notified.
+    const dueTasks = await getDueTasks();
 
     for (const task of dueTasks) {
         console.log("Task due soon:", task.taskname);
 
-        // Mark notified directly — no full-project rewrite.
-        await sql`update tasks set notified = true where id = ${task.id}`;
+        // Mark notified directly — no full-project rewrite. Also naturally dedupes
+        // the durable N2 entry: a task yields at most one `due_soon` notification.
+        await markTaskNotified(task.id);
 
         if (task.owner_username && task.owner_username !== "Demo User") {
             try {
                 await sendEmail(task.owner_email, task.project_name, task.taskname);
             } catch (err) {
                 console.error(`[NotificationService] Failed to email ${task.owner_email}:`, err);
+            }
+
+            // N2: durable inbox entry (best-effort — never break the email loop).
+            if (inbox) {
+                try {
+                    await inbox.notifications.notify(inbox.io, {
+                        recipient: task.owner_username,
+                        type: "due_soon",
+                        projectName: task.project_name,
+                        title: "Task due soon",
+                        body: `"${task.taskname}" is due within 24 hours in "${task.project_name}".`,
+                    });
+                } catch (err) {
+                    console.error(`[NotificationService] Failed to record due_soon for ${task.owner_username}:`, err);
+                }
             }
         }
     }
@@ -189,24 +140,7 @@ export async function computeSuggestionsForUser(
 } | null> {
   if (!username || username === "Demo User") return null;
 
-  const rows = await sql<Array<{
-    taskname: string;
-    priority: number;
-    project_name: string;
-    due: string | null;
-  }>>`
-    select t.taskname, t.priority, p.name as project_name, t.time as due
-    from tasks t
-    join screen_elements se on se.id = t.element_id
-    join grids g           on g.id  = se.grid_id
-    join projects p        on p.id  = g.project_id
-    join users u           on u.id  = p.owner_id
-    where t.is_done = false
-      and (t.time is null or t.time < now())
-      and u.username = ${username}
-    order by t.time asc nulls last, t.priority asc
-    limit ${MAX_SUGGESTION_TASKS}
-  `;
+  const rows = await getProblemTasksForUser(username, MAX_SUGGESTION_TASKS);
 
   const tasks: ProblemTask[] = rows.map((r) => ({
     ...r,
@@ -243,30 +177,11 @@ export async function computeSuggestionsForUser(
  */
 export async function computeProactiveSuggestions(
   io: Server,
-  agent: Chat_Agent
+  agent: Chat_Agent,
+  inbox?: InboxSink
 ): Promise<void> {
   // One pass: not-done tasks that are either overdue or have no due date.
-  const rows = await sql<Array<{
-    taskname: string;
-    priority: number;
-    project_name: string;
-    owner_username: string;
-    due: string | null;
-  }>>`
-    select t.taskname,
-           t.priority,
-           p.name     as project_name,
-           u.username as owner_username,
-           t.time     as due
-    from tasks t
-    join screen_elements se on se.id = t.element_id
-    join grids g           on g.id  = se.grid_id
-    join projects p        on p.id  = g.project_id
-    join users u           on u.id  = p.owner_id
-    where t.is_done = false
-      and (t.time is null or t.time < now())
-    order by u.username, t.time asc nulls last, t.priority asc
-  `;
+  const rows = await getAllProblemTasks();
 
   // Group problem tasks by owner (skip the anonymous demo owner).
   const byUser = new Map<string, ProblemTask[]>();
@@ -312,6 +227,22 @@ export async function computeProactiveSuggestions(
 
     console.log(`[NotificationService] Proactive suggestion -> ${username} (${tasks.length} tasks)`);
     io.to(userRoom(username)).emit("ai:suggestion", payload);
+
+    // N2: durable inbox entry. Gated by the same dedupe as the live push above,
+    // so an unchanged suggestion set won't re-notify.
+    if (inbox) {
+      try {
+        await inbox.notifications.notify(io, {
+          recipient: username,
+          type: "ai_suggestion",
+          title: "New scheduling suggestion",
+          body: payload.text,
+          link: "/dashboard/ai-insights",
+        });
+      } catch (err) {
+        console.error(`[NotificationService] Failed to record ai_suggestion for ${username}:`, err);
+      }
+    }
   }
 }
 
@@ -320,11 +251,19 @@ export async function computeProactiveSuggestions(
  * working (task-due emails only). When `io` + `agent` are supplied, each run
  * ALSO computes and pushes proactive scheduling suggestions (C2).
  */
-export function startNotificationService(deps?: { io: Server; agent: Chat_Agent }): void {
+export function startNotificationService(deps?: {
+    io: Server;
+    agent: Chat_Agent;
+    notifications?: NotificationCenterService;
+}): void {
+    // Build the optional durable-inbox sink once (N2) when both io + service exist.
+    const inbox: InboxSink | undefined =
+        deps?.notifications ? { io: deps.io, notifications: deps.notifications } : undefined;
+
     cron.schedule("*/15 * * * *", () => {
-        checkUpcomingTasks().catch(e => console.error('[NotificationService] Error in checkUpcomingTasks:', e));
+        checkUpcomingTasks(inbox).catch(e => console.error('[NotificationService] Error in checkUpcomingTasks:', e));
         if (deps) {
-            computeProactiveSuggestions(deps.io, deps.agent)
+            computeProactiveSuggestions(deps.io, deps.agent, inbox)
                 .catch(e => console.error('[NotificationService] Error in computeProactiveSuggestions:', e));
         }
     });
