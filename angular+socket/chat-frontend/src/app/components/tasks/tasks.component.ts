@@ -6,6 +6,7 @@ import { User } from '../../../../../shared_models/models/user.model';
 import { scheduled_task, ToDoLst } from '../../../../../shared_models/models/screen-elements.model';
 import { calender } from '../../../../../shared_models/models/user.model';
 import dayjs from 'dayjs';
+import { priorityLabel, priorityColorVar } from '../../shared/priority.util';
 
 export interface CalendarDay {
   date: string;
@@ -27,22 +28,38 @@ export class TasksComponent implements OnInit {
 
   // Existing data fields (preserved verbatim)
   currentUser: User | null = null;
-  allTasks: scheduled_task[] = [];
-  filteredTasks: scheduled_task[] = [];
-  selectedDate: string = dayjs().format('YYYY-MM-DD');
+  // Signal so `filteredTasks` (a computed) re-derives whenever the loaded task set
+  // changes — a plain field wouldn't notify the computed / OnPush views.
+  readonly allTasks = signal<scheduled_task[]>([]);
+  // Signal so `calendarWeeks` (a computed) re-derives the selected-cell highlight
+  // when the day changes on click/keyboard — a plain field wouldn't notify the computed.
+  readonly selectedDate = signal<string>(dayjs().format('YYYY-MM-DD'));
   viewMode: 'list' | 'calendar' = 'list';
   showAddTaskModal = false;
   newTaskName = '';
   newTaskPriority: 1 | 2 | 3 = 2;
   newTaskTime = '';
-  filterPriority: 'all' | 1 | 2 | 3 = 'all';
-  filterStatus: 'all' | 'completed' | 'pending' = 'all';
+  readonly filterPriority = signal<'all' | 1 | 2 | 3>('all');
+  readonly filterStatus = signal<'all' | 'completed' | 'pending'>('all');
   selectedProjectIndex: number = 0;
+
+  // Maps each loaded task to its owning project name (client-side, no service calls)
+  private taskProjectMap = new WeakMap<scheduled_task, string>();
 
   // New local UI state (signals)
   readonly activeView = signal<'list' | 'calendar'>('list');
   readonly calendarMonth = signal<string>(dayjs().startOf('month').format('YYYY-MM-DD'));
   readonly isLoading = signal<boolean>(true);
+
+  // Search + project-filter UI state (B accents; filters already-loaded tasks client-side)
+  readonly searchQuery = signal<string>('');
+  readonly activeProject = signal<string>('all');
+  readonly projectMenuOpen = signal<boolean>(false);
+  readonly projectNames = signal<string[]>([]);
+
+  readonly activeProjectLabel = computed(() =>
+    this.activeProject() === 'all' ? 'All projects' : this.activeProject()
+  );
 
   readonly calendarMonthLabel = computed(() =>
     dayjs(this.calendarMonth()).format('MMMM YYYY')
@@ -63,13 +80,35 @@ export class TasksComponent implements OnInit {
           dayNum: cursor.date(),
           isCurrentMonth: cursor.month() === monthStart.month(),
           isToday: dateStr === today,
-          isSelected: dateStr === this.selectedDate,
+          isSelected: dateStr === this.selectedDate(),
         });
         cursor = cursor.add(1, 'day');
       }
       weeks.push(week);
     }
     return weeks;
+  });
+
+  // Derived task list — reacts to the loaded set, both filters, search and the
+  // active project. Replaces the former imperative `applyFilters()` + manual calls.
+  readonly filteredTasks = computed<scheduled_task[]>(() => {
+    const query = this.searchQuery().trim().toLowerCase();
+    const project = this.activeProject();
+    const priority = this.filterPriority();
+    const status = this.filterStatus();
+
+    return this.allTasks()
+      .filter(task => {
+        const matchesPriority = priority === 'all' || task.priority === priority;
+        const matchesStatus =
+          status === 'all' ||
+          (status === 'completed' && task.is_done) ||
+          (status === 'pending' && !task.is_done);
+        const matchesSearch = !query || task.taskname.toLowerCase().includes(query);
+        const matchesProject = project === 'all' || this.taskProjectMap.get(task) === project;
+        return matchesPriority && matchesStatus && matchesSearch && matchesProject;
+      })
+      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
   });
 
   constructor(private dataService: DataService) {}
@@ -98,47 +137,53 @@ export class TasksComponent implements OnInit {
   loadAllTasks(): void {
     if (!this.currentUser) return;
 
-    this.allTasks = [];
+    const collected: scheduled_task[] = [];
+    this.taskProjectMap = new WeakMap<scheduled_task, string>();
+    const names: string[] = [];
     this.currentUser.projects.forEach(project => {
+      const projectName = (project as any).name ?? 'Untitled project';
+      if (!names.includes(projectName)) {
+        names.push(projectName);
+      }
       project.grid.forEach(grid => {
         grid.Screen_elements.forEach(element => {
           if (this.isTodoListElement(element)) {
             const todoList = element as any;
             if (todoList.scheduled_tasks) {
-              this.allTasks = this.allTasks.concat(todoList.scheduled_tasks);
+              todoList.scheduled_tasks.forEach((task: scheduled_task) => {
+                this.taskProjectMap.set(task, projectName);
+              });
+              collected.push(...todoList.scheduled_tasks);
             }
           }
         });
       });
     });
+    this.projectNames.set(names);
+    // If the active project no longer exists, reset to "all"
+    if (this.activeProject() !== 'all' && !names.includes(this.activeProject())) {
+      this.activeProject.set('all');
+    }
 
-    this.applyFilters();
+    // Setting the signal re-derives `filteredTasks` (and its dependents) — no manual filter pass.
+    this.allTasks.set(collected);
   }
 
-  applyFilters(): void {
-    this.filteredTasks = this.allTasks.filter(task => {
-      const matchesPriority = this.filterPriority === 'all' || task.priority === this.filterPriority;
-      const matchesStatus =
-        this.filterStatus === 'all' ||
-        (this.filterStatus === 'completed' && task.is_done) ||
-        (this.filterStatus === 'pending' && !task.is_done);
-
-      return matchesPriority && matchesStatus;
-    });
-
-    this.filteredTasks.sort((a, b) => {
-      const dateA = new Date(a.time).getTime();
-      const dateB = new Date(b.time).getTime();
-      return dateA - dateB;
-    });
+  onSearchChange(value: string): void {
+    this.searchQuery.set(value);
   }
 
-  onPriorityFilterChange(): void {
-    this.applyFilters();
+  toggleProjectMenu(): void {
+    this.projectMenuOpen.update(open => !open);
   }
 
-  onStatusFilterChange(): void {
-    this.applyFilters();
+  closeProjectMenu(): void {
+    this.projectMenuOpen.set(false);
+  }
+
+  selectProject(project: string): void {
+    this.activeProject.set(project);
+    this.projectMenuOpen.set(false);
   }
 
   toggleTaskStatus(task: scheduled_task): void {
@@ -196,25 +241,33 @@ export class TasksComponent implements OnInit {
     }
   }
 
+  private matchesSearchAndProject(task: scheduled_task): boolean {
+    const query = this.searchQuery().trim().toLowerCase();
+    const project = this.activeProject();
+    const matchesSearch = !query || task.taskname.toLowerCase().includes(query);
+    const matchesProject = project === 'all' || this.taskProjectMap.get(task) === project;
+    return matchesSearch && matchesProject;
+  }
+
   getTasksForDate(date: string): scheduled_task[] {
-    return this.allTasks.filter(task => {
+    return this.allTasks().filter(task => {
       const taskDate = dayjs(task.time).format('YYYY-MM-DD');
-      return taskDate === date;
+      return taskDate === date && this.matchesSearchAndProject(task);
     });
   }
 
   getUpcomingTasks(): scheduled_task[] {
     const now = dayjs();
-    return this.allTasks
-      .filter(task => !task.is_done && dayjs(task.time).isAfter(now))
+    return this.allTasks()
+      .filter(task => !task.is_done && dayjs(task.time).isAfter(now) && this.matchesSearchAndProject(task))
       .sort((a, b) => dayjs(a.time).diff(dayjs(b.time)))
       .slice(0, 10);
   }
 
   getOverdueTasks(): scheduled_task[] {
     const now = dayjs();
-    return this.allTasks.filter(
-      task => !task.is_done && dayjs(task.time).isBefore(now)
+    return this.allTasks().filter(
+      task => !task.is_done && dayjs(task.time).isBefore(now) && this.matchesSearchAndProject(task)
     );
   }
 
@@ -223,14 +276,11 @@ export class TasksComponent implements OnInit {
   }
 
   getPriorityLabel(priority: number): string {
-    return priority === 1 ? 'High' : priority === 2 ? 'Medium' : 'Low';
+    return priorityLabel(priority);
   }
 
   getPriorityColor(priority: number): string {
-    // Returns CSS variable references (no hardcoded hex)
-    if (priority === 1) return 'var(--danger)';
-    if (priority === 2) return 'var(--accent-blue)';
-    return 'var(--accent-teal)';
+    return priorityColorVar(priority);
   }
 
   formatTime(time: string): string {
@@ -242,19 +292,19 @@ export class TasksComponent implements OnInit {
   }
 
   previousDay(): void {
-    this.selectedDate = dayjs(this.selectedDate).subtract(1, 'day').format('YYYY-MM-DD');
+    this.selectedDate.set(dayjs(this.selectedDate()).subtract(1, 'day').format('YYYY-MM-DD'));
   }
 
   nextDay(): void {
-    this.selectedDate = dayjs(this.selectedDate).add(1, 'day').format('YYYY-MM-DD');
+    this.selectedDate.set(dayjs(this.selectedDate()).add(1, 'day').format('YYYY-MM-DD'));
   }
 
   goToToday(): void {
-    this.selectedDate = dayjs().format('YYYY-MM-DD');
+    this.selectedDate.set(dayjs().format('YYYY-MM-DD'));
   }
 
   getFormattedDate(format: string = 'MMMM D, YYYY'): string {
-    return dayjs(this.selectedDate).format(format);
+    return dayjs(this.selectedDate()).format(format);
   }
 
   // New local UI methods
@@ -263,7 +313,7 @@ export class TasksComponent implements OnInit {
     this.activeView.set(view);
     this.viewMode = view;
     if (view === 'calendar') {
-      this.calendarMonth.set(dayjs(this.selectedDate).startOf('month').format('YYYY-MM-DD'));
+      this.calendarMonth.set(dayjs(this.selectedDate()).startOf('month').format('YYYY-MM-DD'));
     }
   }
 
@@ -280,7 +330,7 @@ export class TasksComponent implements OnInit {
   }
 
   selectCalendarDay(date: string): void {
-    this.selectedDate = date;
+    this.selectedDate.set(date);
   }
 
   getTaskPillLabel(task: scheduled_task): string {
@@ -295,15 +345,15 @@ export class TasksComponent implements OnInit {
   }
 
   getHighPriorityTasks(): scheduled_task[] {
-    return this.filteredTasks.filter(t => t.priority === 1);
+    return this.filteredTasks().filter(t => t.priority === 1);
   }
 
   getMediumPriorityTasks(): scheduled_task[] {
-    return this.filteredTasks.filter(t => t.priority === 2);
+    return this.filteredTasks().filter(t => t.priority === 2);
   }
 
   getLowPriorityTasks(): scheduled_task[] {
-    return this.filteredTasks.filter(t => t.priority === 3);
+    return this.filteredTasks().filter(t => t.priority === 3);
   }
 
   getTaskCountForDate(date: string): number {
@@ -311,6 +361,6 @@ export class TasksComponent implements OnInit {
   }
 
   isToday(): boolean {
-    return this.selectedDate === dayjs().format('YYYY-MM-DD');
+    return this.selectedDate() === dayjs().format('YYYY-MM-DD');
   }
 }

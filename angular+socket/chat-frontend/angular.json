@@ -5,7 +5,11 @@
   "projects": {
     "chat-frontend": {
       "projectType": "application",
-      "schematics": {},
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
@@ -15,6 +19,9 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": [
+              "quill-cursors"
+            ],
             "assets": [
               {
                 "glob": "**/*",
@@ -23,7 +30,9 @@
             ],
             "styles": [
               "src/custom-theme.scss",
-              "src/styles.css"
+              "src/styles.css",
+              "node_modules/quill/dist/quill.snow.css",
+              "node_modules/quill-cursors/dist/quill-cursors.min.css"
             ],
             "server": "src/main.server.ts",
             "outputMode": "server",
@@ -81,7 +90,9 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              "node_modules/quill/dist/quill.snow.css",
+              "node_modules/quill-cursors/dist/quill-cursors.min.css"
             ]
           }
         }

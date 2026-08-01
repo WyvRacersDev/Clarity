@@ -1,34 +1,25 @@
-<div class="analytics-page">
+<div class="analytics">
 
   <!-- Page header -->
-  <header class="analytics-header">
-    <div class="analytics-title-row">
-      <div class="analytics-title-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6"  y1="20" x2="6"  y2="14"/>
-          <line x1="2"  y1="20" x2="22" y2="20"/>
-        </svg>
-      </div>
-      <div>
-        <h1 class="analytics-heading">Analytics</h1>
-        <p class="analytics-subheading">Last 30 days &middot; task performance overview</p>
-      </div>
+  <header class="an-head">
+    <div class="an-heading">
+      <h1 class="an-title">Analytics</h1>
+      <p class="an-sub">
+        Completion trends and on-time rates across your tasks &middot; last 30 days.
+      </p>
     </div>
 
     <!-- Tag filter chips -->
-    <div class="tag-filter">
+    <div class="an-tag-filter">
       @if (!lineChartReady) {
-        <div class="chips-skeleton">
-          <span class="skeleton chip-skeleton"></span>
-          <span class="skeleton chip-skeleton"></span>
-          <span class="skeleton chip-skeleton"></span>
+        <div class="an-chips-skeleton">
+          <span class="skeleton an-chip-skeleton"></span>
+          <span class="skeleton an-chip-skeleton"></span>
+          <span class="skeleton an-chip-skeleton"></span>
         </div>
       } @else if (hasAvailableTags) {
-        <span class="filter-label">Filter by tag:</span>
-        <div class="chips-row" role="group" aria-label="Tag filters">
+        <span class="an-filter-label mono-label">Filter by project</span>
+        <div class="an-chips-row" role="group" aria-label="Tag filters">
           @for (tag of availableTags; track tag) {
             <button
               class="chip"
@@ -40,145 +31,253 @@
           }
         </div>
       } @else {
-        <span class="filter-empty">No tags available</span>
+        <span class="an-filter-empty mono-label">No projects yet</span>
       }
     </div>
   </header>
 
-  <!-- KPI stat cards -->
-  <section class="kpi-row" aria-label="Key performance indicators">
+  <!-- KPI ledger strip (echoes dashboard .db-index) -->
+  <section class="an-index" role="list" aria-label="Key performance indicators">
     @if (!kpiReady) {
       @for (i of [1,2,3,4]; track i) {
-        <div class="card kpi-card kpi-skeleton">
-          <div class="skeleton kpi-sk-value"></div>
-          <div class="skeleton kpi-sk-label"></div>
-          <div class="skeleton kpi-sk-sub"></div>
+        <div class="an-index-item" role="listitem">
+          <span class="skeleton an-sk-value"></span>
+          <span class="skeleton an-sk-key"></span>
+          <span class="skeleton an-sk-sub"></span>
         </div>
       }
+    } @else if (completionError) {
+      <div class="an-index-error" role="listitem">
+        <span class="an-index-error-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+               stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </span>
+        <div class="an-index-error-copy">
+          <span class="an-index-error-title">Couldn’t load your metrics</span>
+          <span class="an-index-error-sub mono-label">The analytics service didn’t respond</span>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm an-retry" (click)="loadCompletionData()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Retry
+        </button>
+      </div>
     } @else {
       @for (stat of kpiStats; track stat.label) {
-        <div class="card kpi-card" [attr.data-variant]="stat.variant">
-          <div class="kpi-icon-row">
-            <span class="kpi-dot" [attr.data-variant]="stat.variant"></span>
-            <span class="kpi-trend" [attr.data-trend]="stat.trend">
-              @if (stat.trend === 'up') {
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="18 15 12 9 6 15"/>
-                </svg>
-              } @else if (stat.trend === 'down') {
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
+        <div class="an-index-item" [attr.data-variant]="stat.variant" role="listitem">
+          <span class="an-index-tick" [attr.data-variant]="stat.variant" aria-hidden="true"></span>
+          <div class="an-index-top">
+            <span class="num an-index-num">{{ stat.value }}</span>
+            <span class="an-trend" [attr.data-trend]="stat.trend" aria-hidden="true">
+              @switch (stat.trend) {
+                @case ('up') {
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+                       stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"/>
+                  </svg>
+                }
+                @case ('down') {
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+                       stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                }
+                @default {
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+                       stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                }
               }
             </span>
           </div>
-          <p class="kpi-value">{{ stat.value }}</p>
-          <p class="kpi-label">{{ stat.label }}</p>
-          <p class="kpi-sub">{{ stat.sub }}</p>
+          <span class="an-index-key">{{ stat.label }}</span>
+          <span class="an-index-sub mono-label">{{ stat.sub }}</span>
         </div>
       }
     }
   </section>
 
-  <!-- Charts grid -->
-  <div class="charts-grid">
+  <!-- Completions per day -->
+  <section class="card an-chart-card an-chart-card--line">
+    <header class="an-chart-header">
+      <div class="an-chart-title">
+        <span class="an-accent-bar"></span>
+        <h2>Tasks per day</h2>
+      </div>
+      @if (lineChartReady && hasAvailableTags) {
+        <span class="badge badge-accent">
+          {{ selectedTags.length }} / {{ availableTags.length }} projects
+        </span>
+      }
+    </header>
 
-    <!-- Tasks per day line chart -->
-    <div class="card chart-card chart-card--line">
-      <div class="chart-card-header">
-        <div class="chart-card-title">
-          <span class="chart-accent-bar"></span>
-          <h2>Tasks per day</h2>
+    <div class="an-chart-area">
+      @if (!lineChartReady) {
+        <div class="an-chart-loading">
+          <span class="spinner" aria-label="Loading chart data"></span>
+          <p>Loading chart data&hellip;</p>
         </div>
-        @if (lineChartReady && hasAvailableTags) {
-          <span class="badge badge-accent">
-            {{ selectedTags.length }} / {{ availableTags.length }} tags
-          </span>
-        }
-      </div>
-
-      <div class="chart-area">
-        @if (!lineChartReady) {
-          <div class="chart-loading">
-            <span class="spinner" aria-label="Loading chart data"></span>
-            <p>Loading chart data&hellip;</p>
+      } @else if (lineError) {
+        <div class="empty-state an-chart-empty an-chart-error" role="alert">
+          <div class="empty-icon an-error-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+                 stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
           </div>
-        } @else if (!hasLineChartData) {
-          <div class="empty-state chart-empty-state">
-            <div class="empty-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-              </svg>
-            </div>
-            <h3>Select a tag to chart</h3>
-            <p>Use the tag chips above to pick one or more tags and visualise completed tasks per day.</p>
-          </div>
-        } @else {
-          <canvas
-            baseChart
-            #lineChart
-            id="lineChart"
-            [data]="lineChartData"
-            [type]="'line'"
-            [options]="lineChartOptions">
-          </canvas>
-        }
-      </div>
-    </div>
-
-    <!-- Completion rate bar chart -->
-    <div class="card chart-card chart-card--bar">
-      <div class="chart-card-header">
-        <div class="chart-card-title">
-          <span class="chart-accent-bar"></span>
-          <h2>Completion rate</h2>
+          <h3>Couldn’t load this chart</h3>
+          <p>We couldn’t reach the analytics service for tasks-per-day. Check your connection and try again.</p>
+          <button type="button" class="btn btn-secondary btn-sm an-retry" (click)="loadLineData()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Try again
+          </button>
         </div>
-        @if (completionChartReady && hasCompletionData) {
-          <span class="badge badge-success">by tag</span>
-        }
-      </div>
-
-      <div class="chart-area">
-        @if (!completionChartReady) {
-          <div class="chart-loading">
-            <span class="spinner" aria-label="Loading chart data"></span>
-            <p>Loading chart data&hellip;</p>
+      } @else if (!hasLineChartData) {
+        <div class="empty-state an-chart-empty">
+          <div class="empty-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+                 stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
           </div>
-        } @else if (!hasCompletionData) {
-          <div class="empty-state chart-empty-state">
-            <div class="empty-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/>
-                <line x1="12" y1="20" x2="12" y2="4"/>
-                <line x1="6"  y1="20" x2="6"  y2="14"/>
-                <line x1="2"  y1="20" x2="22" y2="20"/>
-              </svg>
-            </div>
-            <h3>No completion data</h3>
-            <p>No tasks were completed in the last 30 days. Complete some tasks to see data here.</p>
-          </div>
-        } @else {
-          <canvas
-            baseChart
-            #barChart
-            id="barChart"
-            [data]="completionChartData"
-            [type]="'bar'"
-            [options]="barChartOptions">
-          </canvas>
-        }
-      </div>
+          <h3>Select a project to chart</h3>
+          <p>Use the project chips above to pick one or more projects and visualise completed tasks per day.</p>
+        </div>
+      } @else {
+        <canvas
+          baseChart
+          #lineChart
+          id="lineChart"
+          role="img"
+          [attr.aria-label]="lineChartAriaLabel"
+          [data]="lineChartData"
+          [type]="'line'"
+          [options]="lineChartOptions">
+        </canvas>
+        <!-- B4: text-table fallback for screen readers (visually hidden) -->
+        <table class="sr-only">
+          <caption>Completed tasks per day, by project</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              @for (col of lineTableColumns; track col) {
+                <th scope="col">{{ col }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of lineTableRows; track row.day) {
+              <tr>
+                <th scope="row">{{ row.day }}</th>
+                @for (v of row.values; track $index) {
+                  <td>{{ v }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
     </div>
+  </section>
 
-  </div>
+  <!-- Completion rate by project -->
+  <section class="card an-chart-card an-chart-card--bar">
+    <header class="an-chart-header">
+      <div class="an-chart-title">
+        <span class="an-accent-bar"></span>
+        <h2>Completion rate</h2>
+      </div>
+      @if (completionChartReady && hasCompletionData) {
+        <span class="badge badge-success">by project</span>
+      }
+    </header>
+
+    <div class="an-chart-area">
+      @if (!completionChartReady) {
+        <div class="an-chart-loading">
+          <span class="spinner" aria-label="Loading chart data"></span>
+          <p>Loading chart data&hellip;</p>
+        </div>
+      } @else if (completionError) {
+        <div class="empty-state an-chart-empty an-chart-error" role="alert">
+          <div class="empty-icon an-error-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+                 stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h3>Couldn’t load this chart</h3>
+          <p>We couldn’t reach the analytics service for completion rates. Check your connection and try again.</p>
+          <button type="button" class="btn btn-secondary btn-sm an-retry" (click)="loadCompletionData()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Try again
+          </button>
+        </div>
+      } @else if (!hasCompletionData) {
+        <div class="empty-state an-chart-empty">
+          <div class="empty-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+                 stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6"  y1="20" x2="6"  y2="14"/>
+              <line x1="2"  y1="20" x2="22" y2="20"/>
+            </svg>
+          </div>
+          <h3>No completion data</h3>
+          <p>No tasks were completed in the last 30 days. Complete some tasks to see data here.</p>
+        </div>
+      } @else {
+        <canvas
+          baseChart
+          #barChart
+          id="barChart"
+          role="img"
+          [attr.aria-label]="barChartAriaLabel"
+          [data]="completionChartData"
+          [type]="'bar'"
+          [options]="barChartOptions">
+        </canvas>
+        <!-- B4: text-table fallback for screen readers (visually hidden) -->
+        <table class="sr-only">
+          <caption>Task completion rate by project</caption>
+          <thead>
+            <tr>
+              <th scope="col">Tag</th>
+              <th scope="col">Completion rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of completionTableRows; track row.tag) {
+              <tr>
+                <th scope="row">{{ row.tag }}</th>
+                <td>{{ row.rate }}%</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </section>
 
 </div>

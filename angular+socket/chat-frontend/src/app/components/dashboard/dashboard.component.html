@@ -4,14 +4,11 @@
   @if (isLoading()) {
     <div class="db-loading" aria-busy="true" aria-label="Loading dashboard">
       <div class="db-header-skeleton">
-        <div class="skeleton db-sk-greeting"></div>
         <div class="skeleton db-sk-date"></div>
+        <div class="skeleton db-sk-greeting"></div>
+        <div class="skeleton db-sk-dek"></div>
       </div>
-      <div class="db-stats-skeleton">
-        @for (n of [1,2,3,4]; track n) {
-          <div class="skeleton db-sk-stat"></div>
-        }
-      </div>
+      <div class="skeleton db-sk-index"></div>
       <div class="db-grid-skeleton">
         <div class="skeleton db-sk-section"></div>
         <div class="skeleton db-sk-section"></div>
@@ -21,314 +18,155 @@
 
   <!-- ── MAIN CONTENT ── -->
   @if (!isLoading()) {
-    <!-- HERO HEADER -->
-    <header class="db-header">
-      <div class="db-greeting-block">
-        <p class="db-greeting-label">{{ getGreeting() }},</p>
-        <h1 class="db-greeting-name">{{ currentUser?.name || 'User' }}</h1>
-        <p class="db-date">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-          {{ today() | date:'EEEE, MMMM d, y' }}
+
+    <!-- MASTHEAD — the "today" line. Stats live in the summary, not in cards. -->
+    <header class="db-masthead">
+      <div class="db-masthead-text">
+        <p class="mono-label db-date">{{ today() | date:'EEEE · MMMM d, y' }}</p>
+        <h1 class="display db-greeting">{{ getGreeting() }}, <span class="db-name">{{ currentUser?.name || 'there' }}</span>.</h1>
+        <p class="db-dek">
+          @if (totalProjects > 0) {
+            <span class="num">{{ totalProjects }}</span> {{ totalProjects === 1 ? 'project' : 'projects' }} in motion
+            <span class="db-dot">·</span>
+            <span class="num">{{ upcomingTasks.length }}</span> due this week
+            <span class="db-dot">·</span>
+            <span class="num">{{ getCompletionPercentage() }}%</span> complete
+          } @else {
+            A clean slate. Start a project and it'll fill in here.
+          }
         </p>
       </div>
-
-      <!-- Quick actions -->
       <div class="db-quick-actions">
-        <a routerLink="/dashboard/projects" class="btn btn-primary btn-sm">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <a routerLink="/dashboard/projects" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          New Project
+          New project
         </a>
-        <a routerLink="/dashboard/tasks" class="btn btn-secondary btn-sm">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="9 11 12 14 22 4"/>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-          </svg>
-          Add Task
-        </a>
+        <a routerLink="/dashboard/tasks" class="btn btn-secondary">Add task</a>
       </div>
     </header>
 
-    <!-- STAT CARDS ROW -->
-    <div class="db-stats-row" role="list" aria-label="Dashboard statistics">
-
-      <!-- Projects stat -->
-      <div class="db-stat-card card" role="listitem">
-        <div class="db-stat-icon db-stat-icon--accent">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-          </svg>
-        </div>
-        <div class="db-stat-body">
-          <span class="db-stat-value">{{ totalProjects }}</span>
-          <span class="db-stat-label">Projects</span>
-        </div>
-        <div class="db-stat-sparkline db-sparkline--accent" aria-hidden="true">
-          <svg width="56" height="28" viewBox="0 0 56 28" fill="none" preserveAspectRatio="none">
-            <polyline points="0,24 9,18 18,20 28,10 37,14 46,6 56,4" stroke="var(--accent)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="0,24 9,18 18,20 28,10 37,14 46,6 56,4 56,28 0,28" fill="var(--accent)" fill-opacity="0.1"/>
-          </svg>
+    <!-- INDEX STRIP — a compact ruled ledger of the numbers that matter. -->
+    <div class="db-index" role="list" aria-label="At a glance">
+      <div class="db-index-item" role="listitem">
+        <span class="num db-index-num">{{ totalProjects }}</span>
+        <span class="db-index-key">Projects</span>
+      </div>
+      <div class="db-index-item" role="listitem">
+        <span class="num db-index-num">{{ upcomingTasks.length }}</span>
+        <span class="db-index-key">Due this week</span>
+      </div>
+      <div class="db-index-item" role="listitem">
+        <span class="num db-index-num">{{ completedTasks }}<span class="db-index-den">/{{ totalTasks }}</span></span>
+        <span class="db-index-key">Tasks done</span>
+      </div>
+      <div class="db-index-item db-index-item--wide" role="listitem">
+        <span class="num db-index-num db-index-num--accent">{{ getCompletionPercentage() }}<span class="db-index-den">%</span></span>
+        <span class="db-index-key">Complete</span>
+        <div class="db-index-bar" [attr.aria-label]="getCompletionPercentage() + '% complete'">
+          <i [style.width.%]="getCompletionPercentage()"></i>
         </div>
       </div>
-
-      <!-- Tasks due stat -->
-      <div class="db-stat-card card" role="listitem">
-        <div class="db-stat-icon db-stat-icon--blue">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-        </div>
-        <div class="db-stat-body">
-          <span class="db-stat-value">{{ upcomingTasks.length }}</span>
-          <span class="db-stat-label">Due This Week</span>
-        </div>
-        <div class="db-stat-sparkline db-sparkline--blue" aria-hidden="true">
-          <svg width="56" height="28" viewBox="0 0 56 28" fill="none" preserveAspectRatio="none">
-            <polyline points="0,20 9,22 18,14 28,16 37,8 46,12 56,6" stroke="var(--accent-blue)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="0,20 9,22 18,14 28,16 37,8 46,12 56,6 56,28 0,28" fill="var(--accent-blue)" fill-opacity="0.1"/>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Completion stat -->
-      <div class="db-stat-card card" role="listitem">
-        <div class="db-stat-icon db-stat-icon--green">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </div>
-        <div class="db-stat-body">
-          <span class="db-stat-value">{{ getCompletionPercentage() }}<span class="db-stat-unit">%</span></span>
-          <span class="db-stat-label">Completion Rate</span>
-        </div>
-        <!-- Radial progress -->
-        <div class="db-stat-ring" aria-hidden="true">
-          <svg width="48" height="48" viewBox="0 0 48 48">
-            <circle cx="24" cy="24" r="19" fill="none" stroke="var(--accent-green-soft)" stroke-width="3"/>
-            <circle cx="24" cy="24" r="19" fill="none" stroke="var(--accent-green)" stroke-width="3"
-              [attr.stroke-dasharray]="(getCompletionPercentage() / 100) * 119.4 + ' 119.4'"
-              stroke-linecap="round"
-              transform="rotate(-90 24 24)"/>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Total tasks stat -->
-      <div class="db-stat-card card" role="listitem">
-        <div class="db-stat-icon db-stat-icon--teal">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="8" y1="6" x2="21" y2="6"/>
-            <line x1="8" y1="12" x2="21" y2="12"/>
-            <line x1="8" y1="18" x2="21" y2="18"/>
-            <line x1="3" y1="6" x2="3.01" y2="6"/>
-            <line x1="3" y1="12" x2="3.01" y2="12"/>
-            <line x1="3" y1="18" x2="3.01" y2="18"/>
-          </svg>
-        </div>
-        <div class="db-stat-body">
-          <span class="db-stat-value">{{ completedTasks }}<span class="db-stat-unit"> / {{ totalTasks }}</span></span>
-          <span class="db-stat-label">Tasks Done</span>
-        </div>
-        <div class="db-stat-sparkline db-sparkline--teal" aria-hidden="true">
-          <svg width="56" height="28" viewBox="0 0 56 28" fill="none" preserveAspectRatio="none">
-            <polyline points="0,22 9,16 18,18 28,12 37,16 46,8 56,10" stroke="var(--accent-teal)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="0,22 9,16 18,18 28,12 37,16 46,8 56,10 56,28 0,28" fill="var(--accent-teal)" fill-opacity="0.1"/>
-          </svg>
-        </div>
-      </div>
-
     </div>
 
-    <!-- MAIN GRID -->
+    <!-- MAIN GRID — agenda leads, projects rail follows. -->
     <div class="db-grid">
 
-      <!-- ── UPCOMING TASKS ── -->
-      <section class="db-section card" aria-labelledby="upcoming-tasks-heading">
+      <!-- ── UP NEXT (agenda) ── -->
+      <section class="db-section" aria-labelledby="upcoming-tasks-heading">
         <div class="db-section-head">
-          <div class="db-section-title-row">
-            <span class="db-section-icon db-section-icon--blue">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </span>
-            <h2 class="db-section-heading" id="upcoming-tasks-heading">Upcoming Tasks</h2>
-          </div>
-          <a routerLink="/dashboard/tasks" class="db-view-all" aria-label="View all tasks">
-            View all
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="5" y1="12" x2="19" y2="12"/>
-              <polyline points="12 5 19 12 12 19"/>
+          <h2 class="db-section-heading" id="upcoming-tasks-heading">Up next</h2>
+          <a routerLink="/dashboard/tasks" class="db-view-all">
+            All tasks
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
           </a>
         </div>
 
-        <div class="db-tasks-list" role="list">
+        <div class="db-agenda" role="list">
           @if (upcomingTasks.length === 0) {
             <div class="empty-state db-empty">
               <div class="empty-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               </div>
-              <h3>All caught up!</h3>
-              <p>No tasks due in the next 7 days. Enjoy the breathing room.</p>
+              <h3>All caught up</h3>
+              <p>Nothing due in the next seven days. Enjoy the breathing room.</p>
               <a routerLink="/dashboard/tasks" class="btn btn-secondary btn-sm">Schedule a task</a>
             </div>
           }
 
           @for (task of upcomingTasks; track task) {
-            <div class="db-task-row" role="listitem" [class.db-task-row--soon]="isTaskDueSoon(task)">
-              <!-- Checkbox (read-only indicator) -->
-              <div class="db-task-check" [class.db-task-check--done]="task.is_done" aria-hidden="true">
-                <input type="checkbox" [checked]="task.is_done" disabled aria-hidden="true" tabindex="-1">
-                <span class="db-check-ring"></span>
-              </div>
-
-              <div class="db-task-content">
-                <span class="db-task-name" [class.db-task-name--done]="task.is_done">{{ task.taskname }}</span>
-                <span class="db-task-time">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                  {{ task.time | date:'MMM d, h:mm a' }}
-                </span>
-              </div>
-
-              <span class="badge {{ getPriorityBadgeClass(task.priority) }}">
-                {{ getPriorityLabel(task.priority) }}
+            <div class="db-agenda-row" role="listitem" [class.is-soon]="isTaskDueSoon(task)">
+              <span class="db-agenda-when num">
+                <span class="db-agenda-day">{{ task.time | date:'EEE' }}</span>
+                <span class="db-agenda-time">{{ task.time | date:'h:mm a' }}</span>
               </span>
-
-              @if (isTaskDueSoon(task)) {
-                <span class="badge badge-danger db-task-soon-badge">Soon</span>
-              }
+              <span class="db-agenda-mark" [class.is-done]="task.is_done" aria-hidden="true"></span>
+              <span class="db-agenda-name" [class.is-done]="task.is_done">{{ task.taskname }}</span>
+              <span class="db-agenda-tags">
+                @if (isTaskDueSoon(task)) {
+                  <span class="badge badge-danger">Soon</span>
+                }
+                <span class="badge {{ getPriorityBadgeClass(task.priority) }}">{{ getPriorityLabel(task.priority) }}</span>
+              </span>
             </div>
           }
         </div>
       </section>
 
-      <!-- ── RECENT PROJECTS ── -->
-      <section class="db-section card" aria-labelledby="recent-projects-heading">
+      <!-- ── RECENT PROJECTS (rail) ── -->
+      <section class="db-section" aria-labelledby="recent-projects-heading">
         <div class="db-section-head">
-          <div class="db-section-title-row">
-            <span class="db-section-icon db-section-icon--teal">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-              </svg>
-            </span>
-            <h2 class="db-section-heading" id="recent-projects-heading">Recent Projects</h2>
-          </div>
-          <a routerLink="/dashboard/projects" class="db-view-all" aria-label="View all projects">
-            View all
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="5" y1="12" x2="19" y2="12"/>
-              <polyline points="12 5 19 12 12 19"/>
+          <h2 class="db-section-heading" id="recent-projects-heading">Recent projects</h2>
+          <a routerLink="/dashboard/projects" class="db-view-all">
+            All projects
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
           </a>
         </div>
 
-        <div class="db-projects-list" role="list">
+        <div class="db-projects" role="list">
           @if (recentProjects.length === 0) {
             <div class="empty-state db-empty">
               <div class="empty-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                 </svg>
               </div>
               <h3>No projects yet</h3>
-              <p>Create your first project and start building something great.</p>
-              <a routerLink="/dashboard/projects" class="btn btn-primary btn-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Create Project
-              </a>
+              <p>Create your first project and start building something worth shipping.</p>
+              <a routerLink="/dashboard/projects" class="btn btn-primary btn-sm">Create project</a>
             </div>
           }
 
           @for (project of recentProjects; track project; let i = $index) {
-            <div class="db-project-card card-hover"
-                 role="listitem"
-                 [routerLink]="['/dashboard/projects', getProjectIndex(project)]"
-                 tabindex="0"
-                 [attr.aria-label]="'Open project ' + project.name">
-
-              <!-- Avatar with initials -->
-              <div class="db-project-avatar">
-                <span class="db-project-initials">{{ getProjectInitials(project) }}</span>
-              </div>
-
-              <div class="db-project-body">
+            <a class="db-project"
+               [routerLink]="['/dashboard/projects', getProjectIndex(project)]"
+               [attr.aria-label]="'Open project ' + project.name">
+              <span class="db-project-mark" [attr.data-i]="i % 5">{{ getProjectInitials(project) }}</span>
+              <span class="db-project-body">
                 <span class="db-project-name">{{ project.name }}</span>
-                <div class="db-project-meta">
-                  <span class="db-project-meta-item">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                    </svg>
-                    {{ project.grid.length }} screen{{ project.grid.length !== 1 ? 's' : '' }}
-                  </span>
-                  <span class="db-project-meta-item">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <polyline points="9 11 12 14 22 4"/>
-                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                    </svg>
-                    {{ getProjectCompletedCount(project) }}/{{ getProjectTaskCount(project) }} tasks
-                  </span>
-                </div>
-
-                <!-- Progress bar -->
-                <div class="db-progress-track" [attr.aria-label]="getProjectProgress(project) + '% complete'">
-                  <div class="db-progress-fill" [style.width.%]="getProjectProgress(project)"></div>
-                </div>
-              </div>
-
-              <div class="db-project-arrow" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </div>
-            </div>
+                <span class="db-project-meta num">
+                  {{ project.grid.length }} screen{{ project.grid.length !== 1 ? 's' : '' }}
+                  <span class="db-dot">·</span>
+                  {{ getProjectCompletedCount(project) }}/{{ getProjectTaskCount(project) }} tasks
+                </span>
+                <span class="db-project-track">
+                  <i [style.width.%]="getProjectProgress(project)"></i>
+                </span>
+              </span>
+              <span class="db-project-pct num">{{ getProjectProgress(project) }}%</span>
+            </a>
           }
         </div>
       </section>
 
     </div>
-
-    <!-- FOOTER QUICK LINKS -->
-    <nav class="db-footer-nav" aria-label="Quick navigation">
-      <a routerLink="/dashboard/tasks" class="db-nav-pill">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-        Schedule Task
-      </a>
-      <a routerLink="/dashboard/ai-insights" class="db-nav-pill">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/>
-          <rect x="4" y="10" width="16" height="8" rx="4"/>
-        </svg>
-        AI Assistant
-      </a>
-      <a routerLink="/dashboard/analytics" class="db-nav-pill">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-        Analytics
-      </a>
-    </nav>
   }
 
 </div>

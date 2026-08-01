@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, Inject, PLATFORM_ID, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,8 +13,12 @@ import { AuthService } from '../../services/auth.service';
 })
 export class WelcomeComponent implements OnInit, AfterViewInit {
   @ViewChild('backgroundMusic') audioPlayer!: ElementRef<HTMLAudioElement>;
-  isMuted = false;
-  private audioStarted = false;
+  // B15: the welcome song no longer autoplays on load. Sound is OFF by default
+  // and only ever starts from an explicit click on the sound toggle (`playing`).
+  // Signal (not a plain field) so the icon flips correctly under zoneless CD —
+  // playback state is set inside audio.play()'s promise, outside the click's
+  // change-detection pass, and a signal notifies the scheduler when it does.
+  readonly isPlaying = signal(false);
 
   // Form fields
   isLoginMode = true;
@@ -47,34 +51,35 @@ export class WelcomeComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    // B15: no autoplay. Just prime the volume; playback only ever starts from
+    // an explicit toggleSound() click, so sound never begins without consent.
     if (this.audioPlayer && this.audioPlayer.nativeElement) {
       this.audioPlayer.nativeElement.volume = 0.3;
-
-      const playPromise = this.audioPlayer.nativeElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.log('Audio autoplay prevented:', error);
-        });
-      }
     }
   }
 
-  toggleMute(): void {
-    this.isMuted = !this.isMuted;
-    if (this.audioPlayer) {
-      this.audioPlayer.nativeElement.muted = this.isMuted;
-
-      if (!this.isMuted && this.audioPlayer.nativeElement.paused) {
-        this.audioPlayer.nativeElement.play().catch(err => console.log('Play failed:', err));
-      }
+  /** B15: explicit user opt-in — start/stop the welcome song from the sound button. */
+  toggleSound(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.audioPlayer) {
+      return;
     }
-  }
+    const audio = this.audioPlayer.nativeElement;
 
-  playAudioOnInteraction(): void {
-    if (!this.audioStarted && this.audioPlayer && this.audioPlayer.nativeElement.paused) {
-      this.audioPlayer.nativeElement.play().catch(err => console.log('Play failed:', err));
-      this.audioStarted = true;
+    if (this.isPlaying()) {
+      audio.pause();
+      this.isPlaying.set(false);
+      return;
     }
+
+    audio.muted = false;
+    audio.play()
+      .then(() => {
+        this.isPlaying.set(true);
+      })
+      .catch(err => {
+        this.isPlaying.set(false);
+        console.log('Play failed:', err);
+      });
   }
 
   clearError(): void {

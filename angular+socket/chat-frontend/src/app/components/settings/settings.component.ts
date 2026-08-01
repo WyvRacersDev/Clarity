@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, Inject, ChangeDetectorRef, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, PLATFORM_ID, Inject, ChangeDetectorRef, signal } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
@@ -7,6 +7,10 @@ import { User, settings } from '../../../../../shared_models/models/user.model';
 import { ActivatedRoute, Router } from '@angular/router';
 import { getCurrentServerConfig, saveServerConfig } from '../../config/server.config';
 import { isPlatformBrowser } from '@angular/common';
+import { ThemeService, Palette } from '../../services/theme.service';
+import { IntegrationsService, IntegrationConfig } from '../../services/integrations.service';
+
+type SectionId = 'profile' | 'integrations' | 'server' | 'appearance';
 
 @Component({
   selector: 'app-settings',
@@ -15,13 +19,17 @@ import { isPlatformBrowser } from '@angular/common';
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.css']
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, AfterViewInit, OnDestroy {
   currentUser: User | null = null;
   userSettings: settings | null = null;
 
   // Local UI state — signals for zoneless safety
-  activeSection = signal<'profile' | 'integrations' | 'server' | 'appearance'>('profile');
+  // activeSection now reflects the section currently scrolled into view (scroll-spy).
+  activeSection = signal<SectionId>('profile');
   isDarkTheme = signal<boolean>(true);
+
+  private readonly sectionIds: SectionId[] = ['profile', 'integrations', 'server', 'appearance'];
+  private scrollObserver: IntersectionObserver | null = null;
 
   isConnectingCalendar = false;
   isConnectingContacts = false;
@@ -37,6 +45,20 @@ export class SettingsComponent implements OnInit {
 
   serverUrl: string = '';
   isSavingServerConfig = false;
+  // B13: inline, non-blocking server-config feedback (replaces blocking alert()).
+  serverConfigMessage: string = '';
+  serverConfigSuccess: boolean = false;
+
+  // N10: external integrations (ICS calendar feed + outbound webhook/Slack).
+  integrationsLoaded = false;
+  feedUrl = '';
+  webhookUrl = '';
+  webhookKind: 'generic' | 'slack' = 'generic';
+  isSavingWebhook = false;
+  isTestingWebhook = false;
+  integrationsMessage = '';
+  integrationsSuccess = false;
+  copiedFeed = false;
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
@@ -44,8 +66,70 @@ export class SettingsComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private googleIntegration: GoogleIntegrationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private integrations: IntegrationsService,
+    public themeService: ThemeService
   ) { }
+
+  // ── N10: Integrations (ICS feed + webhook/Slack) ──────────────────────────
+
+  private applyIntegrationConfig(cfg: IntegrationConfig): void {
+    this.feedUrl = this.integrations.feedUrl(cfg.feedPath);
+    this.webhookUrl = cfg.webhookUrl ?? '';
+    this.webhookKind = cfg.webhookKind ?? 'generic';
+    this.integrationsLoaded = true;
+    this.cdr.detectChanges();
+  }
+
+  loadIntegrations(): void {
+    this.integrations.getConfig().subscribe({
+      next: (cfg) => this.applyIntegrationConfig(cfg),
+      error: () => { /* not signed in / offline — leave the section collapsed-empty */ },
+    });
+  }
+
+  private flashIntegrations(message: string, success: boolean): void {
+    this.integrationsMessage = message;
+    this.integrationsSuccess = success;
+    this.cdr.detectChanges();
+    setTimeout(() => { this.integrationsMessage = ''; this.cdr.detectChanges(); }, 4000);
+  }
+
+  saveWebhook(): void {
+    this.isSavingWebhook = true;
+    const url = this.webhookUrl.trim() || null;
+    this.integrations.setWebhook(url, this.webhookKind).subscribe({
+      next: () => { this.isSavingWebhook = false; this.flashIntegrations(url ? 'Webhook saved.' : 'Webhook removed.', true); },
+      error: (err) => { this.isSavingWebhook = false; this.flashIntegrations(err?.error?.error ?? 'Could not save webhook.', false); },
+    });
+  }
+
+  testWebhook(): void {
+    this.isTestingWebhook = true;
+    this.integrations.testWebhook().subscribe({
+      next: (res) => {
+        this.isTestingWebhook = false;
+        this.flashIntegrations(res.delivered ? 'Test sent — check your webhook.' : 'No webhook configured to test.', res.delivered);
+      },
+      error: () => { this.isTestingWebhook = false; this.flashIntegrations('Could not send test.', false); },
+    });
+  }
+
+  regenerateFeed(): void {
+    this.integrations.regenerateFeed().subscribe({
+      next: (res) => { this.feedUrl = this.integrations.feedUrl(res.feedPath); this.flashIntegrations('New feed link generated. The old link no longer works.', true); },
+      error: () => this.flashIntegrations('Could not regenerate the feed link.', false),
+    });
+  }
+
+  copyFeedUrl(): void {
+    if (!this.feedUrl || typeof navigator === 'undefined' || !navigator.clipboard) return;
+    navigator.clipboard.writeText(this.feedUrl).then(() => {
+      this.copiedFeed = true;
+      this.cdr.detectChanges();
+      setTimeout(() => { this.copiedFeed = false; this.cdr.detectChanges(); }, 1500);
+    }).catch(() => { /* clipboard denied — user can select manually */ });
+  }
 
   async ngOnInit(): Promise<void> {
     console.log('[Settings] ngOnInit started');
@@ -64,6 +148,7 @@ export class SettingsComponent implements OnInit {
     this.loadUserContacts();
 
     if (isPlatformBrowser(this.platformId)) {
+      this.loadIntegrations();
       console.log('[Settings] Running in browser platform');
 
 
@@ -156,22 +241,58 @@ export class SettingsComponent implements OnInit {
     }
   }
 
-  setActiveSection(section: 'profile' | 'integrations' | 'server' | 'appearance'): void {
+  /**
+   * Sidebar click → smooth-scroll to the matching section on the same page.
+   * No route change; SSR-safe (guards document access).
+   */
+  setActiveSection(section: SectionId): void {
     this.activeSection.set(section);
+    if (!isPlatformBrowser(this.platformId)) return;
+    const el = document.getElementById('section-' + section);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  ngAfterViewInit(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    // Scroll-spy: highlight the sidebar item for whichever section is in view.
+    if (typeof IntersectionObserver === 'undefined') return;
+    this.scrollObserver = new IntersectionObserver(
+      (entries) => {
+        // Pick the entry nearest the top that is intersecting.
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          const id = visible[0].target.getAttribute('data-section') as SectionId | null;
+          if (id) this.activeSection.set(id);
+        }
+      },
+      { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+    );
+    for (const id of this.sectionIds) {
+      const el = document.getElementById('section-' + id);
+      if (el) this.scrollObserver.observe(el);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.scrollObserver?.disconnect();
+    this.scrollObserver = null;
   }
 
   setTheme(dark: boolean): void {
-    if (isPlatformBrowser(this.platformId)) {
-      if (dark) {
-        document.documentElement.removeAttribute('data-theme');
-      } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-      }
-      try {
-        localStorage.setItem('clarity-theme', dark ? 'dark' : 'light');
-      } catch { /* SSR-safe */ }
-      this.isDarkTheme.set(dark);
-    }
+    // Route through the shared ThemeService so the topbar toggle signal, the
+    // persisted key, and the `data-theme` attribute all stay in sync.
+    this.themeService.setTheme(dark ? 'dark' : 'light');
+    this.isDarkTheme.set(dark);
+  }
+
+  /** Switch the colour world (regular ⇄ clarity). The theme toggle keeps
+   *  switching light/dark within whichever palette is active. */
+  setPalette(palette: Palette): void {
+    this.themeService.setPalette(palette);
   }
 
   toggleNotifications(): void {
@@ -311,8 +432,11 @@ export class SettingsComponent implements OnInit {
   }
 
   saveServerConfig(): void {
+    // B13: clear any prior notice, then surface all feedback inline (no blocking alert()).
+    this.setServerConfigNotice('', false);
+
     if (!this.serverUrl.trim()) {
-      alert('Please enter a valid server URL');
+      this.setServerConfigNotice('Please enter a valid server URL.', false);
       return;
     }
 
@@ -325,7 +449,7 @@ export class SettingsComponent implements OnInit {
       if (!this.serverUrl.startsWith('http://') && !this.serverUrl.startsWith('https://')) {
         this.serverUrl = 'http://' + this.serverUrl;
       } else {
-        alert('Please enter a valid server URL (e.g., http://192.168.1.100:3000)');
+        this.setServerConfigNotice('Please enter a valid server URL (e.g. http://192.168.1.100:3000).', false);
         return;
       }
     }
@@ -333,16 +457,27 @@ export class SettingsComponent implements OnInit {
     this.isSavingServerConfig = true;
     try {
       saveServerConfig(this.serverUrl);
-      alert('Server URL saved successfully! You may need to refresh the page for changes to take effect.');
-         setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      this.setServerConfigNotice('Server URL saved. Reloading to reconnect…', true);
+      // A14: SSR guard — `window` is browser-only. Reached from a user click, but
+      // guard defensively so a server render never dereferences `window`.
+      if (isPlatformBrowser(this.platformId)) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
     } catch (error) {
       console.error('Error saving server URL:', error);
-      alert('Failed to save server URL');
+      this.setServerConfigNotice('Failed to save server URL. Please try again.', false);
     } finally {
       this.isSavingServerConfig = false;
     }
+  }
+
+  /** B13: set the inline server-config notice + severity, zoneless-safe. */
+  private setServerConfigNotice(message: string, success: boolean): void {
+    this.serverConfigMessage = message;
+    this.serverConfigSuccess = success;
+    this.cdr.markForCheck();
   }
 
   resetServerConfig(): void {

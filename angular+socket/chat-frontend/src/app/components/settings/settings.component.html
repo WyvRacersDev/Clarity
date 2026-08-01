@@ -1,532 +1,555 @@
-<div class="settings-page">
+<div class="st-page">
 
-  <!-- Left sub-nav -->
-  <aside class="settings-nav card">
-    <div class="settings-nav-header">
-      <span class="settings-nav-title">Settings</span>
-    </div>
-    <nav class="settings-nav-list">
+  <!-- Section tabs (scroll-spy) — a horizontal strip, not a nested rail -->
+  <nav class="tabs st-tabs" aria-label="Settings sections">
 
-      <button
-        class="settings-nav-item"
-        [class.is-active]="activeSection() === 'profile'"
-        (click)="setActiveSection('profile')"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-        </svg>
-        Profile
-      </button>
+    <button
+      class="tab st-tab"
+      [class.active]="activeSection() === 'profile'"
+      [attr.aria-current]="activeSection() === 'profile' ? 'true' : null"
+      (click)="setActiveSection('profile')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      <span>Profile</span>
+    </button>
 
-      <button
-        class="settings-nav-item"
-        [class.is-active]="activeSection() === 'integrations'"
-        (click)="setActiveSection('integrations')"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-          <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-        </svg>
-        Integrations
-      </button>
+    <button
+      class="tab st-tab"
+      [class.active]="activeSection() === 'integrations'"
+      [attr.aria-current]="activeSection() === 'integrations' ? 'true' : null"
+      (click)="setActiveSection('integrations')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+      </svg>
+      <span>Integrations</span>
+    </button>
 
-      <button
-        class="settings-nav-item"
-        [class.is-active]="activeSection() === 'server'"
-        (click)="setActiveSection('server')"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-          <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-        </svg>
-        Server
-      </button>
+    <button
+      class="tab st-tab"
+      [class.active]="activeSection() === 'server'"
+      [attr.aria-current]="activeSection() === 'server' ? 'true' : null"
+      (click)="setActiveSection('server')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
+        <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+      </svg>
+      <span>Server</span>
+    </button>
 
-      <button
-        class="settings-nav-item"
-        [class.is-active]="activeSection() === 'appearance'"
-        (click)="setActiveSection('appearance')"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-        Appearance
-      </button>
+    <button
+      class="tab st-tab"
+      [class.active]="activeSection() === 'appearance'"
+      [attr.aria-current]="activeSection() === 'appearance' ? 'true' : null"
+      (click)="setActiveSection('appearance')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <span>Appearance</span>
+    </button>
 
-    </nav>
-  </aside>
+  </nav>
 
-  <!-- Main content area -->
-  <main class="settings-content">
+  <!-- Main content -->
+  <main class="st-content">
 
-    <!-- ── Profile ────────────────────────────────────────────────── -->
-    @if (activeSection() === 'profile') {
-      <section class="settings-section" aria-labelledby="section-profile">
-        <header class="section-header">
-          <h2 id="section-profile">Profile</h2>
-          <p class="section-subtitle">Your account information and preferences.</p>
-        </header>
+    <!-- ── Profile ────────────────────────────────────────────── -->
+    <section id="section-profile" data-section="profile" class="st-section" aria-labelledby="section-profile-h">
+      <header class="st-section-head">
+        <h2 class="display st-section-title" id="section-profile-h">Profile</h2>
+        <p class="st-section-dek">Your account information and preferences.</p>
+      </header>
 
-        <!-- Account info card -->
-        <div class="card settings-card">
-          <div class="settings-card-body">
-
-            @if (!currentUser) {
-              <!-- Loading skeleton -->
-              <div class="profile-row">
-                <div class="skeleton" style="width:48px;height:48px;border-radius:var(--radius-full)"></div>
-                <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-2)">
-                  <div class="skeleton" style="height:16px;width:40%"></div>
-                  <div class="skeleton" style="height:12px;width:60%"></div>
-                </div>
+      <!-- Account -->
+      <div class="card st-card">
+        <div class="st-card-body">
+          @if (!currentUser) {
+            <div class="st-profile">
+              <div class="skeleton st-profile-sk-avatar"></div>
+              <div class="st-profile-sk-lines">
+                <div class="skeleton st-profile-sk-name"></div>
+                <div class="skeleton st-profile-sk-sub"></div>
               </div>
+            </div>
+          } @else {
+            <div class="st-profile">
+              <div class="avatar avatar-lg st-profile-avatar">
+                {{ currentUser.name?.charAt(0)?.toUpperCase() || '?' }}
+              </div>
+              <div class="st-profile-meta">
+                <div class="st-profile-name">{{ currentUser.name || 'Unknown' }}</div>
+                <div class="st-profile-sub num">{{ currentUser.projects?.length || 0 }} project{{ (currentUser.projects?.length || 0) === 1 ? '' : 's' }}</div>
+              </div>
+            </div>
+          }
+
+          <div class="st-kv">
+            <div class="st-kv-row">
+              <span class="st-kv-key">Name</span>
+              <span class="st-kv-val">{{ currentUser?.name || '—' }}</span>
+            </div>
+            <div class="st-kv-row">
+              <span class="st-kv-key">User ID</span>
+              <span class="st-kv-val mono">{{ currentUser?.name || '—' }}</span>
+            </div>
+            <div class="st-kv-row">
+              <span class="st-kv-key">Projects</span>
+              <span class="st-kv-val"><span class="badge badge-accent num">{{ currentUser?.projects?.length || 0 }}</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preferences -->
+      <div class="card st-card">
+        <div class="st-card-head">
+          <h3 class="st-card-title">Preferences</h3>
+        </div>
+        <div class="st-card-body st-card-body--tight">
+
+          <div class="st-toggle-row">
+            <div class="st-toggle-info">
+              <div class="st-toggle-label">Notifications</div>
+              <div class="st-toggle-desc">Task deadlines and project updates</div>
+            </div>
+            <button
+              class="switch"
+              [class.on]="userSettings?.recieve_notifications"
+              (click)="toggleNotifications()"
+              [attr.aria-checked]="userSettings?.recieve_notifications"
+              role="switch"
+              aria-label="Toggle notifications"
+            ></button>
+          </div>
+
+          <div class="st-toggle-row">
+            <div class="st-toggle-info">
+              <div class="st-toggle-label">Allow Invites</div>
+              <div class="st-toggle-desc">Let others invite you to projects</div>
+            </div>
+            <button
+              class="switch"
+              [class.on]="userSettings?.allow_invite"
+              (click)="toggleInvites()"
+              [attr.aria-checked]="userSettings?.allow_invite"
+              role="switch"
+              aria-label="Toggle invite permissions"
+            ></button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Integrations ───────────────────────────────────────── -->
+    <section id="section-integrations" data-section="integrations" class="st-section" aria-labelledby="section-integrations-h">
+      <header class="st-section-head">
+        <h2 class="display st-section-title" id="section-integrations-h">Integrations</h2>
+        <p class="st-section-dek">Connect Google services to supercharge Clarity.</p>
+      </header>
+
+      <div class="st-integrations card">
+
+        <!-- Gmail -->
+        <div class="st-integration">
+          <div class="st-integration-icon st-integration-icon--gmail">
+            <img src="/assets/gmail.svg" alt="" width="22" height="22" aria-hidden="true">
+          </div>
+          <div class="st-integration-info">
+            <div class="st-integration-name">Gmail</div>
+            <div class="st-integration-desc">Required — authenticate with Google to enable other integrations.</div>
+          </div>
+          <div class="st-integration-actions">
+            @if (isGmailConnected()) {
+              <span class="badge badge-success">Connected</span>
+              <button class="btn btn-sm btn-ghost st-disconnect" (click)="disconnectGmail()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Disconnect
+              </button>
             } @else {
-              <div class="profile-row">
-                <div class="avatar avatar-lg">
-                  {{ currentUser.name?.charAt(0)?.toUpperCase() || '?' }}
-                </div>
-                <div class="profile-meta">
-                  <div class="profile-name">{{ currentUser.name || 'Unknown' }}</div>
-                  <div class="profile-sub">{{ currentUser.projects?.length || 0 }} project{{ (currentUser.projects?.length || 0) === 1 ? '' : 's' }}</div>
-                </div>
-              </div>
+              <button class="btn btn-sm btn-primary" (click)="connectGmail()" [disabled]="isConnectingGmail">
+                @if (isConnectingGmail) {
+                  <span class="spinner spinner-sm"></span>
+                  Connecting
+                } @else {
+                  Connect
+                }
+              </button>
             }
-
-            <hr class="divider" style="margin:var(--space-5) 0">
-
-            <div class="info-grid">
-              <div class="info-row">
-                <span class="info-label">Name</span>
-                <span class="info-value">{{ currentUser?.name || '—' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">User ID</span>
-                <span class="info-value mono text-muted-sm">{{ currentUser?.name || '—' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Projects</span>
-                <span class="info-value">
-                  <span class="badge badge-accent">{{ currentUser?.projects?.length || 0 }}</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Preferences card -->
-        <div class="card settings-card" style="margin-top:var(--space-4)">
-          <div class="settings-card-header">
-            <h3>Preferences</h3>
-          </div>
-          <div class="settings-card-body" style="padding-top:0">
-
-            <div class="setting-row">
-              <div class="setting-info">
-                <div class="setting-label">Notifications</div>
-                <div class="setting-desc">Task deadlines and project updates</div>
-              </div>
-              <button
-                class="switch"
-                [class.is-on]="userSettings?.recieve_notifications"
-                (click)="toggleNotifications()"
-                [attr.aria-checked]="userSettings?.recieve_notifications"
-                role="switch"
-                aria-label="Toggle notifications"
-              ></button>
-            </div>
-
-            <hr class="divider">
-
-            <div class="setting-row">
-              <div class="setting-info">
-                <div class="setting-label">Allow Invites</div>
-                <div class="setting-desc">Let others invite you to projects</div>
-              </div>
-              <button
-                class="switch"
-                [class.is-on]="userSettings?.allow_invite"
-                (click)="toggleInvites()"
-                [attr.aria-checked]="userSettings?.allow_invite"
-                role="switch"
-                aria-label="Toggle invite permissions"
-              ></button>
-            </div>
-
-          </div>
-        </div>
-
-      </section>
-    }
-
-    <!-- ── Integrations ───────────────────────────────────────────── -->
-    @if (activeSection() === 'integrations') {
-      <section class="settings-section" aria-labelledby="section-integrations">
-        <header class="section-header">
-          <h2 id="section-integrations">Integrations</h2>
-          <p class="section-subtitle">Connect Google services to supercharge Clarity.</p>
-        </header>
-
-        <!-- Gmail — must connect first -->
-        <div class="card settings-card integration-card">
-          <div class="integration-card-body">
-            <div class="integration-icon-wrap integration-icon-gmail">
-              <img src="/assets/gmail.svg" alt="" width="22" height="22" aria-hidden="true">
-            </div>
-            <div class="integration-info">
-              <div class="integration-name">Gmail</div>
-              <div class="integration-desc">Required — authenticate with Google to enable other integrations.</div>
-            </div>
-            <div class="integration-actions">
-              @if (isGmailConnected()) {
-                <span class="badge badge-success">Connected</span>
-                <button class="btn btn-sm btn-danger" (click)="disconnectGmail()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                  Disconnect
-                </button>
-              } @else {
-                <button
-                  class="btn btn-sm btn-primary"
-                  (click)="connectGmail()"
-                  [disabled]="isConnectingGmail"
-                >
-                  @if (isConnectingGmail) {
-                    <span class="spinner spinner-sm"></span>
-                    Connecting…
-                  } @else {
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-                      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-                    </svg>
-                    Connect
-                  }
-                </button>
-              }
-            </div>
           </div>
         </div>
 
         <!-- Google Calendar -->
-        <div class="card settings-card integration-card" style="margin-top:var(--space-3)">
-          <div class="integration-card-body">
-            <div class="integration-icon-wrap integration-icon-calendar">
-              <img src="/assets/calendar.svg" alt="" width="22" height="22" aria-hidden="true">
-            </div>
-            <div class="integration-info">
-              <div class="integration-name">Google Calendar</div>
-              <div class="integration-desc">Sync tasks and deadlines with your calendar.</div>
-            </div>
-            <div class="integration-actions">
-              @if (!isGmailConnected()) {
-                <span class="badge" style="color:var(--text-muted)">Connect Gmail first</span>
-              } @else if (isGoogleCalendarConnected()) {
-                <span class="badge badge-success">Connected</span>
-                <button class="btn btn-sm btn-danger" (click)="disconnectGoogleCalendar()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                  Disconnect
-                </button>
-              } @else {
-                <button
-                  class="btn btn-sm btn-secondary"
-                  (click)="connectGoogleCalendar()"
-                  [disabled]="isConnectingCalendar"
-                >
-                  @if (isConnectingCalendar) {
-                    <span class="spinner spinner-sm"></span>
-                    Connecting…
-                  } @else {
-                    Connect
-                  }
-                </button>
-              }
-            </div>
+        <div class="st-integration">
+          <div class="st-integration-icon st-integration-icon--calendar">
+            <img src="/assets/calendar.svg" alt="" width="22" height="22" aria-hidden="true">
+          </div>
+          <div class="st-integration-info">
+            <div class="st-integration-name">Google Calendar</div>
+            <div class="st-integration-desc">Sync tasks and deadlines with your calendar.</div>
+          </div>
+          <div class="st-integration-actions">
+            @if (!isGmailConnected()) {
+              <span class="st-need-gmail">Connect Gmail first</span>
+            } @else if (isGoogleCalendarConnected()) {
+              <span class="badge badge-success">Connected</span>
+              <button class="btn btn-sm btn-ghost st-disconnect" (click)="disconnectGoogleCalendar()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Disconnect
+              </button>
+            } @else {
+              <button class="btn btn-sm btn-secondary" (click)="connectGoogleCalendar()" [disabled]="isConnectingCalendar">
+                @if (isConnectingCalendar) {
+                  <span class="spinner spinner-sm"></span>
+                  Connecting
+                } @else {
+                  Connect
+                }
+              </button>
+            }
           </div>
         </div>
 
         <!-- Google Contacts -->
-        <div class="card settings-card integration-card" style="margin-top:var(--space-3)">
-          <div class="integration-card-body">
-            <div class="integration-icon-wrap integration-icon-contacts">
-              <img src="/assets/contacts.svg" alt="" width="22" height="22" aria-hidden="true">
-            </div>
-            <div class="integration-info">
-              <div class="integration-name">Google Contacts</div>
-              <div class="integration-desc">Import contacts to invite collaborators.</div>
-            </div>
-            <div class="integration-actions">
-              @if (!isGmailConnected()) {
-                <span class="badge" style="color:var(--text-muted)">Connect Gmail first</span>
-              } @else if (isGoogleContactsConnected()) {
-                <span class="badge badge-success">Connected</span>
-                <button class="btn btn-sm btn-danger" (click)="disconnectGoogleContacts()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                  Disconnect
-                </button>
-              } @else {
-                <button
-                  class="btn btn-sm btn-secondary"
-                  (click)="connectGoogleContacts()"
-                  [disabled]="isConnectingContacts"
-                >
-                  @if (isConnectingContacts) {
-                    <span class="spinner spinner-sm"></span>
-                    Connecting…
-                  } @else {
-                    Connect
-                  }
-                </button>
-              }
-            </div>
+        <div class="st-integration">
+          <div class="st-integration-icon st-integration-icon--contacts">
+            <img src="/assets/contacts.svg" alt="" width="22" height="22" aria-hidden="true">
+          </div>
+          <div class="st-integration-info">
+            <div class="st-integration-name">Google Contacts</div>
+            <div class="st-integration-desc">Import contacts to invite collaborators.</div>
+          </div>
+          <div class="st-integration-actions">
+            @if (!isGmailConnected()) {
+              <span class="st-need-gmail">Connect Gmail first</span>
+            } @else if (isGoogleContactsConnected()) {
+              <span class="badge badge-success">Connected</span>
+              <button class="btn btn-sm btn-ghost st-disconnect" (click)="disconnectGoogleContacts()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Disconnect
+              </button>
+            } @else {
+              <button class="btn btn-sm btn-secondary" (click)="connectGoogleContacts()" [disabled]="isConnectingContacts">
+                @if (isConnectingContacts) {
+                  <span class="spinner spinner-sm"></span>
+                  Connecting
+                } @else {
+                  Connect
+                }
+              </button>
+            }
           </div>
         </div>
 
-        <!-- Import contacts panel (only when Gmail is connected) -->
-        @if (isGmailConnected()) {
-          <div class="card settings-card" style="margin-top:var(--space-4)">
-            <div class="settings-card-header">
-              <h3>Import Contacts</h3>
-            </div>
-            <div class="settings-card-body" style="padding-top:var(--space-3)">
+      </div>
 
-              @if (!userSettings?.allow_invite) {
-                <div class="inline-notice inline-notice-warning">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
-                  Enable "Allow Invites" in Profile to import contacts.
-                </div>
-              }
-
-              @if (userContacts.length > 0) {
-                <div class="inline-notice inline-notice-success" style="margin-bottom:var(--space-3)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  {{ userContacts.length }} contact{{ userContacts.length === 1 ? '' : 's' }} imported.
-                </div>
-              }
-
-              <button
-                class="btn btn-secondary"
-                (click)="importGoogleContacts()"
-                [disabled]="isImportingContacts || !userSettings?.allow_invite"
-              >
-                @if (isImportingContacts) {
-                  <span class="spinner spinner-sm"></span>
-                  Importing…
-                } @else {
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                    <polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/>
-                    <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"/>
-                  </svg>
-                  Import Contacts
-                }
-              </button>
-
-              @if (importMessage) {
-                <div
-                  class="inline-notice"
-                  [class.inline-notice-success]="importSuccess"
-                  [class.inline-notice-danger]="!importSuccess"
-                  style="margin-top:var(--space-3)"
-                >
-                  {{ importMessage }}
-                </div>
-              }
-
-              @if (userContacts.length > 0) {
-                <div class="contacts-section">
-                  <div class="contacts-section-label">
-                    Contacts
-                    <span class="badge badge-accent">{{ userContacts.length }}</span>
-                  </div>
-                  <div class="contacts-list">
-                    @for (contact of userContacts; track contact) {
-                      <div class="contact-row">
-                        <div class="avatar avatar-sm">
-                          {{ contact.name?.charAt(0)?.toUpperCase() || '?' }}
-                        </div>
-                        <div class="contact-info">
-                          <div class="contact-name">{{ contact.name || 'Unknown' }}</div>
-                          <div class="contact-email">{{ contact.contact_detail || contact.email || 'No email' }}</div>
-                        </div>
-                      </div>
-                    }
-                  </div>
-                </div>
-              } @else if (!isImportingContacts) {
-                <div class="empty-state" style="padding:var(--space-8) var(--space-4)">
-                  <div class="empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
-                      <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-                      <path d="M16 3.13a4 4 0 010 7.75"/>
-                    </svg>
-                  </div>
-                  <h3>No contacts yet</h3>
-                  <p>Click "Import Contacts" to pull in your Google contacts.</p>
-                </div>
-              }
-
-            </div>
+      <!-- N10: External integrations (calendar feed + webhook/Slack) -->
+      <div class="st-external card">
+        <!-- Calendar feed (ICS) -->
+        <div class="st-ext-row">
+          <div class="st-ext-head">
+            <div class="st-integration-name">Calendar feed (ICS)</div>
+            <div class="st-integration-desc">Subscribe from Google or Apple Calendar to see your task deadlines. Keep this link private — anyone with it can read your tasks.</div>
           </div>
+          <div class="st-ext-controls">
+            <input class="input st-ext-url" [value]="feedUrl" readonly placeholder="Sign in to generate your feed link" aria-label="ICS feed URL" />
+            <button class="btn btn-sm btn-secondary" (click)="copyFeedUrl()" [disabled]="!feedUrl">{{ copiedFeed ? 'Copied' : 'Copy' }}</button>
+            <button class="btn btn-sm btn-ghost" (click)="regenerateFeed()" [disabled]="!integrationsLoaded">Regenerate</button>
+          </div>
+        </div>
+
+        <!-- Webhook / Slack -->
+        <div class="st-ext-row">
+          <div class="st-ext-head">
+            <div class="st-integration-name">Webhook / Slack</div>
+            <div class="st-integration-desc">Mirror your Clarity notifications to a Slack Incoming Webhook or any HTTPS endpoint.</div>
+          </div>
+          <div class="st-ext-controls">
+            <input class="input st-ext-url" type="url" [(ngModel)]="webhookUrl" name="webhookUrl" placeholder="https://hooks.slack.com/services/…" aria-label="Webhook URL" />
+            <select class="select" [(ngModel)]="webhookKind" name="webhookKind" aria-label="Webhook format">
+              <option value="generic">Generic JSON</option>
+              <option value="slack">Slack</option>
+            </select>
+            <button class="btn btn-sm btn-primary" (click)="saveWebhook()" [disabled]="isSavingWebhook">Save</button>
+            <button class="btn btn-sm btn-secondary" (click)="testWebhook()" [disabled]="isTestingWebhook || !webhookUrl.trim()">Test</button>
+          </div>
+        </div>
+
+        @if (integrationsMessage) {
+          <p class="st-ext-msg" [class.ok]="integrationsSuccess" [class.err]="!integrationsSuccess">{{ integrationsMessage }}</p>
         }
+      </div>
 
-      </section>
-    }
-
-    <!-- ── Server ──────────────────────────────────────────────────── -->
-    @if (activeSection() === 'server') {
-      <section class="settings-section" aria-labelledby="section-server">
-        <header class="section-header">
-          <h2 id="section-server">Server</h2>
-          <p class="section-subtitle">Configure the backend your Clarity client connects to.</p>
-        </header>
-
-        <div class="card settings-card">
-          <div class="settings-card-header">
-            <h3>Server URL</h3>
+      <!-- Import panel (Gmail connected) -->
+      @if (isGmailConnected()) {
+        <div class="card st-card">
+          <div class="st-card-head">
+            <h3 class="st-card-title">Import contacts</h3>
+            @if (userContacts.length > 0) {
+              <span class="badge badge-accent num">{{ userContacts.length }}</span>
+            }
           </div>
-          <div class="settings-card-body" style="padding-top:var(--space-3)">
+          <div class="st-card-body">
 
-            <div class="field">
-              <label class="field-label" for="server-url-input">Backend address</label>
-              <input
-                id="server-url-input"
-                class="input"
-                type="text"
-                [(ngModel)]="serverUrl"
-                placeholder="http://localhost:3000"
-                [disabled]="isSavingServerConfig"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <span class="field-hint">Where your projects and tasks are stored. Changing this will reload the page.</span>
-            </div>
+            @if (!userSettings?.allow_invite) {
+              <div class="st-notice st-notice--warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Enable "Allow Invites" in Profile to import contacts.
+              </div>
+            }
 
-            <div class="inline-notice inline-notice-warning" style="margin-top:var(--space-3)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              Saving a new URL will reload the page to reconnect.
-            </div>
+            @if (userContacts.length > 0) {
+              <div class="st-notice st-notice--success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                {{ userContacts.length }} contact{{ userContacts.length === 1 ? '' : 's' }} imported.
+              </div>
+            }
 
-            <div class="server-btn-row">
-              <button
-                class="btn btn-primary"
-                (click)="saveServerConfig()"
-                [disabled]="isSavingServerConfig || !serverUrl.trim()"
+            <button
+              class="btn btn-secondary st-import-btn"
+              (click)="importGoogleContacts()"
+              [disabled]="isImportingContacts || !userSettings?.allow_invite"
+            >
+              @if (isImportingContacts) {
+                <span class="spinner spinner-sm"></span>
+                Importing
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/>
+                  <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"/>
+                </svg>
+                Import contacts
+              }
+            </button>
+
+            @if (importMessage) {
+              <div
+                class="st-notice"
+                [class.st-notice--success]="importSuccess"
+                [class.st-notice--danger]="!importSuccess"
               >
-                @if (isSavingServerConfig) {
-                  <span class="spinner spinner-sm"></span>
-                  Saving…
-                } @else {
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Save URL
+                {{ importMessage }}
+              </div>
+            }
+
+            @if (userContacts.length > 0) {
+              <div class="st-contacts">
+                @for (contact of userContacts; track contact) {
+                  <div class="st-contact">
+                    <div class="avatar avatar-sm st-contact-avatar">
+                      {{ contact.name?.charAt(0)?.toUpperCase() || '?' }}
+                    </div>
+                    <div class="st-contact-info">
+                      <div class="st-contact-name">{{ contact.name || 'Unknown' }}</div>
+                      <div class="st-contact-email mono">{{ contact.contact_detail || contact.email || 'No email' }}</div>
+                    </div>
+                  </div>
                 }
-              </button>
-              <button
-                class="btn btn-ghost"
-                (click)="resetServerConfig()"
-                [disabled]="isSavingServerConfig"
-              >
-                Reset to default
-              </button>
-            </div>
+              </div>
+            } @else if (!isImportingContacts) {
+              <div class="empty-state st-empty">
+                <div class="empty-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 010 7.75"/>
+                  </svg>
+                </div>
+                <h3>No contacts yet</h3>
+                <p>Click "Import contacts" to pull in your Google contacts.</p>
+              </div>
+            }
 
           </div>
         </div>
+      }
+    </section>
 
-      </section>
-    }
+    <!-- ── Server ─────────────────────────────────────────────── -->
+    <section id="section-server" data-section="server" class="st-section" aria-labelledby="section-server-h">
+      <header class="st-section-head">
+        <h2 class="display st-section-title" id="section-server-h">Server</h2>
+        <p class="st-section-dek">Configure the backend your Clarity client connects to.</p>
+      </header>
 
-    <!-- ── Appearance ──────────────────────────────────────────────── -->
-    @if (activeSection() === 'appearance') {
-      <section class="settings-section" aria-labelledby="section-appearance">
-        <header class="section-header">
-          <h2 id="section-appearance">Appearance</h2>
-          <p class="section-subtitle">Personalise how Clarity looks for you.</p>
-        </header>
+      <div class="card st-card">
+        <div class="st-card-head">
+          <h3 class="st-card-title">Server URL</h3>
+        </div>
+        <div class="st-card-body">
 
-        <div class="card settings-card">
-          <div class="settings-card-header">
-            <h3>Theme</h3>
+          <div class="field">
+            <label class="field-label" for="server-url-input">Backend address</label>
+            <input
+              id="server-url-input"
+              class="input mono"
+              type="text"
+              [(ngModel)]="serverUrl"
+              placeholder="http://localhost:3000"
+              [disabled]="isSavingServerConfig"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <span class="field-hint">Where your projects and tasks are stored. Changing this will reload the page.</span>
           </div>
-          <div class="settings-card-body" style="padding-top:var(--space-3)">
 
-            <div class="theme-grid">
-              <!-- Dark -->
-              <button
-                class="theme-option"
-                [class.is-active]="isDarkTheme()"
-                (click)="setTheme(true)"
-                aria-label="Dark theme"
-              >
-                <div class="theme-preview theme-preview-dark">
-                  <div class="theme-preview-bar"></div>
-                  <div class="theme-preview-lines">
-                    <div class="theme-preview-line"></div>
-                    <div class="theme-preview-line short"></div>
-                  </div>
-                </div>
-                <div class="theme-option-label">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                    <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
-                  </svg>
-                  Dark
-                  @if (isDarkTheme()) {
-                    <span class="badge badge-accent" style="margin-left:auto">Active</span>
-                  }
-                </div>
-              </button>
+          <div class="st-notice st-notice--warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Saving a new URL will reload the page to reconnect.
+          </div>
 
-              <!-- Light -->
-              <button
-                class="theme-option"
-                [class.is-active]="!isDarkTheme()"
-                (click)="setTheme(false)"
-                aria-label="Light theme"
-              >
-                <div class="theme-preview theme-preview-light">
-                  <div class="theme-preview-bar"></div>
-                  <div class="theme-preview-lines">
-                    <div class="theme-preview-line"></div>
-                    <div class="theme-preview-line short"></div>
-                  </div>
-                </div>
-                <div class="theme-option-label">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                  </svg>
-                  Light
-                  @if (!isDarkTheme()) {
-                    <span class="badge badge-accent" style="margin-left:auto">Active</span>
-                  }
-                </div>
-              </button>
+          <div class="st-btn-row">
+            <button class="btn btn-primary" (click)="saveServerConfig()" [disabled]="isSavingServerConfig || !serverUrl.trim()">
+              @if (isSavingServerConfig) {
+                <span class="spinner spinner-sm"></span>
+                Saving
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Save URL
+              }
+            </button>
+            <button class="btn btn-ghost" (click)="resetServerConfig()" [disabled]="isSavingServerConfig">
+              Reset to default
+            </button>
+          </div>
+
+          @if (serverConfigMessage) {
+            <div
+              class="st-notice"
+              [class.st-notice--success]="serverConfigSuccess"
+              [class.st-notice--danger]="!serverConfigSuccess"
+              [attr.role]="serverConfigSuccess ? 'status' : 'alert'"
+              aria-live="polite"
+            >
+              {{ serverConfigMessage }}
             </div>
+          }
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Appearance ─────────────────────────────────────────── -->
+    <section id="section-appearance" data-section="appearance" class="st-section" aria-labelledby="section-appearance-h">
+      <header class="st-section-head">
+        <h2 class="display st-section-title" id="section-appearance-h">Appearance</h2>
+        <p class="st-section-dek">Personalise how Clarity looks for you.</p>
+      </header>
+
+      <div class="card st-card">
+        <div class="st-card-head">
+          <h3 class="st-card-title">Palette</h3>
+          <p class="st-card-dek">Your colour world. The theme toggle in the top bar switches light and dark within it.</p>
+        </div>
+        <div class="st-card-body">
+          <div class="st-theme-grid">
+
+            <button class="st-theme" [class.is-active]="themeService.palette() === 'regular'" (click)="setPalette('regular')" aria-label="Regular palette">
+              <span class="st-pal-preview st-pal--regular" aria-hidden="true">
+                <span class="st-pal-swatch s1"></span>
+                <span class="st-pal-swatch s2"></span>
+                <span class="st-pal-swatch s3"></span>
+                <span class="st-pal-swatch s4"></span>
+              </span>
+              <span class="st-theme-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M11 20A7 7 0 019.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
+                  <path d="M2 21c0-3 1.85-5.36 5.08-6"/>
+                </svg>
+                Regular
+                @if (themeService.palette() === 'regular') { <span class="badge badge-accent st-theme-active">Active</span> }
+              </span>
+            </button>
+
+            <button class="st-theme" [class.is-active]="themeService.palette() === 'clarity'" (click)="setPalette('clarity')" aria-label="Clarity palette">
+              <span class="st-pal-preview st-pal--clarity" aria-hidden="true">
+                <span class="st-pal-swatch s1"></span>
+                <span class="st-pal-swatch s2"></span>
+                <span class="st-pal-swatch s3"></span>
+                <span class="st-pal-swatch s4"></span>
+              </span>
+              <span class="st-theme-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/>
+                </svg>
+                Clarity
+                @if (themeService.palette() === 'clarity') { <span class="badge badge-accent st-theme-active">Active</span> }
+              </span>
+            </button>
 
           </div>
         </div>
+      </div>
 
-      </section>
-    }
+      <div class="card st-card">
+        <div class="st-card-head">
+          <h3 class="st-card-title">Theme</h3>
+        </div>
+        <div class="st-card-body">
+          <div class="st-theme-grid">
+
+            <button class="st-theme" [class.is-active]="isDarkTheme()" (click)="setTheme(true)" aria-label="Dark theme">
+              <span class="st-theme-preview st-theme-preview--dark" aria-hidden="true">
+                <span class="st-theme-bar"></span>
+                <span class="st-theme-line"></span>
+                <span class="st-theme-line st-theme-line--short"></span>
+              </span>
+              <span class="st-theme-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
+                </svg>
+                Dark
+                @if (isDarkTheme()) { <span class="badge badge-accent st-theme-active">Active</span> }
+              </span>
+            </button>
+
+            <button class="st-theme" [class.is-active]="!isDarkTheme()" (click)="setTheme(false)" aria-label="Light theme">
+              <span class="st-theme-preview st-theme-preview--light" aria-hidden="true">
+                <span class="st-theme-bar"></span>
+                <span class="st-theme-line"></span>
+                <span class="st-theme-line st-theme-line--short"></span>
+              </span>
+              <span class="st-theme-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                Light
+                @if (!isDarkTheme()) { <span class="badge badge-accent st-theme-active">Active</span> }
+              </span>
+            </button>
+
+          </div>
+        </div>
+      </div>
+    </section>
 
   </main>
 </div>

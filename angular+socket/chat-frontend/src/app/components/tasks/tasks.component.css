@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   Tasks — Aurora Design System
-   Uses ONLY Aurora CSS tokens from styles.css. No hardcoded hex.
+   Tasks — Clarity v2 design system
+   Uses ONLY Clarity CSS tokens/primitives from styles.css. No hardcoded hex/px colors.
+   List view mirrors the dashboard agenda grammar (hairline rows, mono time).
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── Root layout ──────────────────────────────────────────────────────── */
@@ -18,7 +19,7 @@
   margin-bottom: var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .tasks-title-row {
@@ -34,16 +35,16 @@
 }
 
 .tasks-page-title {
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .tasks-page-subtitle {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin-top: var(--space-1);
   display: block;
@@ -86,6 +87,10 @@
   color: var(--text-primary);
   box-shadow: var(--shadow-xs);
 }
+.view-toggle-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
 .view-toggle-btn svg { flex-shrink: 0; }
 
 /* ── Overdue banner ───────────────────────────────────────────────────── */
@@ -126,48 +131,158 @@
   border-radius: var(--radius-md);
 }
 .skel-row {
-  height: 64px;
+  height: 56px;
   border-radius: var(--radius-md);
 }
 .skel-row--short {
   width: 70%;
 }
 
+/* ── Search + project pill toolbar ────────────────────────────────────── */
+.task-toolbar {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.task-search {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+}
+.task-search-icon {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--space-4);
+  height: var(--space-4);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.task-search-input {
+  width: 100%;
+  padding-left: var(--space-8);
+  border-radius: var(--radius-full);
+}
+
+/* "All projects" pill dropdown */
+.project-pill-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.project-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.project-pill:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+.project-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.project-pill.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.project-pill svg { flex-shrink: 0; color: var(--text-muted); }
+.project-pill.is-active svg { color: var(--accent); }
+.project-pill-label {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.project-pill-chevron {
+  transition: transform var(--dur) var(--ease);
+}
+.project-pill-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown menu */
+.project-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: var(--z-panel);
+  min-width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  animation: slideUp var(--dur) var(--ease);
+}
+.project-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.project-menu-item:hover {
+  background: var(--surface-hover);
+}
+.project-menu-item.is-selected {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 /* ── Filter bar ───────────────────────────────────────────────────────── */
 .filters-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
-  border-radius: var(--radius-md);
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  min-width: 120px;
+  min-width: 140px;
 }
 .filter-label {
   font-size: var(--text-xs);
-  font-weight: 600;
   color: var(--text-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 .filter-select {
-  height: 32px;
-  font-size: var(--text-sm);
-  border-radius: var(--radius-sm);
-}
-
-.filter-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--border);
-  margin: var(--space-1) 0;
+  height: 34px;
 }
 
 .date-nav-group {
@@ -190,74 +305,66 @@
   animation: slideUp var(--dur-slow) var(--ease);
 }
 
-.section-header {
+.section-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
 }
-.section-title {
-  font-size: var(--text-base);
+.section-heading {
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin: 0;
   flex: 1;
 }
-.section-indicator {
-  width: 3px;
-  height: 14px;
-  border-radius: var(--radius-full);
-  background: var(--aurora);
-  flex-shrink: 0;
-}
-.section-indicator--upcoming {
-  background: var(--info);
-}
 
-/* ── Task rows ────────────────────────────────────────────────────────── */
-.task-list {
+/* ── Agenda rows (dashboard grammar) ──────────────────────────────────── */
+.agenda {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
-.task-row {
-  position: relative;
-  display: flex;
+.agenda-row {
+  display: grid;
+  grid-template-columns: 120px 20px 1fr auto;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
-              border-color var(--dur) var(--ease), background var(--dur) var(--ease);
-  overflow: hidden;
-  cursor: default;
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid transparent;
+  padding-left: var(--space-3);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.task-row:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
+.agenda-row:hover {
+  background: var(--surface-hover);
 }
-.task-row--done {
-  opacity: 0.6;
-}
+.agenda-row.is-done { opacity: 0.55; }
 
-/* Priority accent left border — album spectrum */
-.task-priority-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+/* Priority accent on the left edge — album spectrum */
+.agenda-row.is-high   { border-left-color: var(--danger); }
+.agenda-row.is-medium { border-left-color: var(--accent-blue); }
+.agenda-row.is-low    { border-left-color: var(--accent-teal); }
+
+.agenda-when {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
 }
-.task-row--high   .task-priority-bar { background: var(--danger); }
-.task-row--medium .task-priority-bar { background: var(--accent-blue); }
-.task-row--low    .task-priority-bar { background: var(--accent-teal); }
+.agenda-time {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* Custom checkbox button */
-.task-check-btn {
+.agenda-check {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
@@ -273,54 +380,43 @@
               transform var(--dur-fast) var(--ease-spring);
   padding: 0;
 }
-.task-check-btn:hover {
+.agenda-check:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-.task-check-btn.is-checked {
+.agenda-check.is-checked {
   background: var(--accent);
   border-color: var(--accent);
   transform: scale(1.1);
 }
-.task-check-btn:focus-visible {
+.agenda-check:focus-visible {
   box-shadow: 0 0 0 3px var(--accent-ring);
   outline: none;
 }
 
-/* Task content */
-.task-row-content {
-  flex: 1;
-  min-width: 0;
-}
-.task-name {
-  display: block;
+.agenda-name {
   font-size: var(--text-base);
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color var(--dur) var(--ease), text-decoration var(--dur) var(--ease);
+  min-width: 0;
+  transition: color var(--dur) var(--ease);
 }
-.task-name--done {
+.agenda-name.is-done {
   text-decoration: line-through;
   color: var(--text-muted);
 }
 
-.task-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-}
-
-/* Small chip variant */
-.chip-sm {
-  height: 22px;
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
-  gap: var(--space-1);
+/* Upcoming variant — no checkbox, uses a status dot */
+.agenda-row--upcoming { grid-template-columns: 160px 8px 1fr auto; }
+.agenda-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
 }
 
 /* ── Priority groups ──────────────────────────────────────────────────── */
@@ -328,39 +424,7 @@
   margin-bottom: var(--space-4);
 }
 .priority-group-label {
-  margin-bottom: var(--space-2);
-}
-
-/* ── Upcoming list ────────────────────────────────────────────────────── */
-.upcoming-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.upcoming-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  transition: background var(--dur-fast) var(--ease);
-  flex-wrap: wrap;
-}
-.upcoming-row:hover {
-  background: var(--surface-hover);
-}
-.upcoming-date-col {
-  flex-shrink: 0;
-}
-.upcoming-name {
-  flex: 1;
-  font-size: var(--text-base);
-  font-weight: 500;
-  color: var(--text-primary);
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin: var(--space-2) 0;
 }
 
 /* ── Calendar view ────────────────────────────────────────────────────── */
@@ -375,8 +439,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
 }
 .cal-month-nav {
   display: flex;
@@ -384,10 +448,10 @@
   gap: var(--space-3);
 }
 .cal-month-label {
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin: 0;
   min-width: 160px;
   text-align: center;
@@ -402,10 +466,7 @@
 .cal-dow {
   text-align: center;
   font-size: var(--text-xs);
-  font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   padding: var(--space-2) 0;
 }
 
@@ -413,7 +474,7 @@
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -423,7 +484,7 @@
 /* Calendar day cell */
 .cal-day {
   position: relative;
-  min-height: 90px;
+  min-height: 92px;
   padding: var(--space-2) var(--space-2) var(--space-3);
   background: var(--surface-1);
   cursor: pointer;
@@ -435,6 +496,11 @@
 .cal-day:hover {
   background: var(--surface-hover);
 }
+.cal-day:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  z-index: 1;
+}
 .cal-day--other-month {
   background: var(--bg-sunken);
 }
@@ -443,20 +509,19 @@
   opacity: 0.5;
 }
 .cal-day--today .cal-day-num {
-  background: var(--aurora);
+  background: var(--accent);
   color: var(--text-inverse);
   border-radius: var(--radius-full);
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .cal-day--selected {
   background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .cal-day--selected .cal-day-num {
   color: var(--accent);
+}
+.cal-day--selected.cal-day--today .cal-day-num {
+  color: var(--text-inverse);
 }
 
 .cal-day-num {
@@ -483,7 +548,7 @@
 .cal-task-pill {
   font-size: 10px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.4;
   padding: 1px var(--space-2);
   border-radius: var(--radius-full);
   background: var(--accent-soft);
@@ -498,7 +563,7 @@
   text-decoration: line-through;
 }
 /* Calendar task pills — album spectrum hues */
-.cal-task-pill--high   { background: var(--danger-soft);      color: var(--danger); }
+.cal-task-pill--high   { background: var(--danger-soft);       color: var(--danger); }
 .cal-task-pill--medium { background: var(--accent-blue-soft);  color: var(--accent-blue); }
 .cal-task-pill--low    { background: var(--accent-teal-soft);  color: var(--accent-teal); }
 .cal-task-pill--more   {
@@ -510,28 +575,31 @@
 
 /* Calendar detail panel */
 .cal-detail {
-  padding: var(--space-5) var(--space-5) var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
-.cal-detail .section-header { margin-bottom: var(--space-4); }
 .cal-detail-footer {
   padding-top: var(--space-3);
   border-top: 1px solid var(--border);
   margin-top: var(--space-3);
 }
 
-/* ── Priority chip / badge album-spectrum overrides ──────────────────── */
-/* High priority keeps global badge-danger (red = urgency, no override needed) */
-/* Medium priority: album electric-blue */
+/* ── Priority badge album-spectrum overrides ──────────────────────────── */
+/* High keeps global .badge-danger (red = urgency). */
 .badge-priority-medium {
   background: var(--accent-blue-soft);
   color: var(--accent-blue);
 }
-/* Low priority: album luminous-teal */
 .badge-priority-low {
   background: var(--accent-teal-soft);
   color: var(--accent-teal);
 }
+
+/* ── Empty state compact tweak ────────────────────────────────────────── */
+.empty-state--compact { padding: var(--space-8) var(--space-6); }
 
 /* ── Add task modal extras ────────────────────────────────────────────── */
 .modal-fields-row {
@@ -549,39 +617,47 @@
   position: fixed;
   bottom: var(--space-6);
   right: var(--space-6);
-  width: 50px;
-  height: 50px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
   border-radius: var(--radius-full);
-  border: none;
   cursor: pointer;
   display: none;
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-lg);
-  z-index: var(--z-nav);
+  z-index: var(--z-sticky);
   transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease);
 }
 .fab:hover { transform: translateY(-2px) scale(1.06); box-shadow: var(--shadow-glow); }
 .fab:active { transform: scale(0.96); }
-.fab svg { color: var(--text-inverse); }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .tasks-root {
-    padding: var(--space-4) var(--space-4);
+    padding: var(--space-4);
   }
   .tasks-title-row {
     gap: var(--space-3);
   }
+  .task-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .task-search { min-width: 0; }
+  .project-pill-wrap { width: 100%; }
+  .project-pill { width: 100%; justify-content: space-between; }
+  .project-menu { left: 0; right: 0; }
   .filters-bar {
     flex-direction: column;
     align-items: stretch;
     gap: var(--space-3);
   }
-  .filter-divider { width: 100%; height: 1px; margin: 0; }
   .date-nav-group { margin-left: 0; justify-content: flex-start; }
+  .agenda-row { grid-template-columns: 96px 20px 1fr auto; }
+  .agenda-row--upcoming { grid-template-columns: 128px 8px 1fr auto; }
   .modal-fields-row { grid-template-columns: 1fr; }
-  .cal-day { min-height: 60px; }
+  .cal-day { min-height: 62px; }
   .cal-task-pill { display: none; }
   .cal-day--selected .cal-task-pill,
   .cal-day--today .cal-task-pill { display: block; }
@@ -595,4 +671,16 @@
   .cal-dow { font-size: 10px; }
   .cal-day-num { font-size: var(--text-xs); }
   .view-toggle-btn span { display: none; }
+  .agenda-row { grid-template-columns: 76px 20px 1fr; }
+  .agenda-row .badge { display: none; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .tasks-root,
+  .task-section,
+  .calendar-view,
+  .overdue-banner,
+  .project-menu { animation: none; }
+  .agenda-check.is-checked { transform: none; }
 }

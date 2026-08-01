@@ -1,33 +1,31 @@
-.cmdk-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-cmdk);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 12vh var(--space-4) var(--space-4);
-  background: rgba(0, 0, 0, 0.55);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-  animation: fadeIn var(--dur) var(--ease);
-}
-
+/* Command palette — an inline dropdown that drops from the topbar search
+   field (its `.cmdk-anchor` parent), not a centered modal. */
 .cmdk {
-  width: 100%;
-  max-width: 560px;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: max(100%, 440px);
+  max-width: min(560px, calc(100vw - var(--space-8)));
   display: flex;
   flex-direction: column;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
-  animation: scaleIn var(--dur-slow) var(--ease-spring);
+  z-index: var(--z-cmdk);
+  transform-origin: top left;
+  animation: cmdk-drop var(--dur) var(--ease-spring);
+}
+
+@keyframes cmdk-drop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .cmdk-search {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
 
@@ -44,7 +42,7 @@
   border: none;
   background: transparent;
   color: var(--text-primary);
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   font-family: inherit;
 }
 .cmdk-input:focus { outline: none; box-shadow: none; }
@@ -52,7 +50,7 @@
 
 .cmdk-list {
   padding: var(--space-2);
-  max-height: 52vh;
+  max-height: min(48vh, 360px);
   overflow-y: auto;
 }
 
@@ -87,7 +85,7 @@
   flex-shrink: 0;
 }
 .cmdk-item-icon svg { width: 16px; height: 16px; }
-.cmdk-item.is-active .cmdk-item-icon { background: var(--aurora-soft); color: var(--accent); }
+.cmdk-item.is-active .cmdk-item-icon { background: var(--accent-soft); color: var(--accent); }
 
 .cmdk-item-label {
   font-size: var(--text-md);
@@ -110,6 +108,54 @@
   font-size: var(--text-base);
 }
 
+/* Group heading between the Commands and Content sections (N3). */
+.cmdk-section {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold, 600);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cmdk-section:not(:first-child) { margin-top: var(--space-2); }
+
+/* A content hit row: kind pill + title/snippet + project name. */
+.cmdk-item-content { align-items: flex-start; }
+.cmdk-hit-kind {
+  flex-shrink: 0;
+  margin-top: 2px;
+  background: var(--surface-3);
+  color: var(--text-secondary);
+}
+.cmdk-item-content.is-active .cmdk-hit-kind { background: var(--accent-soft); color: var(--accent); }
+.cmdk-hit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.cmdk-hit-snippet {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmdk-item-content .cmdk-item-hint { align-self: center; flex-shrink: 0; }
+
+/* Inline search spinner in the input row. */
+.cmdk-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-full);
+  animation: cmdk-spin 0.6s linear infinite;
+}
+@keyframes cmdk-spin { to { transform: rotate(360deg); } }
+
 .cmdk-footer {
   display: flex;
   align-items: center;
@@ -120,3 +166,19 @@
   color: var(--text-muted);
 }
 .cmdk-footer span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* On narrow screens the search collapses to a right-aligned icon; drop a
+   full-width panel under the topbar instead so it never runs off-screen.
+   (`position: fixed` here resolves against the backdrop-filtered topbar, which
+   spans the full viewport width.) */
+@media (max-width: 720px) {
+  .cmdk {
+    position: fixed;
+    top: calc(100% + 8px);
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+    max-width: none;
+  }
+  .cmdk-footer { display: none; }
+}

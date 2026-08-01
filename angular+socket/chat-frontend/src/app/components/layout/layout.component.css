@@ -1,24 +1,45 @@
-/* Clarity Aurora — Layout shell */
+/* Clarity — Layout shell
+   The frame every authed screen lives in. One authored light moment: the
+   album "iris" glow bleeding from the top-left, behind the sidebar spine. */
 
 .layout {
+  position: relative;
   display: flex;
   height: 100vh;
   width: 100%;
   overflow: hidden;
   background: var(--bg-app);
   color: var(--text-primary);
+  isolation: isolate;
 }
+/* Iris glow — the album's luminous center, cool and faint, drawn once behind
+   the whole shell. Background-layer only; never touches text contrast. */
+.layout::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 14% 0%, var(--accent-violet-soft) 0%, transparent 60%),
+    radial-gradient(52% 48% at 6% 30%, var(--accent-soft) 0%, transparent 55%);
+  opacity: 0.9;
+}
+:root[data-theme="light"] .layout::before { opacity: 0.6; }
 
 /* ─────────────── Sidebar ─────────────── */
 .sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 248px;
   flex-shrink: 0;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 82%, transparent);
   border-right: 1px solid var(--border);
   transition: width var(--dur-slow) var(--ease);
   z-index: var(--z-nav);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .layout.rail .sidebar { width: 68px; }
 
@@ -28,42 +49,60 @@
   align-items: center;
   gap: var(--space-3);
   height: 64px;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-5);
   flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
 }
-.brand-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--aurora);
-  box-shadow: 0 0 12px var(--accent-ring);
-  flex-shrink: 0;
-}
-.brand-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+/* Brand mark now lives in the topbar, before the page heading. */
+.topbar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   object-fit: cover;
   flex-shrink: 0;
-  box-shadow: 0 0 0 1px var(--border), 0 0 16px var(--accent-ring);
+  box-shadow: 0 0 0 1px var(--border-strong), 0 4px 18px var(--accent-ring);
 }
 .brand-word {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
   margin-right: auto;
 }
 .layout.rail .brand { justify-content: center; padding: 0; }
-.collapse-btn { flex-shrink: 0; }
-.layout.rail .collapse-btn { display: none; }
+
+/* Collapse / expand rail toggle (in the sidebar brand header) */
+.collapse-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--accent-ring);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+.collapse-btn:hover { background: var(--accent); color: var(--text-inverse); transform: translateY(-1px); }
+.collapse-btn:active { transform: scale(0.96); }
+.collapse-btn:focus-visible { box-shadow: 0 0 0 3px var(--accent-ring); outline: none; }
+.collapse-btn svg { width: 18px; height: 18px; }
+.collapse-icon { transition: transform var(--dur) var(--ease); }
+/* Rail: chevrons point right to signal "expand". */
+.layout.rail .collapse-icon { transform: rotate(180deg); }
 
 /* Nav */
 .nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-4) var(--space-3);
   overflow-y: auto;
   flex: 1;
 }
@@ -78,19 +117,22 @@
   color: var(--text-muted);
   font-size: var(--text-base);
   font-weight: 500;
+  letter-spacing: -0.006em;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .nav-item:hover { background: var(--surface-hover); color: var(--text-secondary); }
-.nav-item.active { background: var(--accent-soft); color: var(--text-primary); }
+/* Active = accent-soft fill + accent text + luminous left bar. */
+.nav-item.active { background: var(--accent-soft); color: var(--accent); }
 .nav-indicator {
   position: absolute;
-  left: 0;
+  left: -2px;
   top: 50%;
   transform: translateY(-50%) scaleY(0);
   width: 3px;
-  height: 20px;
+  height: 22px;
   border-radius: var(--radius-full);
-  background: var(--aurora);
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
   transition: transform var(--dur) var(--ease-spring);
 }
 .nav-item.active .nav-indicator { transform: translateY(-50%) scaleY(1); }
@@ -101,9 +143,10 @@
   flex-shrink: 0;
 }
 .nav-icon svg { width: 20px; height: 20px; }
-.nav-item.active .nav-icon { color: var(--accent); }
+.nav-item.active .nav-icon { color: var(--accent); filter: drop-shadow(0 0 6px var(--accent-ring)); }
 .nav-label { white-space: nowrap; overflow: hidden; }
 .layout.rail .nav-item { justify-content: center; padding: 0; }
+.layout.rail .nav-indicator { left: -2px; }
 
 /* Footer */
 .sidebar-footer {
@@ -143,13 +186,14 @@
   text-overflow: ellipsis;
   max-width: 120px;
 }
-.user-email {
-  font-size: var(--text-xs);
+.user-role {
+  font-size: 11px;
   color: var(--text-muted);
+  letter-spacing: -0.004em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: 130px;
 }
 .user-caret { width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0; }
 
@@ -170,33 +214,37 @@
   overflow: hidden;
 }
 
-/* Topbar */
+/* Topbar — slim, sticky, hairline-separated. */
 .topbar {
   position: sticky;
   top: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
   height: 60px;
   padding: 0 var(--space-6);
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
-  border-top: none;
+  background: color-mix(in srgb, var(--bg-app) 80%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
   z-index: var(--z-sticky);
   flex-shrink: 0;
 }
-.topbar-left { display: flex; align-items: center; min-width: 0; }
+.topbar-left { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+/* Desktop: the sidebar owns collapse/expand, so the topbar button is hidden.
+   It returns only on mobile to open the off-canvas drawer (see media query). */
+.menu-btn { flex-shrink: 0; display: none; }
 .page-title {
-  font-size: var(--text-lg);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.topbar-right { display: flex; align-items: center; gap: var(--space-2); }
+.topbar-right { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
 
 .cmdk-trigger {
   display: flex;
@@ -211,21 +259,157 @@
   font-family: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.cmdk-trigger:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+.cmdk-trigger:hover { border-color: var(--border-strong); color: var(--text-secondary); background: var(--surface-hover); }
 .cmdk-trigger svg { width: 16px; height: 16px; }
 .cmdk-label { min-width: 80px; text-align: left; }
+.cmdk-trigger .kbd { margin-left: var(--space-2); }
+/* Inline search grows to a comfortable width in the bar; the command
+   palette drops down from it as an anchored dropdown (position: relative). */
+.cmdk-anchor { position: relative; }
+.topbar-search { margin-left: var(--space-5); flex: 1; max-width: 360px; }
+.cmdk-anchor .cmdk-trigger { width: 100%; }
+.topbar-search .cmdk-label { flex: 1; }
 
-.topbar-avatar { cursor: default; }
+/* Top-right avatar + dropdown menu */
+.user-anchor { position: relative; }
+.topbar-user-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.topbar-user-btn:hover { background: var(--surface-hover); border-color: var(--border); }
+.topbar-user-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-user-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 180px;
+  z-index: var(--z-panel);
+}
+
+@media (max-width: 720px) {
+  /* Collapse the search to an icon-only trigger — still opens the palette. */
+  .topbar-search { flex: 0 0 auto; max-width: none; margin-left: auto; }
+  .topbar-right { margin-left: var(--space-2); }
+  .topbar-user-name { display: none; }
+}
 
 /* Main content */
 .main-content {
   flex: 1;
   overflow-y: auto;
-  background: var(--bg-app);
+  background: transparent;
 }
 
 @media (max-width: 720px) {
   .cmdk-label, .cmdk-trigger .kbd { display: none; }
+}
+
+/* ─────────────── B14: Mobile off-canvas nav ───────────────
+   Below 900px the sidebar leaves the flow and becomes a slide-in drawer, so
+   the permanent rail no longer eats horizontal space. The scrim is inert on
+   desktop and only activates while the drawer is open. */
+.mobile-scrim { display: none; }
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 264px;
+    transform: translateX(-100%);
+    transition: transform var(--dur-slow) var(--ease-spring);
+    box-shadow: none;
+  }
+  /* Even when the rail is the persisted desktop state, the drawer opens
+     full-width with labels (the template shows them via mobileOpen()). */
+  .layout.rail .sidebar { width: 264px; }
+  .layout.rail.mobile-open .brand { justify-content: flex-start; padding: 0 var(--space-5); }
+  .layout.rail.mobile-open .nav-item { justify-content: flex-start; padding: 0 var(--space-3); }
+  .layout.rail.mobile-open .user-btn { justify-content: flex-start; padding: var(--space-2); }
+  /* Drawer: the toggle acts as "close" (chevrons stay pointing left). */
+  .layout.rail .collapse-icon { transform: none; }
+
+  /* Hamburger returns on mobile — it's the only way to reopen a closed drawer. */
+  .menu-btn { display: inline-flex; }
+
+  .layout.mobile-open .sidebar {
+    transform: translateX(0);
+    z-index: var(--z-panel);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .mobile-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-panel) - 1);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(4, 8, 14, 0.5);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    cursor: pointer;
+    transition: opacity var(--dur) var(--ease), visibility var(--dur) var(--ease);
+  }
+  .layout.mobile-open .mobile-scrim { opacity: 1; visibility: visible; }
+}
+
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+}
+
+/* N7: @mention toast host — stacked bottom-right, above app content. */
+.mention-toast-host {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+.mention-toast {
+  pointer-events: auto;
+  align-items: flex-start;
+}
+.mention-toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.mention-toast-title { font-size: var(--text-sm); color: var(--text-primary); }
+.mention-toast-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }

@@ -51,7 +51,8 @@
   pointer-events: none;
   box-shadow:
     0 0 0 2px var(--accent),
-    0 0 0 6px var(--accent-ring);
+    0 0 0 6px var(--accent-ring),
+    var(--shadow-glow);
   transition:
     top var(--dur) var(--ease),
     left var(--dur) var(--ease),
@@ -81,9 +82,10 @@
 }
 
 .tour-step-count {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  letter-spacing: 0.055em;
   text-transform: uppercase;
   color: var(--accent);
 }
@@ -102,10 +104,8 @@
 }
 
 .tour-tip-title {
-  margin: 0 0 var(--space-1);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-xl);
   color: var(--text-primary);
 }
 

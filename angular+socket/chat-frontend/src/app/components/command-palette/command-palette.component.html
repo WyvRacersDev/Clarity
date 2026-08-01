@@ -1,49 +1,55 @@
 @if (isOpen()) {
-  <div class="cmdk-scrim" (click)="close()">
-    <div
-      class="cmdk glass"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command palette"
-      (click)="$event.stopPropagation()"
-      (keydown)="onPaletteKeydown($event)"
-    >
-      <div class="cmdk-search">
-        <svg class="cmdk-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input
-          #cmdkInput
-          class="cmdk-input"
-          type="text"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="Search actions and pages…"
-          [value]="query()"
-          (input)="onQueryInput(cmdkInput.value)"
-          aria-label="Search commands"
-        />
-        <span class="kbd">Esc</span>
-      </div>
+  <div
+    class="cmdk glass"
+    role="dialog"
+    aria-label="Command palette"
+    (keydown)="onPaletteKeydown($event)"
+  >
+    <div class="cmdk-search">
+      <svg class="cmdk-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input
+        #cmdkInput
+        class="cmdk-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Search pages, tasks, comments, docs…"
+        [value]="query()"
+        (input)="onQueryInput(cmdkInput.value)"
+        aria-label="Search commands and content"
+      />
+      @if (searching()) {
+        <span class="cmdk-spinner" aria-hidden="true"></span>
+      }
+      <span class="kbd">Esc</span>
+    </div>
 
-      <div class="cmdk-list" role="listbox">
-        @if (results().length === 0) {
-          <div class="cmdk-empty">
+    <div class="cmdk-list" role="listbox">
+      @if (totalCount() === 0) {
+        <div class="cmdk-empty">
+          @if (searching()) {
+            <span>Searching…</span>
+          } @else {
             <span>No results for “{{ query() }}”</span>
-          </div>
-        } @else {
+          }
+        </div>
+      } @else {
+        @if (results().length > 0) {
+          <div class="cmdk-section">Commands</div>
           @for (cmd of results(); track trackById($index, cmd); let i = $index) {
             <button
               type="button"
               class="cmdk-item"
               role="option"
-              [class.is-active]="i === activeIndex()"
-              [attr.aria-selected]="i === activeIndex()"
+              [class.is-active]="isCommandActive(i)"
+              [attr.aria-selected]="isCommandActive(i)"
               (mouseenter)="activeIndex.set(i)"
               (click)="select(cmd)"
             >
               <span class="cmdk-item-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                   <path d="M5 12h14" /><path d="M13 6l6 6-6 6" />
                 </svg>
               </span>
@@ -53,13 +59,35 @@
             </button>
           }
         }
-      </div>
 
-      <div class="cmdk-footer">
-        <span><span class="kbd">↑</span><span class="kbd">↓</span> navigate</span>
-        <span><span class="kbd">↵</span> select</span>
-        <span><span class="kbd">Esc</span> close</span>
-      </div>
+        @if (contentResults().length > 0) {
+          <div class="cmdk-section">Content</div>
+          @for (hit of contentResults(); track trackHit($index, hit); let j = $index) {
+            <button
+              type="button"
+              class="cmdk-item cmdk-item-content"
+              role="option"
+              [class.is-active]="isHitActive(j)"
+              [attr.aria-selected]="isHitActive(j)"
+              (mouseenter)="activeIndex.set(commandCount() + j)"
+              (click)="selectHit(hit)"
+            >
+              <span class="badge cmdk-hit-kind">{{ hitKindLabel(hit.kind) }}</span>
+              <span class="cmdk-hit-body">
+                <span class="cmdk-item-label">{{ hit.title }}</span>
+                <span class="cmdk-hit-snippet">{{ hit.snippet }}</span>
+              </span>
+              <span class="cmdk-item-hint">{{ hit.project_name }}</span>
+            </button>
+          }
+        }
+      }
+    </div>
+
+    <div class="cmdk-footer">
+      <span><span class="kbd">↑</span><span class="kbd">↓</span> navigate</span>
+      <span><span class="kbd">↵</span> select</span>
+      <span><span class="kbd">Esc</span> close</span>
     </div>
   </div>
 }

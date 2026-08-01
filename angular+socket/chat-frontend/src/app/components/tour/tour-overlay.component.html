@@ -31,13 +31,13 @@
             Step {{ tour.stepIndex() + 1 }} of {{ tour.stepCount() }}
           </span>
           <button class="tour-close btn-icon" (click)="skip()" aria-label="Skip tour">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false">
               <line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>
             </svg>
           </button>
         </div>
 
-        <h3 class="tour-tip-title">{{ step.title }}</h3>
+        <h3 class="tour-tip-title display">{{ step.title }}</h3>
         <p class="tour-tip-body">{{ step.body }}</p>
 
         <div class="tour-tip-foot">

@@ -1,19 +1,27 @@
-<div class="layout" [class.rail]="collapsed()">
+<div class="layout" [class.rail]="collapsed()" [class.mobile-open]="mobileOpen()">
+  <!-- B14: off-canvas scrim — only interactive on mobile when the drawer is open. -->
+  <button
+    class="mobile-scrim"
+    type="button"
+    aria-label="Close navigation menu"
+    (click)="closeMobileNav()"
+  ></button>
+
   <!-- ─────────────── Sidebar ─────────────── -->
   <aside class="sidebar">
     <!-- Brand -->
     <div class="brand">
-      <img class="brand-logo" src="assets/clarity-logo.jpg" alt="Clarity" width="28" height="28" />
-      @if (!collapsed()) {
+      @if (!collapsed() || mobileOpen()) {
         <span class="brand-word">Clarity</span>
       }
-      <button class="collapse-btn btn-icon" (click)="toggleSidebar()"
-              [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
-        @if (collapsed()) {
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        } @else {
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        }
+      <!-- Collapse / expand rail toggle — lives in the sidebar; the chevrons
+           flip direction with the collapsed state. -->
+      <button class="collapse-btn" (click)="toggleSidebar()"
+              [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+              [attr.aria-expanded]="!collapsed()">
+        <svg class="collapse-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>
+        </svg>
       </button>
     </div>
 
@@ -30,26 +38,41 @@
           <span class="nav-icon" aria-hidden="true">
             @switch (item.icon) {
               @case ('grid') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
               }
               @case ('folder') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
               }
               @case ('check') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              }
+              @case ('board') {
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="11" rx="1"/><rect x="17" y="4" width="4" height="14" rx="1"/></svg>
+              }
+              @case ('timeline') {
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="3" y1="6" x2="4" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="3" y1="12" x2="4" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="18" x2="4" y2="18"/></svg>
               }
               @case ('chart') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               }
               @case ('ai') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M12 2a4 4 0 00-4 4c0 1.95 1.4 3.58 3.25 3.93"/><path d="M12 10v4"/><circle cx="12" cy="18" r="2"/><path d="M6 18h12"/><path d="M4 22h16"/></svg>
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M12 2a4 4 0 00-4 4c0 1.95 1.4 3.58 3.25 3.93"/><path d="M12 10v4"/><circle cx="12" cy="18" r="2"/><path d="M6 18h12"/><path d="M4 22h16"/></svg>
+              }
+              @case ('assistant') {
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg>
+              }
+              @case ('contacts') {
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              }
+              @case ('chat') {
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               }
               @case ('settings') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
               }
             }
           </span>
-          @if (!collapsed()) {
+          @if (!collapsed() || mobileOpen()) {
             <span class="nav-label">{{ item.label }}</span>
           }
         </a>
@@ -61,19 +84,23 @@
       @if (userMenuOpen()) {
         <div class="menu user-menu">
           <button class="menu-item danger" (click)="logout()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span>Logout</span>
           </button>
         </div>
       }
-      <button class="user-btn" (click)="toggleUserMenu()" [attr.aria-expanded]="userMenuOpen()" aria-label="User menu">
-        <span class="avatar avatar-sm">{{ userInitial }}</span>
-        @if (!collapsed()) {
+      <button class="user-btn" (click)="toggleUserMenu($event)" [attr.aria-expanded]="userMenuOpen()" aria-label="User menu">
+        @if (userPicture) {
+          <img class="avatar avatar-sm avatar-img" [src]="userPicture" [alt]="currentUser?.name || 'User'" referrerpolicy="no-referrer" />
+        } @else {
+          <span class="avatar avatar-sm">{{ userInitial }}</span>
+        }
+        @if (!collapsed() || mobileOpen()) {
           <span class="user-meta">
             <span class="user-name">{{ currentUser?.name || 'User' }}</span>
-            <span class="user-email">{{ currentUser?.name || 'user' }}&#64;clarity.app</span>
+            <span class="user-role">Signed in</span>
           </span>
-          <svg class="user-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          <svg aria-hidden="true" focusable="false" class="user-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         }
       </button>
     </div>
@@ -81,27 +108,68 @@
 
   <!-- ─────────────── Content column ─────────────── -->
   <div class="content">
-    <!-- Topbar -->
-    <header class="topbar glass">
+    <!-- Topbar (T3: from B — sidebar toggle, title, search, theme, avatar menu) -->
+    <header class="topbar">
       <div class="topbar-left">
+        <button class="btn btn-icon menu-btn" (click)="toggleSidebar()"
+                [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <img class="topbar-logo" src="assets/clarity-logo.jpg" alt="Clarity" width="32" height="32" />
         <h1 class="page-title">{{ pageTitle() }}</h1>
       </div>
-      <div class="topbar-right">
-        <button class="cmdk-trigger" (click)="palette.open()" aria-label="Open command palette">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span class="cmdk-label">Search</span>
+
+      <!-- Search field — the command palette drops down inline from here. -->
+      <div class="cmdk-anchor topbar-search">
+        <button class="cmdk-trigger" (click)="palette.toggle()"
+                [attr.aria-expanded]="palette.isOpen()" aria-haspopup="dialog"
+                aria-label="Open command palette">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="cmdk-label">Search…</span>
           <span class="kbd">⌘K</span>
         </button>
+        <!-- Command palette (⌘K) — anchored dropdown -->
+        <app-command-palette #palette></app-command-palette>
+      </div>
 
-        <button class="btn-icon theme-toggle" (click)="toggleTheme()" [attr.aria-label]="isDark() ? 'Switch to light theme' : 'Switch to dark theme'">
+      <div class="topbar-right">
+        <!-- Chat: open the slide-in messaging panel -->
+        <button class="btn btn-icon" (click)="chatUi.toggle()" aria-label="Open chat" title="Chat">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </button>
+
+        <!-- N2: notification center bell -->
+        <app-notification-bell></app-notification-bell>
+
+        <button class="btn btn-icon theme-toggle" (click)="toggleTheme()" [attr.aria-label]="isDark() ? 'Switch to light theme' : 'Switch to dark theme'">
           @if (isDark()) {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           } @else {
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
           }
         </button>
 
-        <span class="avatar avatar-sm topbar-avatar">{{ userInitial }}</span>
+        <!-- T4: top-right avatar with logout menu -->
+        <div class="user-anchor">
+          <button class="topbar-user-btn" (click)="toggleTopUserMenu($event)"
+                  [attr.aria-expanded]="topUserMenuOpen()" aria-label="User menu">
+            @if (userPicture) {
+              <img class="avatar avatar-sm avatar-img" [src]="userPicture" [alt]="currentUser?.name || 'User'" referrerpolicy="no-referrer" />
+            } @else {
+              <span class="avatar avatar-sm">{{ userInitial }}</span>
+            }
+            <span class="topbar-user-name">{{ currentUser?.name || 'User' }}</span>
+            <svg aria-hidden="true" focusable="false" class="user-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          @if (topUserMenuOpen()) {
+            <div class="menu topbar-user-menu">
+              <button class="menu-item danger" (click)="logout()">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Logout</span>
+              </button>
+            </div>
+          }
+        </div>
       </div>
     </header>
 
@@ -111,9 +179,26 @@
     </main>
   </div>
 
-  <!-- Command palette (⌘K) -->
-  <app-command-palette #palette></app-command-palette>
+  <!-- Slide-in chat panel (project channels + DMs) -->
+  <app-chat-panel></app-chat-panel>
 
   <!-- Onboarding spotlight tour -->
   <app-tour-overlay></app-tour-overlay>
+
+  <!-- N7: @mention toasts -->
+  @if (mentionToasts().length > 0) {
+    <div class="mention-toast-host">
+      @for (t of mentionToasts(); track t.id) {
+        <div class="toast toast-info mention-toast">
+          <div class="mention-toast-body">
+            <span class="mention-toast-title"><strong>{{ t.author }}</strong> mentioned you</span>
+            <span class="mention-toast-text">{{ t.body }}</span>
+          </div>
+          <button class="btn btn-icon btn-ghost btn-sm" (click)="dismissMentionToast(t.id)" aria-label="Dismiss">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      }
+    </div>
+  }
 </div>

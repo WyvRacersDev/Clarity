@@ -7,6 +7,7 @@ import { User } from '../../../../../shared_models/models/user.model';
 import { Project } from '../../../../../shared_models/models/project.model';
 import { scheduled_task } from '../../../../../shared_models/models/screen-elements.model';
 import { calender } from '../../../../../shared_models/models/user.model';
+import { priorityLabel } from '../../shared/priority.util';
 
 @Component({
   selector: 'app-dashboard',
@@ -155,9 +156,7 @@ export class DashboardComponent implements OnInit {
   }
 
   getPriorityLabel(priority: number): string {
-    if (priority === 1) return 'High';
-    if (priority === 2) return 'Medium';
-    return 'Low';
+    return priorityLabel(priority);
   }
 
   getPriorityBadgeClass(priority: number): string {

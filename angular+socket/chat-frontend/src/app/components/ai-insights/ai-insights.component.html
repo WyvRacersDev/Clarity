@@ -1,330 +1,161 @@
 <div class="aic-root">
 
-  <!-- Page header -->
-  <div class="aic-page-header">
-    <div class="aic-page-header-text">
-      <h1 class="aic-page-title">AI Insights</h1>
-      <p class="aic-page-subtitle">Personalized productivity insights &amp; an intelligent assistant</p>
+  <!-- ── MASTHEAD — editorial "state of your work" line. No cards, no kicker. ── -->
+  <header class="aic-masthead">
+    <div class="aic-masthead-text">
+      <p class="mono-label aic-eyebrow">Productivity Review</p>
+      <h1 class="display aic-title">AI Insights</h1>
+      <p class="aic-dek">A quiet read on how your work is tracking — computed from your projects and tasks.</p>
     </div>
-  </div>
+    <div class="aic-tally" role="list" aria-label="Signal counts">
+      <span class="aic-tally-item" role="listitem" [class.is-muted]="insights.length === 0">
+        <span class="num aic-tally-num">{{ insights.length }}</span>
+        <span class="aic-tally-key">Insights</span>
+      </span>
+      <span class="aic-tally-item" role="listitem" [class.is-muted]="bottlenecks.length === 0">
+        <span class="num aic-tally-num">{{ bottlenecks.length }}</span>
+        <span class="aic-tally-key">Bottlenecks</span>
+      </span>
+      <span class="aic-tally-item" role="listitem" [class.is-muted]="suggestions.length + proactiveSuggestions.length === 0">
+        <span class="num aic-tally-num">{{ suggestions.length + proactiveSuggestions.length }}</span>
+        <span class="aic-tally-key">Suggestions</span>
+      </span>
+    </div>
+  </header>
 
-  <div class="aic-layout">
+  <div class="aic-sections">
 
-    <!-- ── Left sidebar: insights panels ── -->
-    <aside class="aic-sidebar">
+    <!-- ── INSIGHTS — cyan-led (lead category) ── -->
+    <section class="aic-section aic-section--insights">
+      <div class="aic-section-head">
+        <span class="aic-section-glyph aic-glyph-insights">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </span>
+        <h2 class="aic-section-heading">Insights</h2>
+        @if (insights.length > 0) {
+          <span class="num aic-section-count">{{ insights.length }}</span>
+        }
+      </div>
 
-      <!-- Insights — blue spectrum -->
-      <div class="card aic-insight-card aic-card--insights">
-        <div class="aic-insight-card-header">
-          <span class="aic-section-icon aic-icon-info">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      @if (insights.length === 0) {
+        <div class="aic-empty">
+          <span class="aic-empty-glyph aic-glyph-insights">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
           </span>
-          <span class="aic-section-label">Insights</span>
-          @if (insights.length > 0) {
-            <span class="badge badge-accent">{{ insights.length }}</span>
-          }
+          <p class="aic-empty-title">Nothing to read yet</p>
+          <p class="aic-empty-sub">Add tasks to your projects and insights will surface here.</p>
         </div>
-        <div class="aic-insight-list">
+      } @else {
+        <ul class="aic-list">
           @for (insight of insights; track insight) {
-            <div class="aic-insight-item aic-insight-accent">
-              <span class="aic-item-dot aic-dot-accent"></span>
-              <span>{{ insight }}</span>
-            </div>
+            <li class="aic-row aic-row--insights">
+              <span class="aic-row-tick aic-tick-insights" aria-hidden="true"></span>
+              <span class="aic-row-text">{{ insight }}</span>
+            </li>
           }
-          @if (insights.length === 0) {
-            <div class="aic-mini-empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              <span>All clear</span>
-            </div>
-          }
-        </div>
+        </ul>
+      }
+    </section>
+
+    <!-- ── BOTTLENECKS — warning (categorical) ── -->
+    <section class="aic-section aic-section--bottlenecks">
+      <div class="aic-section-head">
+        <span class="aic-section-glyph aic-glyph-bottlenecks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </span>
+        <h2 class="aic-section-heading">Bottlenecks</h2>
+        @if (bottlenecks.length > 0) {
+          <span class="num aic-section-count">{{ bottlenecks.length }}</span>
+        }
       </div>
 
-      <!-- Bottlenecks — warning/amber spectrum -->
-      <div class="card aic-insight-card aic-card--bottlenecks">
-        <div class="aic-insight-card-header">
-          <span class="aic-section-icon aic-icon-warning">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
+      @if (bottlenecks.length === 0) {
+        <div class="aic-empty">
+          <span class="aic-empty-glyph aic-glyph-bottlenecks">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
             </svg>
           </span>
-          <span class="aic-section-label">Bottlenecks</span>
-          @if (bottlenecks.length > 0) {
-            <span class="badge badge-warning">{{ bottlenecks.length }}</span>
-          }
+          <p class="aic-empty-title">No bottlenecks</p>
+          <p class="aic-empty-sub">Your work is flowing — nothing is blocking you right now.</p>
         </div>
-        <div class="aic-insight-list">
+      } @else {
+        <ul class="aic-list">
           @for (bottleneck of bottlenecks; track bottleneck) {
-            <div class="aic-insight-item aic-insight-warning">
-              <span class="aic-item-dot aic-dot-warning"></span>
-              <span>{{ bottleneck }}</span>
-            </div>
+            <li class="aic-row aic-row--bottlenecks">
+              <span class="aic-row-tick aic-tick-bottlenecks" aria-hidden="true"></span>
+              <span class="aic-row-text">{{ bottleneck }}</span>
+            </li>
           }
-          @if (bottlenecks.length === 0) {
-            <div class="aic-mini-empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              <span>No bottlenecks</span>
-            </div>
-          }
-        </div>
+        </ul>
+      }
+    </section>
+
+    <!-- ── SUGGESTIONS — green (categorical); proactive server-pushed tagged ── -->
+    <section class="aic-section aic-section--suggestions">
+      <div class="aic-section-head">
+        <span class="aic-section-glyph aic-glyph-suggestions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+        </span>
+        <h2 class="aic-section-heading">Suggestions</h2>
+        @if (proactiveSuggestions.length > 0) {
+          <span class="aic-proactive-tag">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2a7 7 0 00-4 12.7V17a1 1 0 001 1h6a1 1 0 001-1v-2.3A7 7 0 0012 2z"/>
+              <line x1="9" y1="21" x2="15" y2="21"/>
+            </svg>
+            Proactive
+          </span>
+        }
+        @if (suggestions.length + proactiveSuggestions.length > 0) {
+          <span class="num aic-section-count">{{ suggestions.length + proactiveSuggestions.length }}</span>
+        }
       </div>
 
-      <!-- Suggestions — green spectrum -->
-      <div class="card aic-insight-card aic-card--suggestions">
-        <div class="aic-insight-card-header">
-          <span class="aic-section-icon aic-icon-success">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 8v4l3 3"/>
+      @if (suggestions.length === 0 && proactiveSuggestions.length === 0) {
+        <div class="aic-empty">
+          <span class="aic-empty-glyph aic-glyph-suggestions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
             </svg>
           </span>
-          <span class="aic-section-label">Suggestions</span>
-          @if (suggestions.length + proactiveSuggestions.length > 0) {
-            <span class="badge badge-success">{{ suggestions.length + proactiveSuggestions.length }}</span>
-          }
+          <p class="aic-empty-title">No suggestions</p>
+          <p class="aic-empty-sub">Keep going — recommendations appear as patterns emerge.</p>
         </div>
-        <div class="aic-insight-list">
+      } @else {
+        <ul class="aic-list">
           <!-- C2: proactive, server-pushed scheduling suggestions -->
-          @if (proactiveSuggestions.length > 0) {
-            <div class="aic-proactive-tag">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2a7 7 0 00-4 12.7V17a1 1 0 001 1h6a1 1 0 001-1v-2.3A7 7 0 0012 2z"/>
-                <line x1="9" y1="21" x2="15" y2="21"/>
-              </svg>
-              <span>Proactive</span>
-            </div>
-          }
           @for (suggestion of proactiveSuggestions; track suggestion) {
-            <div class="aic-insight-item aic-insight-success aic-insight-proactive">
-              <span class="aic-item-dot aic-dot-success"></span>
-              <span>{{ suggestion }}</span>
-            </div>
+            <li class="aic-row aic-row--suggestions aic-row--proactive">
+              <span class="aic-row-tick aic-tick-suggestions" aria-hidden="true"></span>
+              <span class="aic-row-text">{{ suggestion }}</span>
+              <span class="aic-row-flag">Proactive</span>
+            </li>
           }
           @for (suggestion of suggestions; track suggestion) {
-            <div class="aic-insight-item aic-insight-success">
-              <span class="aic-item-dot aic-dot-success"></span>
-              <span>{{ suggestion }}</span>
-            </div>
+            <li class="aic-row aic-row--suggestions">
+              <span class="aic-row-tick aic-tick-suggestions" aria-hidden="true"></span>
+              <span class="aic-row-text">{{ suggestion }}</span>
+            </li>
           }
-          @if (suggestions.length === 0 && proactiveSuggestions.length === 0) {
-            <div class="aic-mini-empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              <span>No suggestions</span>
-            </div>
-          }
-        </div>
-      </div>
+        </ul>
+      }
+    </section>
 
-    </aside>
-
-    <!-- ── Right panel: AI chat ── -->
-    <div class="aic-chat-panel card">
-
-      <!-- Chat header -->
-      <div class="aic-chat-header">
-        <div class="aic-chat-header-left">
-          <div class="avatar aic-assistant-avatar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0110 0v4"/>
-              <circle cx="12" cy="16" r="1" fill="currentColor"/>
-            </svg>
-          </div>
-          <div class="aic-chat-header-info">
-            <span class="aic-chat-title">AI Assistant</span>
-            <span class="aic-chat-status">
-              <span class="aic-status-dot"></span>
-              Ready to help
-            </span>
-          </div>
-        </div>
-        <div class="aic-chat-header-right">
-          <span class="badge badge-accent">Aurora AI</span>
-        </div>
-      </div>
-
-      <!-- Messages area -->
-      <div class="aic-messages">
-
-        <!-- Empty state -->
-        @if (aiChatMessages.length === 0) {
-          <div class="aic-empty-chat">
-            <div class="aic-empty-avatar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0110 0v4"/>
-                <circle cx="12" cy="16" r="1" fill="currentColor"/>
-              </svg>
-            </div>
-            <h3 class="aic-empty-title">How can I help you?</h3>
-            <p class="aic-empty-sub">Ask about your projects, tasks, schedule, or productivity. Use <kbd class="kbd">&#64;</kbd> to invoke services.</p>
-
-            <!-- Suggestion chips — spectrum: blue / teal / green -->
-            <div class="aic-suggestion-chips">
-              <button
-                class="chip aic-suggestion-chip aic-chip--blue"
-                (click)="userInput = 'Summarize project YOOO'; sendMessage()"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
-                  <line x1="8" y1="6" x2="21" y2="6"/>
-                  <line x1="8" y1="12" x2="21" y2="12"/>
-                  <line x1="8" y1="18" x2="21" y2="18"/>
-                  <line x1="3" y1="6" x2="3.01" y2="6"/>
-                  <line x1="3" y1="12" x2="3.01" y2="12"/>
-                  <line x1="3" y1="18" x2="3.01" y2="18"/>
-                </svg>
-                Summarize project YOOO
-              </button>
-              <button
-                class="chip aic-suggestion-chip aic-chip--teal"
-                (click)="userInput = 'Suggest schedule for YOOO'; sendMessage()"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                Suggest schedule for YOOO
-              </button>
-              <button
-                class="chip aic-suggestion-chip aic-chip--green"
-                (click)="userInput = 'send an invite to Bilal Kashif'; sendMessage()"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                Send invite to Bilal Kashif
-              </button>
-            </div>
-          </div>
-        }
-
-        <!-- Message list -->
-        @for (message of aiChatMessages; track message) {
-          <div
-            class="aic-msg-row"
-            [class.aic-msg-row--user]="message.role === 'user'"
-            [class.aic-msg-row--ai]="message.role === 'ai'"
-          >
-            @if (message.role === 'ai') {
-              <div class="avatar avatar-sm aic-msg-avatar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0110 0v4"/>
-                  <circle cx="12" cy="16" r="1" fill="currentColor"/>
-                </svg>
-              </div>
-            }
-
-            <div
-              class="aic-bubble"
-              [class.aic-bubble--user]="message.role === 'user'"
-              [class.aic-bubble--ai]="message.role === 'ai'"
-              [class.user-message]="message.role === 'user'"
-              [class.ai-message]="message.role === 'ai'"
-            >
-              <div [innerHTML]="message.content"></div>
-            </div>
-
-            @if (message.role === 'user') {
-              <div class="avatar avatar-sm aic-msg-avatar aic-msg-avatar--user">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </div>
-            }
-          </div>
-        }
-
-        <!-- Typing / loading indicator -->
-        @if (isLoading) {
-          <div class="aic-msg-row aic-msg-row--ai">
-            <div class="avatar avatar-sm aic-msg-avatar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0110 0v4"/>
-                <circle cx="12" cy="16" r="1" fill="currentColor"/>
-              </svg>
-            </div>
-            <div class="aic-bubble aic-bubble--ai ai-message aic-typing-bubble">
-              <span class="aic-typing-dot"></span>
-              <span class="aic-typing-dot"></span>
-              <span class="aic-typing-dot"></span>
-            </div>
-          </div>
-        }
-
-      </div>
-
-      <!-- Composer -->
-      <div class="aic-composer">
-
-        <!-- Command dropdown -->
-        @if (showCommandDropdown) {
-          <div class="menu aic-command-menu">
-            @for (cmd of filteredCommands; track cmd) {
-              <button class="menu-item aic-command-item" (click)="selectCommand(cmd)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0;">
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-                  <line x1="4" y1="22" x2="4" y2="15"/>
-                </svg>
-                <span class="aic-cmd-at">&#64;</span>{{ cmd }}
-              </button>
-            }
-          </div>
-        }
-
-        <!-- Highlighted overlay for command coloring -->
-        <div class="aic-input-highlight" [innerHTML]="highlightedInput" aria-hidden="true"></div>
-
-        <div class="aic-composer-row">
-          <div class="aic-input-wrap">
-            <input
-              type="text"
-              class="input chat-input aic-text-input"
-              [(ngModel)]="userInput"
-              placeholder="Ask a question or type @ to invoke a service"
-              (input)="onUserInputChange($event)"
-              (keyup.enter)="sendMessage()"
-              [disabled]="isLoading || isStreaming"
-            />
-          </div>
-
-          <button
-            class="btn btn-primary aic-send-btn"
-            (click)="sendMessage()"
-            [disabled]="isLoading || isStreaming || !userInput.trim()"
-            aria-label="Send message"
-          >
-            @if (isLoading || isStreaming) {
-              <span class="spinner spinner-sm"></span>
-            } @else {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            }
-          </button>
-        </div>
-
-        <p class="aic-composer-hint">Press <kbd class="kbd">Enter</kbd> to send &nbsp;&middot;&nbsp; <kbd class="kbd">&#64;</kbd> for service commands</p>
-      </div>
-
-    </div>
   </div>
 </div>
