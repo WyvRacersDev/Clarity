@@ -359,7 +359,12 @@ export class scheduled_task {
 
   toJSON() {
     return {
-      type: this.constructor.name,
+      // Stable discriminator literal, NOT `this.constructor.name` — the latter is
+      // mangled by the frontend build (e.g. "_scheduled_task"), which then fails
+      // to match `objects_builder.rebuild`'s `case 'scheduled_task'` on the server
+      // and left the task a plain object, crashing ToDoLst.toJSON on save. Mirrors
+      // how Screen_Element subclasses carry an explicit `type`.
+      type: 'scheduled_task',
       // Include the stable id only when present (backward-compatible).
       ...(this.id !== undefined ? { id: this.id } : {}),
       taskname: this.taskname,
@@ -593,7 +598,13 @@ export class objects_builder {
 
     if (!obj.type) return obj;
 
-    switch (obj.type) {
+    // Frontend minification can prefix class names (e.g. "_scheduled_task",
+    // "_ToDoLst") when a payload's `type` came from `constructor.name`. Normalize
+    // leading underscores so the discriminator still matches — none of the real
+    // type names start with one.
+    const type = typeof obj.type === 'string' ? obj.type.replace(/^_+/, '') : obj.type;
+
+    switch (type) {
       case 'Text_document':
         const textDoc = new Text_document(obj.name, obj.x_pos, obj.y_pos, obj.Text_field || obj.text_field || '');
         // Restore scale values if present

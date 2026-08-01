@@ -32,7 +32,11 @@ import {
   projectUnreadCount,
   listDmConversations,
   usersShareAnyProject,
+  toggleReaction as repoToggleReaction,
+  getMessageRouting,
   type SerializedMessage,
+  type MessageAttachment,
+  type ReactionSet,
   type DmSummary,
 } from "../repositories/message.repository.js";
 
@@ -62,9 +66,10 @@ export class ChatService {
     projectId: string,
     author: string,
     body: string,
-    replyToId: string | null = null
+    replyToId: string | null = null,
+    attachments: MessageAttachment[] = []
   ): Promise<SerializedMessage> {
-    return insertProjectMessage(projectId, author, body, replyToId);
+    return insertProjectMessage(projectId, author, body, replyToId, attachments);
   }
 
   listProjectMessages(
@@ -118,9 +123,10 @@ export class ChatService {
     dmKey: string,
     author: string,
     body: string,
-    replyToId: string | null = null
+    replyToId: string | null = null,
+    attachments: MessageAttachment[] = []
   ): Promise<SerializedMessage> {
-    return insertDmMessage(dmKey, author, body, replyToId);
+    return insertDmMessage(dmKey, author, body, replyToId, attachments);
   }
 
   listDmMessages(
@@ -144,6 +150,31 @@ export class ChatService {
 
   deleteMessage(id: string, author: string): Promise<boolean> {
     return repoDeleteMessage(id, author);
+  }
+
+  // ─── Reactions (E1) ────────────────────────────────────────────────────────
+
+  /**
+   * Toggle `reader`'s `emoji` reaction on a message, but only if that message
+   * actually belongs to the conversation the caller has already been authorized
+   * for (`constraint`). This stops a user with access to conversation A from
+   * reacting to a message in conversation B by passing A's target + B's id.
+   * Returns the message's full reaction set, or null if it isn't in scope.
+   */
+  async toggleReaction(
+    messageId: string,
+    emoji: string,
+    reader: string,
+    constraint: { projectId: string } | { dmKey: string }
+  ): Promise<ReactionSet[] | null> {
+    const routing = await getMessageRouting(messageId);
+    if (!routing) return null;
+    const inScope =
+      "projectId" in constraint
+        ? routing.scope === "project" && routing.projectId === constraint.projectId
+        : routing.scope === "dm" && routing.dmKey === constraint.dmKey;
+    if (!inScope) return null;
+    return repoToggleReaction(messageId, emoji, reader);
   }
 
   // ─── Read cursors ──────────────────────────────────────────────────────────

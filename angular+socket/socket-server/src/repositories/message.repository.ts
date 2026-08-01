@@ -17,6 +17,20 @@ import { sql } from "../infrastructure/db.js";
 
 export type MessageScope = "project" | "dm";
 
+/** An uploaded file carried by a message (E2). Immutable once the message posts. */
+export interface MessageAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/** A message's reactions for one emoji: the emoji + the users who reacted (E1). */
+export interface ReactionSet {
+  emoji: string;
+  users: string[];
+}
+
 /** The serialized message shape sent to clients (ISO string timestamps). */
 export interface SerializedMessage {
   id: string;
@@ -26,6 +40,8 @@ export interface SerializedMessage {
   author: string;
   body: string;
   replyToId: string | null;
+  attachments: MessageAttachment[];
+  reactions: ReactionSet[];
   edited_at: string | null;
   created_at: string;
 }
@@ -38,6 +54,7 @@ interface MessageRow {
   author: string;
   body: string;
   reply_to_id: string | null;
+  attachments: MessageAttachment[] | null;
   edited_at: Date | null;
   created_at: Date;
 }
@@ -51,6 +68,10 @@ function serialize(row: MessageRow): SerializedMessage {
     author: row.author,
     body: row.body,
     replyToId: row.reply_to_id,
+    // `attachments` is JSONB (already parsed to an array by the driver); default
+    // to [] for older rows. `reactions` is merged in by the read paths below.
+    attachments: Array.isArray(row.attachments) ? row.attachments : [],
+    reactions: [],
     edited_at: row.edited_at ? row.edited_at.toISOString() : null,
     created_at: row.created_at.toISOString(),
   };
@@ -58,7 +79,7 @@ function serialize(row: MessageRow): SerializedMessage {
 
 const RETURNING = sql`
   returning id, scope, project_id, dm_key, author, body,
-            reply_to_id, edited_at, created_at
+            reply_to_id, attachments, edited_at, created_at
 `;
 
 /**
@@ -77,11 +98,12 @@ export async function insertProjectMessage(
   projectId: string,
   author: string,
   body: string,
-  replyToId: string | null = null
+  replyToId: string | null = null,
+  attachments: MessageAttachment[] = []
 ): Promise<SerializedMessage> {
   const rows = await sql<MessageRow[]>`
-    insert into messages (scope, project_id, author, body, reply_to_id)
-    values ('project', ${projectId}, ${author}, ${body}, ${replyToId})
+    insert into messages (scope, project_id, author, body, reply_to_id, attachments)
+    values ('project', ${projectId}, ${author}, ${body}, ${replyToId}, ${sql.json(attachments as any)})
     ${RETURNING}
   `;
   return serialize(rows[0]!);
@@ -92,11 +114,12 @@ export async function insertDmMessage(
   dmKey: string,
   author: string,
   body: string,
-  replyToId: string | null = null
+  replyToId: string | null = null,
+  attachments: MessageAttachment[] = []
 ): Promise<SerializedMessage> {
   const rows = await sql<MessageRow[]>`
-    insert into messages (scope, dm_key, author, body, reply_to_id)
-    values ('dm', ${dmKey}, ${author}, ${body}, ${replyToId})
+    insert into messages (scope, dm_key, author, body, reply_to_id, attachments)
+    values ('dm', ${dmKey}, ${author}, ${body}, ${replyToId}, ${sql.json(attachments as any)})
     ${RETURNING}
   `;
   return serialize(rows[0]!);
@@ -141,14 +164,14 @@ export async function listProjectMessages(
 ): Promise<SerializedMessage[]> {
   const rows = await sql<MessageRow[]>`
     select id, scope, project_id, dm_key, author, body,
-           reply_to_id, edited_at, created_at
+           reply_to_id, attachments, edited_at, created_at
     from messages
     where scope = 'project' and project_id = ${projectId}
       and (${before}::timestamptz is null or created_at < ${before}::timestamptz)
     order by created_at desc
     limit ${limit}
   `;
-  return rows.reverse().map(serialize);
+  return withReactions(rows.reverse().map(serialize));
 }
 
 /** A DM conversation's messages, oldest-first (same paging as project). */
@@ -159,14 +182,88 @@ export async function listDmMessages(
 ): Promise<SerializedMessage[]> {
   const rows = await sql<MessageRow[]>`
     select id, scope, project_id, dm_key, author, body,
-           reply_to_id, edited_at, created_at
+           reply_to_id, attachments, edited_at, created_at
     from messages
     where scope = 'dm' and dm_key = ${dmKey}
       and (${before}::timestamptz is null or created_at < ${before}::timestamptz)
     order by created_at desc
     limit ${limit}
   `;
-  return rows.reverse().map(serialize);
+  return withReactions(rows.reverse().map(serialize));
+}
+
+// ─── Reactions (E1) ──────────────────────────────────────────────────────────
+
+/** Aggregated reactions for one message: one entry per emoji, users listed. */
+export async function reactionsForMessage(messageId: string): Promise<ReactionSet[]> {
+  const rows = await sql<Array<{ emoji: string; users: string[] }>>`
+    select emoji, array_agg(reader order by created_at) as users
+    from message_reactions
+    where message_id = ${messageId}
+    group by emoji
+    order by emoji
+  `;
+  return rows.map((r) => ({ emoji: r.emoji, users: r.users }));
+}
+
+/**
+ * Attach reactions to a batch of already-serialized messages in one grouped
+ * query (avoids an N+1 over history). Mutates + returns the same array.
+ */
+async function withReactions(messages: SerializedMessage[]): Promise<SerializedMessage[]> {
+  if (messages.length === 0) return messages;
+  const ids = messages.map((m) => m.id);
+  const rows = await sql<Array<{ message_id: string; emoji: string; users: string[] }>>`
+    select message_id, emoji, array_agg(reader order by created_at) as users
+    from message_reactions
+    where message_id = any(${ids}::uuid[])
+    group by message_id, emoji
+    order by emoji
+  `;
+  const byId = new Map<string, ReactionSet[]>();
+  for (const r of rows) {
+    const list = byId.get(r.message_id) ?? [];
+    list.push({ emoji: r.emoji, users: r.users });
+    byId.set(r.message_id, list);
+  }
+  for (const m of messages) m.reactions = byId.get(m.id) ?? [];
+  return messages;
+}
+
+/**
+ * Toggle `reader`'s reaction with `emoji` on a message: adds it if absent,
+ * removes it if present. Returns the message's full reaction set afterwards so
+ * the caller can broadcast the authoritative state.
+ */
+export async function toggleReaction(
+  messageId: string,
+  emoji: string,
+  reader: string
+): Promise<ReactionSet[]> {
+  const inserted = await sql<Array<{ reader: string }>>`
+    insert into message_reactions (message_id, emoji, reader)
+    values (${messageId}, ${emoji}, ${reader})
+    on conflict (message_id, emoji, reader) do nothing
+    returning reader
+  `;
+  if (inserted.length === 0) {
+    await sql`
+      delete from message_reactions
+      where message_id = ${messageId} and emoji = ${emoji} and reader = ${reader}
+    `;
+  }
+  return reactionsForMessage(messageId);
+}
+
+/** The conversation a message belongs to — used to authorize reactions. */
+export async function getMessageRouting(
+  id: string
+): Promise<{ scope: MessageScope; projectId: string | null; dmKey: string | null } | null> {
+  const rows = await sql<Array<{ scope: MessageScope; project_id: string | null; dm_key: string | null }>>`
+    select scope, project_id, dm_key from messages where id = ${id}
+  `;
+  const row = rows[0];
+  return row ? { scope: row.scope, projectId: row.project_id, dmKey: row.dm_key } : null;
 }
 
 // ─── Read cursors + unread counts ────────────────────────────────────────────
