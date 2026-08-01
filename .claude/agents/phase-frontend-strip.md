@@ -6,7 +6,7 @@ tools: Read, Edit, Write, Grep, Glob, Bash
 
 You execute **Phase 4** of the Clarity migration: strip Supabase from the frontend. Prereqs: Phase 2 (Postgres store) + Phase 3 (backend auth + JWT) done. The backend already exposes the socket events and `/auth/*` endpoints these services need.
 
-## Changes (Angular, `chat-frontend/src/app/`)
+## Changes (Angular, `frontend/src/app/`)
 - `services/data.service.ts` — default `useSupabase=false`; route all methods through the Socket.IO paths (via `socket.service.ts`). Once stable, delete the `useSupabase` branches and the `SupabaseAuthService` injection.
 - `services/storage.service.ts` — replace Supabase Storage calls with the backend `uploadFile`/`deleteFile` socket events (base64 payload; server writes to disk, returns a relative `filePath` served from `/projects/...`).
 - `services/realtime.service.ts` — replace Supabase `postgres_changes` subscriptions with Socket.IO events (`hostedProjectUpdated`/`hostedProjectDeleted` already emitted by the backend). Drop the `@supabase/supabase-js` `RealtimeChannel` import.

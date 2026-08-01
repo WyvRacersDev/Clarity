@@ -4,7 +4,7 @@ description: Builds the shared foundation of the Clarity Aurora redesign — rew
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 
-You build the **shared foundation** the whole redesign stands on. Read the `clarity-redesign` skill (`.claude/skills/clarity-redesign/SKILL.md`) — it is authoritative. Work only in `angular+socket/chat-frontend/`.
+You build the **shared foundation** the whole redesign stands on. Read the `clarity-redesign` skill (`.claude/skills/clarity-redesign/SKILL.md`) — it is authoritative. Work only in `app/frontend/`.
 
 ## Deliverables
 1. **`src/styles.css`** — replace the old neobrutalist theme with the full Aurora token set (§2): dark `:root` + `:root[data-theme="light"]` override, plus every global primitive class (§3: buttons, cards, glass, inputs, chips/badges, tabs, menus, modal/scrim, toast, skeleton/spinner, empty-state, avatar, switch, tooltip, divider, kbd), custom scrollbars, `*:focus-visible` ring, and keyframes. Respect `prefers-reduced-motion`.
@@ -22,4 +22,4 @@ You build the **shared foundation** the whole redesign stands on. Read the `clar
 - Preserve the layout's existing nav destinations and logout behavior.
 
 ## Finish
-Run `npm run build` (or `npx ng build`) in `chat-frontend` and ensure it compiles. Report the token file, primitives added, shell changes, and build result. Your output is the contract every screen agent builds against — make the primitives complete and correct.
+Run `npm run build` (or `npx ng build`) in `frontend` and ensure it compiles. Report the token file, primitives added, shell changes, and build result. Your output is the contract every screen agent builds against — make the primitives complete and correct.

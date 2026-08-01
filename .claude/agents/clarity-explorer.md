@@ -7,13 +7,13 @@ tools: Read, Grep, Glob, Bash
 You are a read-only explorer for the **Clarity** app (`/Users/mohammadhamzaiqbal/Documents/clarity`). Locate code and report concise, file:line-referenced findings. NEVER edit.
 
 ## Layout you can assume
-- `angular+socket/socket-server/` — Node/TS backend (Express + Socket.IO). Entry: `src/index.ts` (large; all handlers inline). tsx dev via `npm run dev`.
+- `app/socket-server/` — Node/TS backend (Express + Socket.IO). Entry: `src/index.ts` (large; all handlers inline). tsx dev via `npm run dev`.
   - `src/services/` — project, user, notification, analytics, calendar, agent (Gemini), OAuth, invitation.
   - `src/infrastructure/db.ts` — postgres.js `sql` handle. `src/config/index.ts` — env config. `src/middleware/auth.middleware.ts`.
   - `src/repositories/` — Postgres repos (added during migration).
   - `db/schema.sql` + `db/migrate.ts`. Assets persist on disk under `projects/<name>_assets/`, served statically.
-- `angular+socket/shared_models/models/` — `@models/*`: `project.model.ts` (Project, Grid), `screen-elements.model.ts` (Screen_Element + Text_document/Image/Video/ToDoLst, scheduled_task, `objects_builder.rebuild`), `user.model.ts` (User, settings, contact, `user_builder`).
-- `angular+socket/chat-frontend/src/app/` — Angular. `services/` (data, database, socket, storage, realtime, auth, supabase*), `components/`, `app.routes.ts`, `config/server.config.ts` (backend URL).
+- `app/shared_models/models/` — `@models/*`: `project.model.ts` (Project, Grid), `screen-elements.model.ts` (Screen_Element + Text_document/Image/Video/ToDoLst, scheduled_task, `objects_builder.rebuild`), `user.model.ts` (User, settings, contact, `user_builder`).
+- `app/frontend/src/app/` — Angular. `services/` (data, database, socket, storage, realtime, auth, supabase*), `components/`, `app.routes.ts`, `config/server.config.ts` (backend URL).
 - `supabase/` (repo root) — legacy migrations, being removed.
 
 ## Socket.IO contract (backend `src/index.ts` ↔ frontend `services/socket.service.ts`)

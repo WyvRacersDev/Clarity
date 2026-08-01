@@ -11,7 +11,7 @@ Built with **Angular 21** and a **Node.js + Socket.IO** backend on a
 **PostgreSQL** source of truth.
 
 > Originally built as a university project at **FAST-NUCES, Lahore**
-> (Object-Oriented Analysis & Design). The course was graded on the analysis
+> (Software Design & Analysis). The course was graded on the analysis
 > and design phases and on the correct application of **design patterns and
 > SOLID principles** — see [Design & Architecture](#design--architecture) and
 > the archived design artifacts in [`docs/design/`](./docs/design/).
@@ -156,10 +156,10 @@ clarity/
 │   └── design/                     # Archived academic design docs (proposal, diagrams, Figma)
 ├── docker-compose.yml              # Local PostgreSQL (host port 5433)
 ├── README.md
-└── angular+socket/
+└── app/
     ├── package.json                # Backend deps + scripts (dev/build/db:*/test)
     ├── vitest.config.ts
-    ├── chat-frontend/              # Angular 21 client
+    ├── frontend/              # Angular 21 client
     │   └── src/app/
     │       ├── components/         # ai-insights, analytics, assistant, chat, command-palette,
     │       │                       #   contacts, dashboard, kanban, layout, notification-bell,
@@ -198,10 +198,10 @@ clarity/
 
 ```bash
 # from the repo root
-cd angular+socket
+cd app
 npm install
 
-cd chat-frontend
+cd frontend
 npm install
 cd ..
 ```
@@ -221,7 +221,7 @@ Minimum keys to boot locally: `DATABASE_URL`, `JWT_SECRET`, `GEMINI_API_KEY`
 ### 3. Start the database and apply migrations
 
 ```bash
-# from angular+socket/
+# from app/
 npm run db:up        # starts PostgreSQL on host port 5433
 npm run db:migrate   # applies db/migrations
 npm run db:seed      # optional: seed demo data
@@ -230,7 +230,7 @@ npm run db:seed      # optional: seed demo data
 ### 4. Run the backend
 
 ```bash
-# from angular+socket/
+# from app/
 npm run dev
 ```
 
@@ -239,7 +239,7 @@ Look for `🚀 Server running on http://0.0.0.0:3000`.
 ### 5. Run the frontend
 
 ```bash
-# from angular+socket/chat-frontend/
+# from app/frontend/
 npm start
 ```
 
@@ -251,7 +251,7 @@ Open **http://localhost:4200**.
 
 ## Configuration
 
-Backend config lives in `angular+socket/socket-server/.env` (gitignored). The
+Backend config lives in `app/socket-server/.env` (gitignored). The
 committed `.env.example` documents every key; the essentials:
 
 | Variable | Purpose |
@@ -273,7 +273,7 @@ authorization. Both are gitignored.
 
 ## Scripts
 
-**Backend** — from `angular+socket/`:
+**Backend** — from `app/`:
 
 | Script | Description |
 |--------|-------------|
@@ -285,7 +285,7 @@ authorization. Both are gitignored.
 | `npm run db:seed` / `db:seed-google` | Seed demo / Google data. |
 | `npm test` | Run the Vitest suite. |
 
-**Frontend** — from `angular+socket/chat-frontend/`:
+**Frontend** — from `app/frontend/`:
 
 | Script | Description |
 |--------|-------------|

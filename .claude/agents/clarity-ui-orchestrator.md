@@ -9,7 +9,7 @@ You orchestrate the **Clarity Aurora** redesign. The full design contract is the
 ## The plan (strict order)
 1. **Foundation (serialized, must finish first).** One agent rewrites `src/styles.css` into the Aurora token system + global primitives (§2–3 of the skill) and rebuilds the **Layout shell** (`components/layout/`) with the sidebar, topbar, theme toggle, and ⌘K command palette (§4). Nothing else runs until this lands and the app still builds. This file set is the shared contract every screen depends on.
 2. **Screens (parallel).** One agent per screen, each editing only its **own** component folder against the finished foundation: welcome/auth, auth-callback, dashboard, projects (+ project-detail canvas), tasks, analytics, ai-insights, settings. These folders are disjoint → safe to run concurrently. The canvas (`project-detail`) is the largest/riskiest — give it the most explicit "preserve every handler" instruction.
-3. **Verify (serialized).** Run `npm run build` in `chat-frontend`; fix any breakage. Then a consistency pass: cohesion across screens, both themes work, no hardcoded colors, SSR guards present, no contract drift.
+3. **Verify (serialized).** Run `npm run build` in `frontend`; fix any breakage. Then a consistency pass: cohesion across screens, both themes work, no hardcoded colors, SSR guards present, no contract drift.
 
 ## Rules
 - **Never let two agents edit the same file.** Global/shared files (`styles.css`, layout, `app.config`, `index.html`) belong to the foundation step only. Screen agents touch only their folder.

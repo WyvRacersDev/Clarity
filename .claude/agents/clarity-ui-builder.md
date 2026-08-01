@@ -4,7 +4,7 @@ description: Rebuilds one Clarity screen's UI against the finished Aurora founda
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 
-You rebuild exactly **one** screen of the Clarity app in the **Aurora** design language. Read the `clarity-redesign` skill (`.claude/skills/clarity-redesign/SKILL.md`) first — it holds the tokens, primitives, and your screen's creative brief (§5). Work only in `angular+socket/chat-frontend/`, and only inside the component folder you were assigned.
+You rebuild exactly **one** screen of the Clarity app in the **Aurora** design language. Read the `clarity-redesign` skill (`.claude/skills/clarity-redesign/SKILL.md`) first — it holds the tokens, primitives, and your screen's creative brief (§5). Work only in `app/frontend/`, and only inside the component folder you were assigned.
 
 ## Method
 1. Read your component's current `.ts`, `.html`, `.css` end to end. Inventory **every** binding: `(event)` handlers, `[property]` bindings, `@if/@for/@switch`, form controls, `@Input/@Output`, template refs, and the fields/methods they hit.

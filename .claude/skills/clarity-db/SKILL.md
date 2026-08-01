@@ -7,9 +7,9 @@ description: Manage Clarity's local Postgres database (up, down, migrate, reset,
 
 Postgres is the single source of truth for Clarity's backend. It runs in Docker (`clarity-postgres`) on host port **5433**. Connection: `postgres://clarity:clarity@localhost:5433/clarity` (`DATABASE_URL`).
 
-Schema lives at `angular+socket/socket-server/db/schema.sql` and is idempotent (safe to re-run). Runner: `angular+socket/socket-server/db/migrate.ts`.
+Schema lives at `app/socket-server/db/schema.sql` and is idempotent (safe to re-run). Runner: `app/socket-server/db/migrate.ts`.
 
-## Commands (run from `angular+socket/`)
+## Commands (run from `app/`)
 - **Up:** `npm run db:up` → `docker compose -f ../docker-compose.yml up -d`
 - **Down (keep data):** `npm run db:down`
 - **Migrate / apply schema:** `npm run db:migrate`

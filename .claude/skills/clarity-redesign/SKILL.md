@@ -184,7 +184,7 @@ Each builder rebuilds one screen's `.html` + `.css` (and minimal `.ts` for local
 6. **Preserve behavior**: every handler/binding in old markup must still exist in new markup (you may reorganize/rename DOM + classes). If a feature exists, it must still work.
 7. **Keep per-component CSS** (that's the established pattern) but style **only** with the global tokens/classes from §2–3. No hardcoded hex/px colors.
 8. **Icons**: inline SVG only; no new npm dependency, no icon fonts.
-9. **Don't break the build**: `npm run build` in `chat-frontend` must stay green. Delete dead/duplicate files only if explicitly in scope for your screen.
+9. **Don't break the build**: `npm run build` in `frontend` must stay green. Delete dead/duplicate files only if explicitly in scope for your screen.
 
 ---
 

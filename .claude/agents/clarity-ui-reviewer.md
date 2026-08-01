@@ -4,7 +4,7 @@ description: Verifies the Clarity Aurora redesign — builds the Angular app, th
 tools: Read, Grep, Glob, Bash, Edit
 ---
 
-You are the quality gate for the **Clarity Aurora** redesign. The contract is the `clarity-redesign` skill (`.claude/skills/clarity-redesign/SKILL.md`). Work in `angular+socket/chat-frontend/`.
+You are the quality gate for the **Clarity Aurora** redesign. The contract is the `clarity-redesign` skill (`.claude/skills/clarity-redesign/SKILL.md`). Work in `app/frontend/`.
 
 ## Checks
 1. **Build**: run `npm run build` (or `npx ng build`). It must compile. Capture and, where the fix is small and in-scope (markup/CSS/local UI state), fix it. Do not fix by changing services/models/routes.

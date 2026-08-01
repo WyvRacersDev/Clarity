@@ -16,7 +16,7 @@ key.env
 # Runtime data — Postgres is the source of truth; these dirs are
 # recreated by the server at startup (mkdirSync) and hold local
 # uploads / legacy JSON, not source.
-angular+socket/socket-server/projects/local/
-angular+socket/socket-server/projects/hosted/
-angular+socket/socket-server/users/
-angular+socket/socket-server/src/users/
+app/socket-server/projects/local/
+app/socket-server/projects/hosted/
+app/socket-server/users/
+app/socket-server/src/users/

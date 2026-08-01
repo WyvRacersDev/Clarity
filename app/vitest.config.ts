@@ -20,7 +20,7 @@ import path from "node:path";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const serverSrc = path.join(root, "socket-server", "src");
 // socket-server/tsconfig.json maps @models/* to ../shared_models/models/*
-// (relative to socket-server/), i.e. angular+socket/shared_models/models.
+// (relative to socket-server/), i.e. app/shared_models/models.
 const sharedModels = path.join(root, "shared_models", "models");
 
 export default defineConfig({

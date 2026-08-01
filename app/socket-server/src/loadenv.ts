@@ -5,7 +5,7 @@
  * so that env vars are populated before config/index.ts reads process.env.
  *
  * Why not `import 'dotenv/config'`? That resolves `.env` relative to the CWD,
- * which for `npm run dev`/`db:*` is the package root (angular+socket/), NOT this
+ * which for `npm run dev`/`db:*` is the package root (app/), NOT this
  * folder — so the real .env silently wouldn't load. We resolve it by module path.
  */
 import dotenv from "dotenv";

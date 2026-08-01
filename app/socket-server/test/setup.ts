@@ -4,7 +4,7 @@
  * before any module under test imports src/config.
  *
  * We point dotenv at socket-server/.env explicitly because Vitest's cwd is the
- * repo `angular+socket/` root, not socket-server/.
+ * repo `app/` root, not socket-server/.
  */
 import { config as loadEnv } from "dotenv";
 import { fileURLToPath } from "node:url";

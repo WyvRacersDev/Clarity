@@ -20,15 +20,15 @@ Clarity has three processes. Start them in order and verify each.
    # wait for healthy:
    for i in $(seq 1 20); do hs=$(docker inspect --format='{{.State.Health.Status}}' clarity-postgres 2>/dev/null); [ "$hs" = "healthy" ] && break; sleep 1; done
    ```
-   Then ensure schema is applied: `cd angular+socket && npm run db:migrate`
+   Then ensure schema is applied: `cd app && npm run db:migrate`
 
-2. **Backend** — from `angular+socket/` (run in background, log to a file):
+2. **Backend** — from `app/` (run in background, log to a file):
    ```bash
    npm run dev > /tmp/clarity-backend.log 2>&1 &
    ```
    Success line in the log: `🚀 Server running on http://0.0.0.0:3000`.
 
-3. **Frontend** — from `angular+socket/chat-frontend/` (background):
+3. **Frontend** — from `app/frontend/` (background):
    ```bash
    npm start > /tmp/clarity-frontend.log 2>&1 &
    ```
@@ -40,7 +40,7 @@ Clarity has three processes. Start them in order and verify each.
 - Report the URL **http://localhost:4200** to the user.
 
 ## Notes
-- First run needs deps: `npm install` in both `angular+socket/` and `angular+socket/chat-frontend/`.
+- First run needs deps: `npm install` in both `app/` and `app/frontend/`.
 - Backend requires `socket-server/.env` to EXIST (it calls `loadEnvFile` directly and crashes if absent). Minimum keys: `DATABASE_URL`, `JWT_SECRET`, `GEMINI_API_KEY` (placeholder ok).
 - If the backend crashes on `GOOGLE_API_KEY`/Gemini, set a non-empty `GEMINI_API_KEY` placeholder — the AI agent is constructed at boot.
 - AI assistant and Google integration need real keys/credentials; the core app runs without them.
