@@ -170,6 +170,50 @@ export class CollabService {
     return this.socketService.onCursorMoved();
   }
 
+  // --- B3: collaborative text (Yjs) ------------------------------------------
+  // Room-scoped wrappers over the ydoc:* events. Payloads carry base64-encoded
+  // Yjs updates; the caller (TextDocEditorComponent) owns the Y.Doc + binding.
+
+  /**
+   * Sync a Text_document's Y.Doc with the server. Sends the local state vector,
+   * resolves with `{ update, stateVector }` (both base64) — apply `update` to the
+   * local doc, then send back the local diff against `stateVector`. Null off-room.
+   */
+  async syncYdoc(elementId: string, stateVector: string): Promise<{ update: string; stateVector: string } | null> {
+    if (!this.isBrowser || !this.isJoined || !elementId) return null;
+    try {
+      const ack = await firstValueFrom(
+        this.socketService.emitYdocSync(this.activeProjectName!, this.activeProjectType!, elementId, stateVector)
+      );
+      if (ack?.success) return { update: ack.update, stateVector: ack.stateVector };
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Send a base64 Yjs update for an element. */
+  emitYdocUpdate(elementId: string | undefined, update: string): void {
+    if (!this.isJoined || !elementId) return;
+    this.socketService.emitYdocUpdate(this.activeProjectName!, this.activeProjectType!, elementId, update);
+  }
+
+  /** Send a base64 Yjs awareness update for an element (remote cursors). */
+  emitYdocAwareness(elementId: string | undefined, update: string): void {
+    if (!this.isJoined || !elementId) return;
+    this.socketService.emitYdocAwareness(this.activeProjectName!, this.activeProjectType!, elementId, update);
+  }
+
+  /** Remote Yjs document updates (`{ elementId, update }`). */
+  onYdocUpdated(): Observable<{ elementId: string; update: string }> {
+    return this.socketService.onYdocUpdated();
+  }
+
+  /** Remote Yjs awareness updates (`{ elementId, update }`). */
+  onYdocAwareness(): Observable<{ elementId: string; update: string }> {
+    return this.socketService.onYdocAwareness();
+  }
+
   // --- A3: task comments -----------------------------------------------------
   // Thin wrappers over the ack-based add/list events + the room broadcast.
   // `projectName`/`projectType` are taken from the currently-joined room so

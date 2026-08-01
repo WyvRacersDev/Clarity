@@ -68,6 +68,7 @@ export class AuthService {
         id: String(claims['sub'] ?? ''),
         username: String(claims['username'] ?? ''),
         email: String(claims['email'] ?? ''),
+        picture: claims['picture'] ? String(claims['picture']) : undefined,
       }).catch(() => {
         const user = this.dataService.getCurrentUser();
         if (user) this.currentUserSubject.next(user);
@@ -113,7 +114,7 @@ export class AuthService {
    * it with DataService so the rest of the app (projects, contacts, socket
    * identity) resolves the same identity string the backend uses.
    */
-  private async adoptBackendUser(backendUser: { id: string; username: string; email: string }): Promise<User> {
+  private async adoptBackendUser(backendUser: { id: string; username: string; email: string; picture?: string }): Promise<User> {
     // The canonical identity MUST be the JWT `username`, because that is exactly
     // what the backend compares against: project `owner_name` is derived from
     // `users.username`, and the gateways filter/authorize with
@@ -126,6 +127,11 @@ export class AuthService {
     // Load (or create) the corresponding user record via the backend socket path.
     const user = await this.dataService.createUserAsync(identity);
     (user as any).id = backendUser.id;
+    // Attach the avatar URL (from the JWT `picture` claim) for display only.
+    // Kept off the persisted User model — it's purely a UI concern.
+    if (backendUser.picture) {
+      (user as any).picture = backendUser.picture;
+    }
     this.currentUserSubject.next(user);
     return user;
   }
@@ -231,7 +237,8 @@ export class AuthService {
     await this.adoptBackendUser({
       id: String(claims['sub'] ?? ''),
       username: String(claims['username'] ?? ''),
-      email: String(claims['email'] ?? '')
+      email: String(claims['email'] ?? ''),
+      picture: claims['picture'] ? String(claims['picture']) : undefined
     });
     return true;
   }
@@ -282,8 +289,15 @@ export class AuthService {
   }
 
   private decodeJwt(token: string): Record<string, any> | null {
+    // Guard against non-JWT / malformed values (e.g. a stale or empty
+    // localStorage entry). A JWT is `header.payload.signature`; if the payload
+    // segment is missing, `payload.replace(...)` would throw
+    // "Cannot read properties of undefined (reading 'replace')".
+    if (!token || typeof token !== 'string') return null;
+    const parts = token.split('.');
+    const payload = parts[1];
+    if (parts.length < 3 || !payload) return null;
     try {
-      const payload = token.split('.')[1];
       const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
       return JSON.parse(json);
     } catch (e) {

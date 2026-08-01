@@ -204,7 +204,7 @@ export class SocketService {
    * @param projectType 'local' or 'hosted'
    * @returns Observable that emits the save result
    */
-  saveProject(project: any, projectType: 'local' | 'hosted'): Observable<any> {
+  saveProject(project: any, projectType: 'local' | 'hosted', expectNew = false): Observable<any> {
     return new Observable(observer => {
       if (!this.isSocketAvailable()) {
         observer.error(new Error('Socket not available (SSR)'));
@@ -217,7 +217,9 @@ export class SocketService {
         observer.complete();
       }, 10000); // 10 second timeout
 
-      this.socket!.emit('saveProject', { project, projectType });
+      // A16: `expectNew` marks a CREATE — the server rejects it with an
+      // "already exists" message instead of silently overwriting a duplicate.
+      this.socket!.emit('saveProject', { project, projectType, expectNew });
 
       this.socket!.once('projectSaved', (response: any) => {
         clearTimeout(timeout);
@@ -252,13 +254,15 @@ export class SocketService {
       const eventName = `projectLoaded_${projectType}_${safeName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
       const handler = (response: any) => {
-        // Verify this is the correct project
-        if (response && response.success && response.project && response.project.name === projectName) {
-          clearTimeout(timeout);
-          this.socket!.off(eventName, handler);
-          observer.next(response);
-          observer.complete();
-        }
+        // The eventName is unique per request (name + timestamp + random), so any
+        // response on it belongs to THIS call — settle on the first one regardless
+        // of success. Previously a `success:false` (or a name mismatch) response
+        // was ignored, leaving the request to hang the full 10s timeout, which
+        // stalls the whole projects list behind one failed load.
+        clearTimeout(timeout);
+        this.socket!.off(eventName, handler);
+        observer.next(response);
+        observer.complete();
       };
 
       this.socket!.on(eventName, handler);
@@ -673,6 +677,58 @@ export class SocketService {
     this.socket!.emit('cursor:move', { projectName, projectType, x, y });
   }
 
+  // --- B3: collaborative text (Yjs) ------------------------------------------
+
+  /**
+   * Request the authoritative Y.Doc state for a Text_document element. `stateVector`
+   * (base64) lets the server reply with only the diff. Acks
+   * `{ success, elementId, update, stateVector }` (all base64) or null during SSR.
+   */
+  emitYdocSync(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    elementId: string,
+    stateVector?: string
+  ): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.next(null);
+        observer.complete();
+        return;
+      }
+      this.socket!.emit(
+        'ydoc:sync',
+        { projectName, projectType, elementId, stateVector },
+        (ack: any) => {
+          observer.next(ack);
+          observer.complete();
+        }
+      );
+    });
+  }
+
+  /** Send a base64 Yjs update for an element (applied + persisted + relayed server-side). */
+  emitYdocUpdate(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    elementId: string,
+    update: string
+  ): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('ydoc:update', { projectName, projectType, elementId, update });
+  }
+
+  /** Send a base64 Yjs awareness update (remote cursors). Fire-and-forget. */
+  emitYdocAwareness(
+    projectName: string,
+    projectType: 'local' | 'hosted',
+    elementId: string,
+    update: string
+  ): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('ydoc:awareness', { projectName, projectType, elementId, update });
+  }
+
   // --- Listen for remote element ops -----------------------------------------
 
   private onEvent(eventName: string): Observable<any> {
@@ -703,6 +759,10 @@ export class SocketService {
   onPresenceUpdate(): Observable<any> { return this.onEvent('presence:update'); }
   /** `{ username, x, y }` — remote cursor position. */
   onCursorMoved(): Observable<any> { return this.onEvent('cursor:moved'); }
+  /** `{ elementId, update }` — a remote peer's Yjs document update (base64). */
+  onYdocUpdated(): Observable<any> { return this.onEvent('ydoc:updated'); }
+  /** `{ elementId, update }` — a remote peer's Yjs awareness update (base64). */
+  onYdocAwareness(): Observable<any> { return this.onEvent('ydoc:awareness:updated'); }
 
   // --- A3: task comments (ack-based add/list + broadcast) --------------------
 
@@ -763,6 +823,138 @@ export class SocketService {
 
   /** `{ comment }` — a comment was added (broadcast to the whole room). */
   onTaskCommentAdded(): Observable<any> { return this.onEvent('task:comment:added'); }
+
+  /**
+   * N7: `{ taskId, author, body, created_at }` — someone @mentioned the current
+   * user in a comment. Delivered to the user's personal room (transient push).
+   */
+  onMentionNotified(): Observable<any> { return this.onEvent('mention:notified'); }
+
+  // --- N1: sharing / access control (ack-based) ------------------------------
+
+  /** DRY helper for an ack-based emit that resolves with the backend response. */
+  private ackEmit(event: string, payload: any, label: string): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        observer.error(new Error(`${label} timeout`));
+        observer.complete();
+      }, 10000);
+      this.socket!.emit(event, payload, (ack: any) => {
+        clearTimeout(timeout);
+        observer.next(ack);
+        observer.complete();
+      });
+    });
+  }
+
+  /** Read members + pending invitations + link config for a project. */
+  sharingGet(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
+    return this.ackEmit('sharing:get', { projectName, projectType }, 'Load sharing');
+  }
+  /** Invite an email at a role ('viewer'|'editor'|'admin'). */
+  sharingInvite(projectName: string, projectType: 'local' | 'hosted', email: string, role: string): Observable<any> {
+    return this.ackEmit('sharing:invite', { projectName, projectType, email, role }, 'Invite');
+  }
+  /** Change a collaborator's role. */
+  sharingUpdateRole(projectName: string, projectType: 'local' | 'hosted', userId: string, role: string): Observable<any> {
+    return this.ackEmit('sharing:updateRole', { projectName, projectType, userId, role }, 'Update role');
+  }
+  /** Revoke a collaborator's access. */
+  sharingRemoveMember(projectName: string, projectType: 'local' | 'hosted', userId: string): Observable<any> {
+    return this.ackEmit('sharing:removeMember', { projectName, projectType, userId }, 'Remove member');
+  }
+  /** Cancel a pending email invitation. */
+  sharingRevokeInvite(projectName: string, projectType: 'local' | 'hosted', email: string): Observable<any> {
+    return this.ackEmit('sharing:revokeInvite', { projectName, projectType, email }, 'Revoke invite');
+  }
+  /** Set "anyone with the link" access ('none'|'viewer'|'editor'). */
+  sharingSetLink(projectName: string, projectType: 'local' | 'hosted', role: string): Observable<any> {
+    return this.ackEmit('sharing:setLink', { projectName, projectType, role }, 'Set link');
+  }
+  /** `{ projectName, projectType, members, invitations, link }` — state changed. */
+  onSharingUpdated(): Observable<any> { return this.onEvent('sharing:updated'); }
+  /** `{ projectName, projectType, role, by }` — you were added to a project. */
+  onProjectShared(): Observable<any> { return this.onEvent('project:shared'); }
+
+  // --- N2: notification center + activity feed (ack-based) -------------------
+
+  /** The caller's inbox (newest first) + unread count. */
+  notificationList(limit?: number): Observable<any> {
+    return this.ackEmit('notification:list', { limit }, 'Load notifications');
+  }
+  /** Just the unread count (cheap poll used on connect). */
+  notificationUnreadCount(): Observable<any> {
+    return this.ackEmit('notification:unreadCount', {}, 'Unread count');
+  }
+  /** Mark one notification read; resolves with the fresh unread count. */
+  notificationMarkRead(id: string): Observable<any> {
+    return this.ackEmit('notification:markRead', { id }, 'Mark read');
+  }
+  /** Mark every notification read; resolves with unreadCount = 0. */
+  notificationMarkAllRead(): Observable<any> {
+    return this.ackEmit('notification:markAllRead', {}, 'Mark all read');
+  }
+  /** A project's activity feed (comments + members added). Needs view access. */
+  notificationFeed(projectName: string, projectType: 'local' | 'hosted', limit?: number): Observable<any> {
+    return this.ackEmit('notification:feed', { projectName, projectType, limit }, 'Load activity');
+  }
+  /** `{ id, type, title, body, ... }` — a new notification arrived for the current user. */
+  onNotificationNew(): Observable<any> { return this.onEvent('notification:new'); }
+
+  // --- Chat: project channels + 1:1 DMs (ack-based + broadcasts) -------------
+  //
+  // A conversation is addressed by a `target`: a project channel
+  // ({ scope:'project', projectName, projectType }) or a DM
+  // ({ scope:'dm', to }). The Angular ChatService builds these; this layer just
+  // forwards them and surfaces the acks/broadcasts as Observables.
+
+  /** Post a message. Resolves `{ success, message }`. */
+  chatSend(payload: any): Observable<any> {
+    return this.ackEmit('chat:send', payload, 'Send message');
+  }
+  /** Page a conversation oldest-first. Resolves `{ success, messages }`. */
+  chatHistory(payload: any): Observable<any> {
+    return this.ackEmit('chat:history', payload, 'Load messages');
+  }
+  /** Edit your own message. Resolves `{ success, message }`. */
+  chatEdit(payload: any): Observable<any> {
+    return this.ackEmit('chat:edit', payload, 'Edit message');
+  }
+  /** Delete your own message. Resolves `{ success, id }`. */
+  chatDelete(payload: any): Observable<any> {
+    return this.ackEmit('chat:delete', payload, 'Delete message');
+  }
+  /** Mark a conversation read up to now. Resolves `{ success }`. */
+  chatRead(payload: any): Observable<any> {
+    return this.ackEmit('chat:read', payload, 'Mark read');
+  }
+  /** Unread count for one project channel. Resolves `{ success, count }`. */
+  chatUnread(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
+    return this.ackEmit('chat:unread', { projectName, projectType }, 'Unread count');
+  }
+  /** The caller's DM conversations. Resolves `{ success, conversations }`. */
+  chatConversations(): Observable<any> {
+    return this.ackEmit('chat:conversations', {}, 'Load conversations');
+  }
+  /** Typing indicator (fire-and-forget). */
+  chatTyping(payload: any): void {
+    if (!this.isSocketAvailable()) return;
+    this.socket!.emit('chat:typing', payload);
+  }
+
+  /** `{ message }` — a message was posted to a conversation you're in. */
+  onChatMessage(): Observable<any> { return this.onEvent('chat:message'); }
+  /** `{ message }` — a message was edited. */
+  onChatMessageUpdated(): Observable<any> { return this.onEvent('chat:message:updated'); }
+  /** `{ id }` — a message was deleted. */
+  onChatMessageDeleted(): Observable<any> { return this.onEvent('chat:message:deleted'); }
+  /** `{ scope, from, conversationKey }` — someone is typing. */
+  onChatTyping(): Observable<any> { return this.onEvent('chat:typing'); }
 
    /**
    * Import Google Contacts for a user

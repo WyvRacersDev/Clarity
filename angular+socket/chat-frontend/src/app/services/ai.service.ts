@@ -6,6 +6,7 @@ import { AnalyticsService } from './analytics.service';
 import { DataService } from './data.service';
 import { Observable, tap, map } from 'rxjs';
 import { getServerConfig } from '../config/server.config';
+import { authHeaders } from '../config/auth-token';
 
 export interface AIMessage {
   role: 'user' | 'assistant';
@@ -54,7 +55,7 @@ export class AIService {
       timestamp: new Date()
     });
     console.log("Current user in AIService chat:", this.dataService.getCurrentUser());
-    return this.http.get<string>(`${getServerConfig()}/ai-assistant/chat-agent?username=${this.dataService.getCurrentUser()?.name}&input=${input}`).pipe(
+    return this.http.get<string>(`${getServerConfig()}/ai-assistant/chat-agent?username=${this.dataService.getCurrentUser()?.name}&input=${input}`, { headers: authHeaders() }).pipe(
       tap((response: string) => {
         this.chatHistory.push({
           role: 'assistant',
@@ -97,7 +98,7 @@ export class AIService {
       (async () => {
         try {
           const res = await fetch(url, {
-            headers: { Accept: 'text/event-stream' },
+            headers: { Accept: 'text/event-stream', ...authHeaders() },
             signal: controller.signal,
           });
           if (!res.ok || !res.body) {
@@ -190,7 +191,8 @@ export class AIService {
     const username = this.dataService.getCurrentUser()?.name ?? '';
     return this.http
       .get<{ suggestion: AISuggestion | null }>(
-        `${getServerConfig()}/ai-assistant/suggestions?username=${encodeURIComponent(username)}`
+        `${getServerConfig()}/ai-assistant/suggestions?username=${encodeURIComponent(username)}`,
+        { headers: authHeaders() }
       )
       // Unwrap the envelope so callers get the suggestion (or null) directly.
       .pipe(map((res) => res?.suggestion ?? null));

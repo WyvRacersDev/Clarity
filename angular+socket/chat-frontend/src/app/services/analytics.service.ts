@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { authHeaders } from '../config/auth-token';
 
 export interface SeriesEntry {
   tag: string;
@@ -23,10 +24,18 @@ export class AnalyticsService {
   constructor(private http: HttpClient) {}
 
   getCompletedPerDay(days = 30,username: string): Observable<CompletedPerDayResponse> {
-    return this.http.get<CompletedPerDayResponse>(`http://localhost:3000/analytics/completed-per-day?days=${days}&username=${username}`);
+    return this.http.get<CompletedPerDayResponse>(`http://localhost:3000/analytics/completed-per-day?days=${days}&username=${username}`, { headers: authHeaders() });
   }
 
   getCompletionRateByTag(days = 30,username:string): Observable<CompletionRateByTagResponse> {
-    return this.http.get<CompletionRateByTagResponse>(`http://localhost:3000/analytics/completion-rate-by-tag?days=${days}&username=${username}`);
+    return this.http.get<CompletionRateByTagResponse>(`http://localhost:3000/analytics/completion-rate-by-tag?days=${days}&username=${username}`, { headers: authHeaders() });
+  }
+
+  /**
+   * All distinct tags on the user's ToDoLists (regardless of task completion),
+   * used to populate the "Filter by tag" chips so every tag is selectable.
+   */
+  getUserTags(username: string): Observable<{ tags: string[] }> {
+    return this.http.get<{ tags: string[] }>(`http://localhost:3000/analytics/tags?username=${encodeURIComponent(username)}`, { headers: authHeaders() });
   }
 }
