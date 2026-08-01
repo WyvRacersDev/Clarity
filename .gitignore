@@ -12,8 +12,13 @@ package-lock.json
 
 # Scratch / stray files (not source)
 .design-preview/
-angular+socket/chat-frontend/angular 2.json
+# Finder/editor duplicate-copy artifacts ("foo 2.ts")
+**/* 2.*
 
-# Runtime project uploads (image/video assets written by the app)
-angular+socket/socket-server/projects/hosted/**/*_assets/
-angular+socket/socket-server/projects/local/x_assets/
+# Runtime data — Postgres is the source of truth; these dirs are
+# recreated by the server at startup (mkdirSync) and hold local
+# uploads / legacy JSON, not source.
+angular+socket/socket-server/projects/local/
+angular+socket/socket-server/projects/hosted/
+angular+socket/socket-server/users/
+angular+socket/socket-server/src/users/
