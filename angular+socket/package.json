@@ -17,6 +17,7 @@
     "postgres": "^3.4.9",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "yjs": "^13.6.18",
     "zod": "^4.4.3"
   },
   "scripts": {
