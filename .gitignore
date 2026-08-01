@@ -9,3 +9,11 @@ tokens.json
 key.env
 package.json
 package-lock.json
+
+# Scratch / stray files (not source)
+.design-preview/
+angular+socket/chat-frontend/angular 2.json
+
+# Runtime project uploads (image/video assets written by the app)
+angular+socket/socket-server/projects/hosted/**/*_assets/
+angular+socket/socket-server/projects/local/x_assets/
