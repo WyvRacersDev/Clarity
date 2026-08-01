@@ -35,6 +35,7 @@ import {
   getExplicitAllowedOrigins,
 } from "./config/index.js";
 import { socketAuth } from "./middleware/socketAuth.js";
+import { assertDbConnection } from "./infrastructure/db.js";
 
 // HTTP routers
 import { authRouter } from "./http/auth.routes.js";
@@ -64,6 +65,16 @@ import { ContactsService } from "@services/contacts.service.js";
 import { NotificationCenterService } from "@services/notification-center.service.js";
 import { IntegrationsService } from "@services/integrations.service.js";
 import { PresenceRegistry } from "./realtime/presence.registry.js";
+
+// H5: last-resort handlers so a stray async rejection/throw is logged instead of
+// silently taking down (or half-crashing) an unsupervised Node process. These
+// complement — they do not replace — the per-handler try/catch in the gateways.
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception:", err);
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -245,12 +256,26 @@ io.on("connection", (socket: Socket) => {
   registerNotificationGateway(io, socket, deps); // N2: notification center + activity feed
 });
 
-server.listen(SERVER_PORT, SERVER_HOST, () => {
-  console.log(`🚀 Server running on http://${SERVER_HOST}:${SERVER_PORT}`);
-  console.log(`📡 Listening on all interfaces (0.0.0.0) - ready for external connections`);
-  console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`\n📋 Port Forwarding Instructions:`);
-  console.log(`   1. Forward external port ${SERVER_PORT} to ${SERVER_PORT} on this machine`);
-  console.log(`   2. Use your public IP address for external connections`);
-  console.log(`   3. Update client config to point to your public IP:PORT`);
-});
+// H4: fail fast if Postgres (the single source of truth) is unreachable, rather
+// than booting "healthy" and having every socket op error at query time.
+async function start(): Promise<void> {
+  try {
+    await assertDbConnection();
+    console.log("🗄️  Database connection OK");
+  } catch (err) {
+    console.error("[FATAL] Cannot reach the database — refusing to start:", err);
+    process.exit(1);
+  }
+
+  server.listen(SERVER_PORT, SERVER_HOST, () => {
+    console.log(`🚀 Server running on http://${SERVER_HOST}:${SERVER_PORT}`);
+    console.log(`📡 Listening on all interfaces (0.0.0.0) - ready for external connections`);
+    console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
+    console.log(`\n📋 Port Forwarding Instructions:`);
+    console.log(`   1. Forward external port ${SERVER_PORT} to ${SERVER_PORT} on this machine`);
+    console.log(`   2. Use your public IP address for external connections`);
+    console.log(`   3. Update client config to point to your public IP:PORT`);
+  });
+}
+
+start();

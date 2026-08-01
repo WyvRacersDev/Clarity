@@ -64,6 +64,20 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
       return;
     }
     try {
+      // C2: a socket may only write its OWN user record. When the caller has an
+      // effective identity (verified JWT or identifyUser session), the payload's
+      // user.name must match it — otherwise any socket could overwrite an
+      // arbitrary account. Truly anonymous sockets keep the permissive path (used
+      // by the tokenless demo signup) but cannot target a different existing user.
+      const self = identity().username;
+      if (self && data.user?.name && data.user.name !== self) {
+        socket.emit("userSaved", {
+          success: false,
+          message: "You can only update your own profile.",
+        });
+        return;
+      }
+
       console.log(`[Server] 💾 Saving user: "${data.user?.name}"`);
       const result = await user_handler.saveUser(data.user);
 
@@ -164,6 +178,18 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
       return;
     }
     try {
+      // C2: deleting an account is self-only. Require an effective identity (no
+      // anonymous deletes) and refuse to delete anyone other than the caller —
+      // previously any socket could delete ANY user by username.
+      const self = identity().username;
+      if (!self || self !== data.username) {
+        socket.emit("userDeleted", {
+          success: false,
+          message: "You can only delete your own account.",
+        });
+        return;
+      }
+
       console.log(`[Server] 🗑️ Deleting user: "${data.username}"`);
       const result = await user_handler.deleteUser(data.username);
       socket.emit("userDeleted", result);

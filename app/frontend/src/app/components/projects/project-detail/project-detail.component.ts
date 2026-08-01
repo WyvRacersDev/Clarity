@@ -2572,7 +2572,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
 
     if (!todo.tags.includes(tag)) {
       todo.tags.push(tag);
-      console.log('Added tag:', tag, 'to todo:', todo);
       if (this.project) {
         await this.dataService.saveProject(this.project, this.project.project_type);
       }
@@ -2585,8 +2584,6 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     const i = todo.tags.indexOf(tag);
     if (i !== -1) {
       todo.tags.splice(i, 1);
-      console.log('Removed tag:', tag, 'from todo:', todo);
-      // await this.dataService.saveProject(this.project, (this.project as any).projectType);
       if (this.project) {
         await this.dataService.saveProject(this.project, this.project.project_type);
       }

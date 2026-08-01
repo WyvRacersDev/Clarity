@@ -13,8 +13,12 @@ import postgres from "postgres";
 import { DATABASE_URL } from "../config/index.js";
 
 export const sql = postgres(DATABASE_URL, {
-  // Surface connection problems loudly during development.
-  onnotice: () => {},
+  // Surface Postgres notices (deprecations, constraint messages, etc.) instead
+  // of silently discarding them — the previous no-op contradicted the intent of
+  // surfacing DB problems loudly.
+  onnotice: (notice) => {
+    console.warn("[db notice]", notice.message ?? notice);
+  },
 });
 
 /** Quick connectivity check used at server startup. */

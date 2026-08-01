@@ -10,7 +10,6 @@
  * response shape the handler uses but `{ success:false, message }`.
  */
 import type { Server, Socket } from "socket.io";
-import { objects_builder } from "@models/screen-elements.model.js";
 import type { GatewayDeps } from "./types.js";
 import {
   saveProjectSchema,
@@ -26,17 +25,6 @@ import { can } from "../services/access.service.js";
 export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
   const { project_handler, collab, identity } = deps;
 
-  // Receiving method (legacy no-op receiver, kept as-is).
-  socket.on("screenElement", (raw) => {
-    console.log("📦 Received element from client:", raw);
-
-    // Optional: rebuild for server use
-    const element = objects_builder.rebuild(raw); //will be used to store later on (abhi kerna hai)
-
-    // Do something locally (save, log, process)
-    // ❌ No broadcasting back
-  });
-
   /**
    * Save a project
    * Expected payload: { project: Project, projectType: 'local' | 'hosted' }
@@ -50,11 +38,14 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
     try {
       const projectType = data.projectType || data.project?.project_type || "local";
 
-      // Derive the OWNER from the verified token when present, ignoring any
-      // client-sent owner_name (authorization must not trust the payload).
-      // In permissive mode (no token) we keep the payload's owner_name.
-      if (socket.data.user && data.project) {
-        data.project.owner_name = socket.data.user.username;
+      // Derive the OWNER from the caller's effective identity (verified JWT, or
+      // the legacy identifyUser session in permissive mode) instead of trusting
+      // the client-sent owner_name — otherwise any socket can create/impersonate
+      // an arbitrary owner (C3). Only truly anonymous sockets (never identified)
+      // fall back to the payload's owner_name.
+      const effectiveOwner = identity().username;
+      if (effectiveOwner && data.project) {
+        data.project.owner_name = effectiveOwner;
       }
 
       // A16: on an explicit CREATE (`expectNew`), refuse to silently overwrite an
@@ -197,11 +188,15 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
           const result = await project_handler.listProjectsForUser("local", currentUser);
           socket.emit(`projectsListed_${data.projectType}`, result);
         } else {
-          const result = await project_handler.listProjects("local");
-          if (result.success && result.projects) {
-            result.projects = result.projects.filter((p: any) => p.owner_name === currentUser);
-          }
-          socket.emit(`projectsListed_${data.projectType}`, result);
+          // Anonymous/unidentified socket: no identity means no owned or shared
+          // local projects to show. (The old code filtered by `currentUser`,
+          // which is always undefined here, so the predicate could never match —
+          // return the empty result explicitly instead of a dead filter.)
+          socket.emit(`projectsListed_${data.projectType}`, {
+            success: true,
+            projects: [],
+            message: "No projects",
+          });
         }
       }
     } catch (error: any) {
@@ -225,6 +220,21 @@ export function register(io: Server, socket: Socket, deps: GatewayDeps): void {
       return;
     }
     try {
+      // C1: deleting a project is destructive — authorize it. Require `manage`
+      // (owner/admin) via the same role model loadProject uses for `view`.
+      // Without this any connected socket could delete ANY project by name.
+      const currentUser = identity().username;
+      const access = await collab.authorize(
+        data.projectName,
+        data.projectType,
+        currentUser,
+        "manage"
+      );
+      if (!access.ok) {
+        socket.emit("projectDeleted", { success: false, message: access.message });
+        return;
+      }
+
       console.log("🗑️ Deleting project:", data.projectName, "Type:", data.projectType);
       const result = await project_handler.deleteProject(data.projectName, data.projectType);
 

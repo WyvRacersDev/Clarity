@@ -652,16 +652,22 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
         creation_time: Date | null;
         calendar_event_id: string | null;
         notified: boolean;
+        repeat: string;
+        status: string;
       }>
     >`
       select t.id, t.taskname, t.priority, t.is_done, t.time,
              t.completion_time, t.creation_time, t.calendar_event_id,
-             t.notified, cu.username as completed_by_username
+             t.notified, t.repeat, t.status, cu.username as completed_by_username
       from tasks t
       left join users cu on cu.id = t.completed_by
       where t.element_id = ${el.id}
       order by t.sort_order asc, t.creation_time asc
     `;
+    // Field set MUST match the whole-project loadProject serialization (incl.
+    // repeat/status) so a live element:created broadcast and a later reload
+    // produce the same task shape — otherwise recurrence/kanban-lane data is
+    // dropped for collaborators until they refresh (H3).
     const scheduled_tasks = taskRows.map((t) => ({
       type: "scheduled_task",
       id: t.id,
@@ -674,6 +680,9 @@ async function serializeElementRow(el: ElementRow): Promise<any> {
       creation_time: t.creation_time ? t.creation_time.toISOString() : "",
       calendar_event_id: t.calendar_event_id ?? null,
       notified: t.notified,
+      repeat: t.repeat ?? "none",
+      // N6: derive the lane from is_done for rows predating the status column.
+      status: t.status ?? (t.is_done ? "done" : "todo"),
     }));
     return {
       ...base,

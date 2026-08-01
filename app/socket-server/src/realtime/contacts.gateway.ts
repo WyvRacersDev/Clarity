@@ -29,7 +29,11 @@ export function register(_io: Server, socket: Socket, deps: GatewayDeps): void {
       return;
     }
     // Prefer the verified token identity; calendar/contacts key on email.
-    const username = socket.data.user?.username ?? rawData.username;
+    const username = socket.data.user?.username ?? rawData?.username;
+    if (!username) {
+      socket.emit("contactsImported", { success: false, message: "No user identity provided." });
+      return;
+    }
     console.log(`[Server] 📇 Import Google Contacts requested for: ${username}`);
 
     try {

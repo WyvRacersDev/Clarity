@@ -14,9 +14,11 @@ import { Router, json } from "express";
 import type { Chat_Agent, AgentProjectScope } from "@services/agent.service.js";
 import { computeSuggestionsForUser } from "@services/notification.service.js";
 import { resolveIdentity, resolveUsername } from "../middleware/auth.middleware.js";
+import { AccessService, type ProjectType } from "@services/access.service.js";
 
 export function createAiRouter(agent: Chat_Agent): Router {
   const aiRouter: Router = Router();
+  const access = new AccessService();
 
   // E9: optional project scope from the query. When a project is provided the
   // agent grounds its answer/tools in that project's context (see build_scope_prefix).
@@ -140,6 +142,28 @@ export function createAiRouter(agent: Chat_Agent): Router {
     if (!projectName || !thread) {
       return res.status(400).json({ error: true, message: "projectName and thread are required." });
     }
+
+    // C4: writing tasks into a project requires EDIT access. Authorize the caller
+    // (verified JWT username, honouring AUTH_STRICT) against the project before
+    // the agent creates anything — previously this route wrote into any project
+    // by name with no access check. When the type is omitted we try both.
+    const caller = resolveUsername(req) || undefined;
+    const typesToTry: ProjectType[] = projectType ? [projectType] : ["local", "hosted"];
+    let authorized = false;
+    let lastMessage = "Project not found";
+    for (const type of typesToTry) {
+      const decision = await access.authorize(projectName, type, caller, "edit");
+      if (decision.ok) {
+        authorized = true;
+        break;
+      }
+      // Prefer a "forbidden" message over "not found" when the project exists.
+      if (decision.reason === "forbidden") lastMessage = decision.message;
+    }
+    if (!authorized) {
+      return res.status(403).json({ error: true, message: lastMessage });
+    }
+
     try {
       const result = await agent.thread_to_tasks_by_name(
         projectType ? { project_name: projectName, projectType, thread } : { project_name: projectName, thread }

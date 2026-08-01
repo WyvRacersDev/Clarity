@@ -235,6 +235,51 @@ export class SocketService {
     });
   }
 
+  /**
+   * H2: emit `emitEvent` and settle on the first `responseEvent`, ALWAYS removing
+   * the listener afterwards — on success AND on timeout. The previous pattern
+   * registered `.once(responseEvent)` alongside a separate timeout that errored
+   * without ever calling `.off`; a late/failed response then left a dangling
+   * listener that would consume the NEXT request's response (cross-talk). Use for
+   * the fixed-name response events (projectSaved / userSaved / usersListed / …).
+   */
+  private emitAwait(
+    emitEvent: string,
+    payload: any,
+    responseEvent: string,
+    label: string,
+    timeoutMs = 10000
+  ): Observable<any> {
+    return new Observable(observer => {
+      if (!this.isSocketAvailable()) {
+        observer.error(new Error('Socket not available (SSR)'));
+        observer.complete();
+        return;
+      }
+      let settled = false;
+      const cleanup = () => {
+        clearTimeout(timer);
+        if (this.isSocketAvailable()) this.socket!.off(responseEvent, handler);
+      };
+      const handler = (response: any) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        observer.next(response);
+        observer.complete();
+      };
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        observer.error(new Error(`${label} timeout`));
+        observer.complete();
+      }, timeoutMs);
+      this.socket!.on(responseEvent, handler);
+      this.socket!.emit(emitEvent, payload);
+    });
+  }
+
   // === Project Management Methods ===
 
   /**
@@ -244,28 +289,14 @@ export class SocketService {
    * @returns Observable that emits the save result
    */
   saveProject(project: any, projectType: 'local' | 'hosted', expectNew = false): Observable<any> {
-    return new Observable(observer => {
-      if (!this.isSocketAvailable()) {
-        observer.error(new Error('Socket not available (SSR)'));
-        observer.complete();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        observer.error(new Error('Save project timeout'));
-        observer.complete();
-      }, 10000); // 10 second timeout
-
-      // A16: `expectNew` marks a CREATE — the server rejects it with an
-      // "already exists" message instead of silently overwriting a duplicate.
-      this.socket!.emit('saveProject', { project, projectType, expectNew });
-
-      this.socket!.once('projectSaved', (response: any) => {
-        clearTimeout(timeout);
-        observer.next(response);
-        observer.complete();
-      });
-    });
+    // A16: `expectNew` marks a CREATE — the server rejects it with an
+    // "already exists" message instead of silently overwriting a duplicate.
+    return this.emitAwait(
+      'saveProject',
+      { project, projectType, expectNew },
+      'projectSaved',
+      'Save project'
+    );
   }
 
   /**
@@ -347,20 +378,12 @@ export class SocketService {
    * @returns Observable that emits the delete result
    */
   deleteProject(projectName: string, projectType: 'local' | 'hosted'): Observable<any> {
-    return new Observable(observer => {
-      if (!this.isSocketAvailable()) {
-        observer.error(new Error('Socket not available (SSR)'));
-        observer.complete();
-        return;
-      }
-
-      this.socket!.emit('deleteProject', { projectName, projectType });
-
-      this.socket!.once('projectDeleted', (response: any) => {
-        observer.next(response);
-        observer.complete();
-      });
-    });
+    return this.emitAwait(
+      'deleteProject',
+      { projectName, projectType },
+      'projectDeleted',
+      'Delete project'
+    );
   }
   // === User Management Methods ===
 
@@ -370,26 +393,7 @@ export class SocketService {
    * @returns Observable that emits the save result
    */
   saveUser(user: any): Observable<any> {
-    return new Observable(observer => {
-      if (!this.isSocketAvailable()) {
-        observer.error(new Error('Socket not available (SSR)'));
-        observer.complete();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        observer.error(new Error('Save user timeout'));
-        observer.complete();
-      }, 10000); // 10 second timeout
-
-      this.socket!.emit('saveUser', { user });
-
-      this.socket!.once('userSaved', (response: any) => {
-        clearTimeout(timeout);
-        observer.next(response);
-        observer.complete();
-      });
-    });
+    return this.emitAwait('saveUser', { user }, 'userSaved', 'Save user');
   }
 
   /**
@@ -427,26 +431,7 @@ export class SocketService {
    * @returns Observable that emits the list of users
    */
   listUsers(): Observable<any> {
-    return new Observable(observer => {
-      if (!this.isSocketAvailable()) {
-        observer.error(new Error('Socket not available (SSR)'));
-        observer.complete();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        observer.error(new Error('List users timeout'));
-        observer.complete();
-      }, 10000);
-
-      this.socket!.once('usersListed', (response: any) => {
-        clearTimeout(timeout);
-        observer.next(response);
-        observer.complete();
-      });
-
-      this.socket!.emit('listUsers', {});
-    });
+    return this.emitAwait('listUsers', {}, 'usersListed', 'List users');
   }
   /**
    * Delete a user from the server
@@ -454,20 +439,7 @@ export class SocketService {
    * @returns Observable that emits the delete result
    */
   deleteUser(username: string): Observable<any> {
-    return new Observable(observer => {
-      if (!this.isSocketAvailable()) {
-        observer.error(new Error('Socket not available (SSR)'));
-        observer.complete();
-        return;
-      }
-
-      this.socket!.emit('deleteUser', { username });
-
-      this.socket!.once('userDeleted', (response: any) => {
-        observer.next(response);
-        observer.complete();
-      });
-    });
+    return this.emitAwait('deleteUser', { username }, 'userDeleted', 'Delete user');
   }
   /**
   * Check if a user exists on the server
@@ -475,26 +447,12 @@ export class SocketService {
   * @returns Observable that emits whether the user exists
   */
   checkUserExists(username: string): Observable<any> {
-    return new Observable(observer => {
-      if (!this.isSocketAvailable()) {
-        observer.error(new Error('Socket not available (SSR)'));
-        observer.complete();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        observer.error(new Error('Check user exists timeout'));
-        observer.complete();
-      }, 10000);
-
-      this.socket!.once('userExistsResult', (response: any) => {
-        clearTimeout(timeout);
-        observer.next(response);
-        observer.complete();
-      });
-
-      this.socket!.emit('checkUserExists', { username });
-    });
+    return this.emitAwait(
+      'checkUserExists',
+      { username },
+      'userExistsResult',
+      'Check user exists'
+    );
   }
   /**
    * Upload a file (image or video) for a project
